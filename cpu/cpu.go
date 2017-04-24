@@ -2,8 +2,8 @@ package cpu
 
 import "fmt"
 
-// CPU elements:
-type cpu struct {
+// CPU type:
+type CPU struct {
 	registers                   [8]uint16
 	statusFlags                 byte
 	floatingPointStatusRegister byte
@@ -13,22 +13,23 @@ type cpu struct {
 // cpu should be able to fetch, decode and execute:
 
 // Fetch loads next command from memory
-func (c cpu) Fetch() {
+func (c CPU) Fetch() {
 	fmt.Printf("CPU Fetch\n")
 }
 
 //Decode - missing comment
-func (c cpu) Decode() {
+func (c CPU) Decode() {
 	fmt.Printf("Decode..\n")
 }
 
-func (c cpu) Execute() {
+// Execute fetched order
+func (c CPU) Execute() {
 	fmt.Printf("Execute.. \n")
 }
 
 // helper functions:
 
 // DumpRegisters displays register values
-func (c cpu) DumpRegisters() {
+func (c CPU) DumpRegisters() {
 	fmt.Printf("nothing to see yet \n")
 }
