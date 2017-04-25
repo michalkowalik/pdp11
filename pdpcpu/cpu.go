@@ -1,4 +1,4 @@
-package cpu
+package pdpcpu
 
 import "fmt"
 
@@ -12,17 +12,17 @@ type CPU struct {
 
 // cpu should be able to fetch, decode and execute:
 
-// Fetch loads next command from memory
+// Fetch next instruction from memory
 func (c CPU) Fetch() {
 	fmt.Printf("CPU Fetch\n")
 }
 
-//Decode - missing comment
+//Decode fetched instruction
 func (c CPU) Decode() {
 	fmt.Printf("Decode..\n")
 }
 
-// Execute fetched order
+// Execute decoded instruction
 func (c CPU) Execute() {
 	fmt.Printf("Execute.. \n")
 }

@@ -3,3 +3,4 @@ pkg/*
 bin/*
 **/*.min.*
 pdp
+pdp.exe
