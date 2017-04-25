@@ -31,5 +31,7 @@ func (c CPU) Execute() {
 
 // DumpRegisters displays register values
 func (c CPU) DumpRegisters() {
-	fmt.Printf("nothing to see yet \n")
+	for i, reg := range c.registers {
+		fmt.Printf("R%d: 0x%x\n", i, reg)
+	}
 }
