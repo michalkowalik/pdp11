@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"pdp/system"
+)
 
 func main() {
-	fmt.Printf("Starting PDP-11/44 emulator..\n")
+	fmt.Printf("Starting PDP-11/70 emulator..\n")
+	pdp := system.InitializeSystem()
+	pdp.Noop()
 }

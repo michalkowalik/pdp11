@@ -4,7 +4,7 @@ import "fmt"
 
 // CPU type:
 type CPU struct {
-	registers                   [8]uint16
+	registers                   [8]int16
 	statusFlags                 byte
 	floatingPointStatusRegister byte
 	statusRegister              uint16
@@ -28,6 +28,20 @@ func (c *CPU) Execute() {
 }
 
 // helper functions:
+
+// readWord returns value specified by source or destination part of the operand.
+func (c *CPU) readWord(op int16) int16 {
+	// check mode:
+	mode := op >> 3
+	register := op & 07
+	switch mode {
+	case 0:
+		//value directly in register
+		return c.registers[register]
+	default:
+		return 0
+	}
+}
 
 // DumpRegisters displays register values
 func (c *CPU) DumpRegisters() {
