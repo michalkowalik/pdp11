@@ -9,6 +9,9 @@ import (
 type System struct {
 	Memory [4 * 1024 * 1024]byte
 	CPU    *pdpcpu.CPU
+
+	// Unibus map registers
+	UnibusMap [32]int16
 }
 
 // InitializeSystem initializes the emulated PDP-11/44 hardware
