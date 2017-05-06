@@ -1,5 +1,9 @@
 package system
 
+import (
+	"fmt"
+)
+
 // PDP11/70 can be equipped with up to 4MB of RAM.
 // As the memory addresses suppored by the cpu are 16bit long,
 // that means, there's only 64K of memory directly accessible to the program.
@@ -55,6 +59,8 @@ type MMU struct {
 	// Those modify the MMU Mode without writing the PSW and set it back if all worked OK
 	MMUMode int
 
+	// MMU Page Address Registers
+	// TODO -> Why 16 per map? Shouldn't be 8?
 	// relying on zero-initialization
 	// 0 = kernel
 	// 1 = super
@@ -67,6 +73,7 @@ type MMU struct {
 }
 
 // MapVirtualToPhysical maps the 17 bit I/D virtual address to a 22 bit physical address
+// TODO: All checks and specifics (i.e. 18bit calculation)
 func (m *MMU) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint32 {
 	var physicalAddress uint32
 	// this access doesn't require MMU
@@ -75,7 +82,51 @@ func (m *MMU) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint
 		m.MMMULastVirtual = virtualAddress & 0xffff
 		// TODO: add boundary checks, throw trap if fail
 		return physicalAddress
+		// in any other case, MMU is required:
 	}
-	// return dummy value for now
+
+	// In any other case MMU translation is required.
+	m.MMMULastVirtual = virtualAddress
+
+	// address page -> oldest 3 bits points to the MMR keeping it
+	page := virtualAddress >> 13
+	fmt.Printf("DEBUG: page: %#o\n", page)
+	// TODO: Add error checking like in pdp11.js, line 484
+
+	// pdr: address pointed by PAR:
+	pdr := m.MMUPRD[m.MMUMode][page]
+	fmt.Printf("DEBUG: pdr: %#o\n", pdr)
+
+	// physical address calculation:
+	physicalAddress = (uint32(m.MMUPar[m.MMUMode][page]<<6) + uint32(virtualAddress&0x1FFF)) & 0x3fffff
 	return physicalAddress
+}
+
+// GetVirtualByMode maps six bit instruction operand to a 17 bit virtual address space.
+// Below follows a copied comment from  http://skn.noip.me/pdp11/pdp11.html
+// Instruction operands are six bits in length - three bits for the mode and three
+// for the register. The 17th I/D bit in the resulting virtual address represents
+// whether the reference is to Instruction space or Data space - which depends on
+// combination of the mode and whether the register is the Program Counter (register 7).
+//
+// The eight modes are:-
+//              0       R                       no valid virtual address
+//              1       (R)                     operand from I/D depending if R = 7
+//              2       (R)+            operand from I/D depending if R = 7
+//              3       @(R)+           address from I/D depending if R = 7 and operand from D space
+//              4       -(R)            operand from I/D depending if R = 7
+//              5       @-(R)           address from I/D depending if R = 7 and operand from D space
+//              6       x(R)            x from I space but operand from D space
+//              7       @x(R)           x from I space but address and operand from D space
+//
+// Stack limit checks are implemented for modes 1, 2, 4 & 6 (!)
+//
+// Also need to keep CPU.MMR1 updated as this stores which registers have been
+// incremented and decremented so that the OS can reset and restart an instruction
+// if a page fault occurs.
+// accessMode -> one of the Read, write, modify -> binary value, 0, 1, 2, 4 etc.
+func (m *MMU) GetVirtualByMode(instruction, accessMode uint16) uint32 {
+
+	// all-catcher return
+	return 0
 }
