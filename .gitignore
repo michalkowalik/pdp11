@@ -3,3 +3,7 @@
 pkg/*
 bin/*
 **/*.min.*
+pdp
+pdp.exe
+src/*.com/*
+src/*.org/*
