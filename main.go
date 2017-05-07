@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"pdp/system"
 
 	"log"
 
@@ -21,23 +22,54 @@ func main() {
 		log.Panicln(err)
 	}
 
+	// start emulation
+	g.Execute(startPdp)
+
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
 	}
+}
 
-	// fmt.Printf("Starting PDP-11/70 emulator..\n")
-	// pdp := system.InitializeSystem()
-	// pdp.Noop()
+// start pdp11 --> output to either console or status line..
+// (btw -- will it provide the buffer to show the most recent lines?)
+func startPdp(g *gocui.Gui) error {
+	statusView, err := g.View("status")
+	if err != nil {
+		return err
+	}
+	statusView.Clear()
+
+	consoleView, err := g.View("console")
+	if err != nil {
+		return err
+	}
+	consoleView.Clear()
+
+	fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
+	pdp := system.InitializeSystem(statusView, consoleView)
+	pdp.Noop()
+
+	// default return value -> no errors encoutered
+	return nil
 }
 
 // gocui layout
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
-	if v, err := g.SetView("PDP 11/70", maxX/2-7, maxY/2, maxX/2+7, maxY/2+2); err != nil {
+	// up -> console
+	if v, err := g.SetView("console", 0, 0, maxX-1, maxY-15); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		fmt.Fprintln(v, "Hello world!")
+		v.Title = "Console"
+	}
+
+	// down -> status
+	if v, err := g.SetView("status", 0, maxY-14, maxX-1, maxY-1); err != nil {
+		if err != gocui.ErrUnknownView {
+			return err
+		}
+		v.Title = "Status"
 	}
 	return nil
 }
