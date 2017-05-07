@@ -18,15 +18,18 @@ type System struct {
 	// console and status output:
 	statusView  *gocui.View
 	consoleView *gocui.View
+	regView     *gocui.View
 }
 
 // InitializeSystem initializes the emulated PDP-11/44 hardware
-func InitializeSystem(statusView, consoleView *gocui.View) *System {
+func InitializeSystem(statusView, consoleView, regView *gocui.View) *System {
 	sys := new(System)
 	sys.CPU = new(pdpcpu.CPU)
 	sys.statusView = statusView
 	sys.consoleView = consoleView
+	sys.regView = regView
 	fmt.Fprintf(statusView, "Initializing PDP11 CPU...\n")
+
 	return sys
 }
 

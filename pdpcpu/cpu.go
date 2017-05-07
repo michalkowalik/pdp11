@@ -1,6 +1,7 @@
 package pdpcpu
 
 import "fmt"
+import "github.com/jroimartin/gocui"
 
 // CPU type:
 type CPU struct {
@@ -44,8 +45,8 @@ func (c *CPU) readWord(op int16) int16 {
 }
 
 // DumpRegisters displays register values
-func (c *CPU) DumpRegisters() {
+func (c *CPU) DumpRegisters(regView *gocui.View) {
 	for i, reg := range c.registers {
-		fmt.Printf("R%d: 0x%x\n", i, reg)
+		fmt.Fprintf(regView, " |R%d: %#o | ", i, reg)
 	}
 }
