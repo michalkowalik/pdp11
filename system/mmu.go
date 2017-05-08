@@ -110,8 +110,8 @@ func (m *MMU) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint
 // combination of the mode and whether the register is the Program Counter (register 7).
 //
 // The eight modes are:-
-//              0       R                       no valid virtual address
-//              1       (R)                     operand from I/D depending if R = 7
+//              0       R               no valid virtual address
+//              1       (R)             operand from I/D depending if R = 7
 //              2       (R)+            operand from I/D depending if R = 7
 //              3       @(R)+           address from I/D depending if R = 7 and operand from D space
 //              4       -(R)            operand from I/D depending if R = 7
@@ -125,8 +125,67 @@ func (m *MMU) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint
 // incremented and decremented so that the OS can reset and restart an instruction
 // if a page fault occurs.
 // accessMode -> one of the Read, write, modify -> binary value, 0, 1, 2, 4 etc.
+// TODO: Move to CPU module?
 func (m *MMU) GetVirtualByMode(instruction, accessMode uint16) uint32 {
+	// var addressInc int
+	// reg := instruction & 7
+	addressMode := (instruction >> 3) & 7
+	switch addressMode {
+	case 0:
+		return 0
+	case 1:
+		return 1
+	case 2:
+		return 2
+	case 3:
+		return 3
+	case 4:
+		return 4
+	case 5:
+		return 5
+	case 6:
+		return 6
+	case 7:
+		return 7
+	}
+	// deal with change of address pointer in the register if needed:
 
 	// all-catcher return
 	return 0
+}
+
+// ReadMemoryWord reads 16 bit word from the memory
+// params:
+// addr : 16 bit virtual address
+// returns: 16 bit word
+func (m *MMU) ReadMemoryWord(addr int16) int16 {
+	return 0
+}
+
+// ReadMemoryByte returns single byte from the memory
+// params:
+// addr: 16 bit virtual address
+// returns: byte
+func (m *MMU) ReadMemoryByte(addr int16) byte {
+	return 0
+}
+
+// WriteMemoryWord writes 16 bit word at the memory address
+// passed as function parameter
+// params:
+// addr: 16 bit virtual address
+// data: 16 bit word to write
+// returns: error
+func (m *MMU) WriteMemoryWord(addr, data int16) error {
+	return nil
+}
+
+// WriteMemoryByte writes 8 bit byte at the memory address
+// passed as function parameter
+// params:
+// addr: 16 bit virtual addr
+// data: byte to be written
+// returns: error
+func (m *MMU) WriteMemoryByte(addr int16, data byte) error {
+	return nil
 }

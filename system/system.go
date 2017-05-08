@@ -12,6 +12,8 @@ type System struct {
 	Memory [4 * 1024 * 1024]byte
 	CPU    *pdpcpu.CPU
 
+	mmuEnabled bool
+
 	// Unibus map registers
 	UnibusMap [32]int16
 
@@ -28,6 +30,10 @@ func InitializeSystem(statusView, consoleView, regView *gocui.View) *System {
 	sys.statusView = statusView
 	sys.consoleView = consoleView
 	sys.regView = regView
+
+	// start emulation with disabled mmu:
+	sys.mmuEnabled = false
+
 	fmt.Fprintf(statusView, "Initializing PDP11 CPU...\n")
 
 	return sys
