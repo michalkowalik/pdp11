@@ -24,16 +24,22 @@ type System struct {
 	regView     *gocui.View
 }
 
+var mmu MMU
+
 // InitializeSystem initializes the emulated PDP-11/44 hardware
 func InitializeSystem(statusView, consoleView, regView *gocui.View) *System {
 	sys := new(System)
-	sys.CPU = new(pdpcpu.CPU)
+	sys.CPU = pdpcpu.New()
 	sys.statusView = statusView
 	sys.consoleView = consoleView
 	sys.regView = regView
 
 	// start emulation with disabled mmu:
 	sys.mmuEnabled = false
+
+	// point mmu to memory:
+	mmu = MMU{}
+	mmu.Memory = &sys.Memory
 
 	fmt.Fprintf(statusView, "Initializing PDP11 CPU...\n")
 
@@ -72,7 +78,6 @@ func (sys *System) Noop() {
 func (sys *System) GetVirtualByMode(instruction, accessMode uint16) (uint32, error) {
 
 	c := sys.CPU
-	mmu := MMU{}
 
 	var addressInc int16
 	reg := instruction & 7

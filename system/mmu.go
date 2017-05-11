@@ -43,6 +43,7 @@ const ModifyByte = ReadMode | WriteMode | ByteMode
 
 // MMU related functionality - translating virtual to physical addresses.
 type MMU struct {
+	Memory          *[4 * 1024 * 1024]byte
 	MMR             [4]int16 // Memory Management Registers
 	MMR3Map         [4]int16 // Map from mode to MMR3 I/D bit mask
 	MMUEnable       int16
@@ -107,7 +108,11 @@ func (m *MMU) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint
 // addr : 16 bit virtual address
 // returns: 16 bit word
 func (m *MMU) ReadMemoryWord(addr uint16) uint16 {
-	return 0
+	// NO MMU SUPPORT SO FAR, 16 bit ADDRESSING ONLY HERE!!
+	lowerBit := m.Memory[addr]
+	higherBit := m.Memory[addr+1]
+	returnWord := uint16(higherBit) << 8
+	return returnWord | uint16(lowerBit)
 }
 
 // ReadMemoryByte returns single byte from the memory
