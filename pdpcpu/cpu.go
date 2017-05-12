@@ -3,6 +3,10 @@ package pdpcpu
 import (
 	"fmt"
 
+	"pdp/mmu"
+
+	"bytes"
+
 	"github.com/jroimartin/gocui"
 )
 
@@ -12,6 +16,9 @@ type CPU struct {
 	statusFlags                 byte
 	floatingPointStatusRegister byte
 	statusRegister              uint16
+
+	// memory access is required:
+	mmunit *mmu.MMU
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it
@@ -36,9 +43,9 @@ const WriteMode = 4
 const ModifyWord = ReadMode | WriteMode
 
 //New initializes and returns the CPU variable:
-func New() *CPU {
+func New(mmunit *mmu.MMU) *CPU {
 	c := CPU{}
-
+	c.mmunit = mmunit
 	// single operand
 	c.opcodes = make(map[int16](func(int16) error))
 	c.opcodes[050] = clrOp
@@ -66,6 +73,7 @@ func (c *CPU) Execute() {
 
 // helper functions:
 
+// TODO: Is it really needed for anything?
 // readWord returns value specified by source or destination part of the operand.
 func (c *CPU) readWord(op int16) uint16 {
 	// check mode:
@@ -78,6 +86,15 @@ func (c *CPU) readWord(op int16) uint16 {
 	default:
 		return 0
 	}
+}
+
+//PrintRegisters returns buffer status as a string
+func (c *CPU) PrintRegisters() string {
+	var buffer bytes.Buffer
+	for i, reg := range c.Registers {
+		buffer.WriteString(fmt.Sprintf(" |R%d: %#o | ", i, reg))
+	}
+	return buffer.String()
 }
 
 // DumpRegisters displays register values
@@ -94,5 +111,6 @@ func clrOp(instruction int16) error {
 
 // double operand cpu instructions:
 func addOp(instruction int16) error {
+
 	return nil
 }
