@@ -167,7 +167,6 @@ func (m *MMU) WriteMemoryByte(addr uint16, data byte) error {
 // incremented and decremented so that the OS can reset and restart an instruction
 // if a page fault occurs.
 // accessMode -> one of the Read, write, modify -> binary value, 0, 1, 2, 4 etc.
-// TODO: Move to CPU module?
 func (m *MMU) GetVirtualByMode(registers *[8]uint16,
 	instruction, accessMode uint16) (uint32, error) {
 	var addressInc int16
