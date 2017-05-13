@@ -210,7 +210,7 @@ func (m *MMU) GetVirtualByMode(registers *[8]uint16,
 	case 7:
 		baseAddr := m.ReadMemoryWord(registers[7])
 		virtAddress = uint32((baseAddr + registers[reg]) & 0xffff)
-
+		virtAddress = uint32(m.ReadMemoryWord(uint16(virtAddress)))
 		// increment program counter register
 		registers[7] = (registers[7] + 2) & 0xffff
 	}

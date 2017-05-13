@@ -33,6 +33,8 @@ var virtualAddressTests = []struct {
 	{030, 2, true},
 	{040, 0, true}, // <- autodecrement! expect dragons! and re-test with byte mode
 	{050, 0, true},
+	{061, 020, true},
+	{071, 040, true},
 }
 
 // check if an address in memory can be read
@@ -48,6 +50,12 @@ func TestGetVirtualAddress(t *testing.T) {
 		sys.Memory[1] = 1
 		sys.Memory[0] = 4
 		sys.CPU.Registers[0] = 2
+
+		// setup memory and registers for index mode:
+		sys.CPU.Registers[7] = 010
+		sys.CPU.Registers[1] = 010
+		sys.Memory[010] = 010
+		sys.Memory[020] = 040
 
 		virtualAddress, err := mmunit.GetVirtualByMode(&sys.CPU.Registers, test.op, 0)
 		if virtualAddress != test.virtualAddress {

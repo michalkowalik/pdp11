@@ -13,7 +13,7 @@ import (
 // CPU type:
 type CPU struct {
 	Registers                   [8]uint16
-	statusFlags                 byte
+	statusFlags                 byte // not needed?
 	floatingPointStatusRegister byte
 	statusRegister              uint16
 
@@ -102,6 +102,42 @@ func (c *CPU) DumpRegisters(regView *gocui.View) {
 	for i, reg := range c.Registers {
 		fmt.Fprintf(regView, " |R%d: %#o | ", i, reg)
 	}
+}
+
+// status word handling:
+
+//SetCFlag sets CPU carry flag in Processor Status Word
+func (c *CPU) SetCFlag(set bool) {
+	if set == true {
+		c.statusRegister = c.statusRegister | 1
+	} else {
+		c.statusRegister = c.statusRegister & 0xfffe
+	}
+}
+
+//GetCFlag returns carry flag
+func (c *CPU) GetCFlag() bool {
+	if cFlag := c.statusRegister & 1; cFlag == 1 {
+		return true
+	}
+	return false
+}
+
+//SetVFlag sets CPU Overflow flag in ProcessorStatus Word
+func (c *CPU) SetVFlag(set bool) {
+	if set == true {
+		c.statusRegister = c.statusRegister | 2
+	} else {
+		c.statusRegister = c.statusRegister & 0xfffd
+	}
+}
+
+//GetVFlag returns overflow cpu flag
+func (c *CPU) GetVFlag() bool {
+	if vFlag := (c.statusRegister >> 1) & 1; vFlag == 1 {
+		return true
+	}
+	return false
 }
 
 // single operand cpu instructions:
