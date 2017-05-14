@@ -1,11 +1,9 @@
 package pdpcpu
 
 import (
-	"fmt"
-
-	"pdp/mmu"
-
 	"bytes"
+	"fmt"
+	"pdp/mmu"
 
 	"github.com/jroimartin/gocui"
 )
@@ -26,6 +24,25 @@ type CPU struct {
 	// param: instruction int16
 	// return: error -> nil if everything went OK
 	opcodes map[int16](func(int16) error)
+}
+
+/**
+* processor flags (or Condition Codes, as PDP-11 Processor Handbook wants it)
+* C -> Carry flag
+* V -> Overflow
+* Z -> Zero
+* N -> Negative
+* T -> Trap
+ */
+var cpuFlags = map[string]struct {
+	setMask   uint16
+	unsetMask uint16
+}{
+	"C": {1, 0xfffe},
+	"V": {2, 0xfffd},
+	"Z": {4, 0xfffb},
+	"N": {8, 0xfff7},
+	"T": {0x10, 0xffef},
 }
 
 // memory related constans (by far not all needed -- figuring out as while writing)
@@ -106,35 +123,18 @@ func (c *CPU) DumpRegisters(regView *gocui.View) {
 
 // status word handling:
 
-//SetCFlag sets CPU carry flag in Processor Status Word
-func (c *CPU) SetCFlag(set bool) {
+//SetFlag sets CPU carry flag in Processor Status Word
+func (c *CPU) SetFlag(flag string, set bool) {
 	if set == true {
-		c.statusRegister = c.statusRegister | 1
+		c.statusRegister = c.statusRegister | cpuFlags[flag].setMask
 	} else {
-		c.statusRegister = c.statusRegister & 0xfffe
+		c.statusRegister = c.statusRegister & cpuFlags[flag].unsetMask
 	}
 }
 
-//GetCFlag returns carry flag
-func (c *CPU) GetCFlag() bool {
-	if cFlag := c.statusRegister & 1; cFlag == 1 {
-		return true
-	}
-	return false
-}
-
-//SetVFlag sets CPU Overflow flag in ProcessorStatus Word
-func (c *CPU) SetVFlag(set bool) {
-	if set == true {
-		c.statusRegister = c.statusRegister | 2
-	} else {
-		c.statusRegister = c.statusRegister & 0xfffd
-	}
-}
-
-//GetVFlag returns overflow cpu flag
-func (c *CPU) GetVFlag() bool {
-	if vFlag := (c.statusRegister >> 1) & 1; vFlag == 1 {
+//GetFlag returns carry flag
+func (c *CPU) GetFlag(flag string) bool {
+	if c.statusRegister&cpuFlags[flag].setMask != 0 {
 		return true
 	}
 	return false
