@@ -65,8 +65,8 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.mmunit = mmunit
 	// single operand
 	c.opcodes = make(map[int16](func(int16) error))
-	c.opcodes[050] = clrOp
-	c.opcodes[06] = addOp
+	c.opcodes[050] = c.clrOp
+	c.opcodes[06] = c.addOp
 
 	return &c
 }
@@ -92,7 +92,7 @@ func (c *CPU) Execute() {
 
 // TODO: Is it really needed for anything?
 // readWord returns value specified by source or destination part of the operand.
-func (c *CPU) readWord(op int16) uint16 {
+func (c *CPU) readWord(op uint16) uint16 {
 	// check mode:
 	mode := op >> 3
 	register := op & 07
@@ -101,7 +101,13 @@ func (c *CPU) readWord(op int16) uint16 {
 		//value directly in register
 		return c.Registers[register]
 	default:
-		return 0
+		// TODO: access mode is hardcoded to 1 !! <- needs to be changed or removed
+		virtual, err := c.mmunit.GetVirtualByMode(&c.Registers, op, 1)
+		if err != nil {
+			// TODO: Trigger a trap. something went awry!
+			return 0xffff
+		}
+		return c.mmunit.ReadMemoryWord(uint16(virtual & 0xffff))
 	}
 }
 
@@ -140,13 +146,3 @@ func (c *CPU) GetFlag(flag string) bool {
 	return false
 }
 
-// single operand cpu instructions:
-func clrOp(instruction int16) error {
-	return nil
-}
-
-// double operand cpu instructions:
-func addOp(instruction int16) error {
-
-	return nil
-}
