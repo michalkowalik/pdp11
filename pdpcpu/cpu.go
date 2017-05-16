@@ -90,25 +90,39 @@ func (c *CPU) Execute() {
 
 // helper functions:
 
-// TODO: Is it really needed for anything?
 // readWord returns value specified by source or destination part of the operand.
 func (c *CPU) readWord(op uint16) uint16 {
 	// check mode:
 	mode := op >> 3
 	register := op & 07
-	switch mode {
-	case 0:
+	if mode == 0 {
 		//value directly in register
 		return c.Registers[register]
-	default:
-		// TODO: access mode is hardcoded to 1 !! <- needs to be changed or removed
-		virtual, err := c.mmunit.GetVirtualByMode(&c.Registers, op, 1)
-		if err != nil {
-			// TODO: Trigger a trap. something went awry!
-			return 0xffff
-		}
-		return c.mmunit.ReadMemoryWord(uint16(virtual & 0xffff))
 	}
+	// TODO: access mode is hardcoded to 1 !! <- needs to be changed or removed
+	virtual, err := c.mmunit.GetVirtualByMode(&c.Registers, op, 1)
+	if err != nil {
+		// TODO: Trigger a trap. something went awry!
+		return 0xffff
+	}
+	return c.mmunit.ReadMemoryWord(uint16(virtual & 0xffff))
+}
+
+// writeWord writes word value into specified memory address
+func (c *CPU) writeWord(op, value uint16) error {
+	mode := op >> 3
+	register := op & 07
+
+	if mode == 0 {
+		c.Registers[register] = value
+		return nil
+	}
+	virtualAddr, err := c.mmunit.GetVirtualByMode(&c.Registers, op, 1)
+	if err != nil {
+		return err
+	}
+	c.mmunit.WriteMemoryWord(uint16(virtualAddr&0xffff), value)
+	return nil
 }
 
 //PrintRegisters returns buffer status as a string
@@ -145,4 +159,3 @@ func (c *CPU) GetFlag(flag string) bool {
 	}
 	return false
 }
-

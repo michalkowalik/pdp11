@@ -25,6 +25,25 @@ func (c *CPU) clrOp(instruction int16) error {
 
 // double operand cpu instructions:
 func (c *CPU) addOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
 
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	sum := sourceVal + destVal
+	if sum < 0 {
+		c.SetFlag("N", true)
+	}
+	if sum == 0 {
+		c.SetFlag("Z", true)
+	}
+	if sourceVal > 0 && destVal > 0 && sum < 0 {
+		c.SetFlag("V", true)
+	}
+	if sum > 0xffff {
+		c.SetFlag("C", true)
+	}
+	c.writeWord(uint16(source), uint16(sum)&0xffff)
 	return nil
 }
