@@ -44,6 +44,6 @@ func (c *CPU) addOp(instruction int16) error {
 	if sum > 0xffff {
 		c.SetFlag("C", true)
 	}
-	c.writeWord(uint16(source), uint16(sum)&0xffff)
+	c.writeWord(uint16(dest), uint16(sum)&0xffff)
 	return nil
 }

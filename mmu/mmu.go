@@ -132,7 +132,7 @@ func (m *MMU) ReadMemoryByte(addr uint16) byte {
 // returns: error
 // TODO: is it proper order?
 func (m *MMU) WriteMemoryWord(addr, data uint16) error {
-	lowerByte := byte(data & 0xf)
+	lowerByte := byte(data & 0xff)
 	upperByte := byte(data >> 8)
 	m.Memory[addr] = lowerByte
 	m.Memory[addr+1] = upperByte

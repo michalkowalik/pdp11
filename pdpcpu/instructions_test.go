@@ -51,8 +51,9 @@ func TestCPU_addOp(t *testing.T) {
 		name    string
 		args    args
 		wantErr bool
+		wantRes int16
 	}{
-		{"dst in register, src memory value", args{061100}, false},
+		{"dst in register, src memory value", args{061100}, false, 0x1fe},
 	}
 
 	var c = &CPU{}
@@ -75,8 +76,8 @@ func TestCPU_addOp(t *testing.T) {
 			// also -> check value
 			w := c.readWord(uint16(tt.args.instruction & 077))
 			t.Logf("Value at dst: %x\n", w)
-			if w != 0x1fe {
-				t.Errorf("expected 0x1fe, got %x", w)
+			if int16(w) != tt.wantRes {
+				t.Errorf("expected %x, got %x", tt.wantRes, w)
 			}
 		})
 	}
