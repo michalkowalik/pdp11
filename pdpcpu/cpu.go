@@ -23,7 +23,7 @@ type CPU struct {
 	// the opcode function should append to the following signature:
 	// param: instruction int16
 	// return: error -> nil if everything went OK
-	opcodes map[int16](func(int16) error)
+	opcodes map[uint16](func(int16) error)
 }
 
 /**
@@ -64,10 +64,14 @@ func New(mmunit *mmu.MMU) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	// single operand
-	c.opcodes = make(map[int16](func(int16) error))
-	c.opcodes[050] = c.clrOp
-	c.opcodes[06] = c.addOp
+	c.opcodes = make(map[uint16](func(int16) error))
 
+	// single opearnd:
+	c.opcodes[050] = c.clrOp
+
+	// dual operand:
+	c.opcodes[01] = c.movOp
+	c.opcodes[06] = c.addOp
 	return &c
 }
 
@@ -79,8 +83,16 @@ func (c *CPU) Fetch() {
 }
 
 //Decode fetched instruction
-func (c *CPU) Decode() {
-	fmt.Printf("Decode..\n")
+func (c *CPU) Decode(instr uint16) func(int16) error {
+	var opcode uint16
+	// 2 operand instructions:
+	if (instr & 0170000) > 0 {
+		opcode = instr >> 9
+	}
+	// single operand
+	opcode = instr >> 6
+	return c.opcodes[opcode]
+
 }
 
 // Execute decoded instruction

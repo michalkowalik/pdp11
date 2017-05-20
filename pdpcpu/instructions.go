@@ -47,3 +47,20 @@ func (c *CPU) addOp(instruction int16) error {
 	c.writeWord(uint16(dest), uint16(sum)&0xffff)
 	return nil
 }
+
+func (c *CPU) movOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	c.writeWord(uint16(dest), sourceVal)
+	if sourceVal < 0 {
+		c.SetFlag("N", true)
+	}
+	if sourceVal == 0 {
+		c.SetFlag("Z", true)
+	}
+	// V is always cleared by MOV
+	c.SetFlag("V", false)
+	return nil
+}

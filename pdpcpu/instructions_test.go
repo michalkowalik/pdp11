@@ -57,7 +57,7 @@ func TestCPU_addOp(t *testing.T) {
 	}
 
 	var c = &CPU{}
-	var memory [0x400000]byte // 64KB of memory is all everyone needs
+	var memory [0x400000]byte
 	c.Registers[0] = 0xff
 	c.Registers[1] = 0xff
 	c.Registers[2] = 0
@@ -78,6 +78,42 @@ func TestCPU_addOp(t *testing.T) {
 			t.Logf("Value at dst: %x\n", w)
 			if int16(w) != tt.wantRes {
 				t.Errorf("expected %x, got %x", tt.wantRes, w)
+			}
+		})
+	}
+}
+
+func TestCPU_movOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		dst     int16
+	}{
+		{"move from memory to register", args{011001}, false, 4},
+	}
+
+	var c = &CPU{}
+	var memory [0x400000]byte
+	c.Registers[0] = 0xff
+	c.Registers[1] = 0
+	c.mmunit = &mmu.MMU{}
+	c.mmunit.Memory = &memory
+	c.mmunit.Memory[0xff] = uint8(-4)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := c.movOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.movOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			d := c.readWord(uint16(tt.args.instruction & 077))
+
+			if int16(d) != tt.dst {
+				t.Logf("destination addr: %x\n", tt.args.instruction&077)
+				t.Errorf("Expected destination: %x, got %x\n", tt.dst, d)
 			}
 		})
 	}
