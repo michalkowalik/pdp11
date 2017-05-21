@@ -64,3 +64,9 @@ func (c *CPU) movOp(instruction int16) error {
 	c.SetFlag("V", false)
 	return nil
 }
+
+func (c *CPU) haltOp(instruction int16) error {
+	// halt is an empty instruction. just stop CPU
+	c.State = HALT
+	return nil
+}

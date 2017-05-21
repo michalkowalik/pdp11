@@ -187,6 +187,7 @@ func (m *MMU) GetVirtualByMode(registers *[8]uint16,
 		virtAddress = uint32(registers[reg])
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)
+		// TODO: value should be incremented by 1 if byte instruction used.
 		addressInc = 2
 		virtAddress = uint32(registers[reg])
 	case 3:

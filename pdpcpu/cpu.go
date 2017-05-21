@@ -2,10 +2,30 @@ package pdpcpu
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"pdp/mmu"
 
 	"github.com/jroimartin/gocui"
+)
+
+// memory related constans (by far not all needed -- figuring out as while writing)
+const (
+	// ByteMode -> Read addresses by byte, not by word (?)
+	ByteMode = 1
+
+	// ReadMode -> Read from main memory
+	ReadMode = 2
+
+	// WriteMode -> Write from main memory
+	WriteMode = 4
+
+	// ModifyWord ->  Read and write word in memory
+	ModifyWord = ReadMode | WriteMode
+
+	// CPU state: Run / Halt:
+	HALT = 0
+	RUN  = 1
 )
 
 // CPU type:
@@ -14,6 +34,7 @@ type CPU struct {
 	statusFlags                 byte // not needed?
 	floatingPointStatusRegister byte
 	statusRegister              uint16
+	State                       int
 
 	// memory access is required:
 	mmunit *mmu.MMU
@@ -45,20 +66,6 @@ var cpuFlags = map[string]struct {
 	"T": {0x10, 0xffef},
 }
 
-// memory related constans (by far not all needed -- figuring out as while writing)
-
-// ByteMode -> Read addresses by byte, not by word (?)
-const ByteMode = 1
-
-// ReadMode -> Read from main memory
-const ReadMode = 2
-
-// WriteMode -> Write from main memory
-const WriteMode = 4
-
-// ModifyWord ->  Read and write word in memory
-const ModifyWord = ReadMode | WriteMode
-
 //New initializes and returns the CPU variable:
 func New(mmunit *mmu.MMU) *CPU {
 	c := CPU{}
@@ -72,14 +79,20 @@ func New(mmunit *mmu.MMU) *CPU {
 	// dual operand:
 	c.opcodes[01] = c.movOp
 	c.opcodes[06] = c.addOp
+
+	// no operand:
+	c.opcodes[0] = c.haltOp
 	return &c
 }
 
 // cpu should be able to fetch, decode and execute:
 
 // Fetch next instruction from memory
-func (c *CPU) Fetch() {
-	fmt.Printf("CPU Fetch\n")
+// Address to fetch is kept in R7 (PC)
+func (c *CPU) Fetch() uint16 {
+	instruction := c.readWord(c.Registers[7])
+	c.Registers[7] = (c.Registers[7] + 2) & 0xffff
+	return instruction
 }
 
 //Decode fetched instruction
@@ -88,16 +101,23 @@ func (c *CPU) Decode(instr uint16) func(int16) error {
 	// 2 operand instructions:
 	if (instr & 0170000) > 0 {
 		opcode = instr >> 9
+	} else if instr&0177700 > 0 {
+		// single operand
+		opcode = instr >> 6
 	}
-	// single operand
-	opcode = instr >> 6
+	// default: -> no shift needed.
 	return c.opcodes[opcode]
 
 }
 
 // Execute decoded instruction
-func (c *CPU) Execute() {
-	fmt.Printf("Execute.. \n")
+func (c *CPU) Execute() error {
+	instruction := c.Fetch()
+	if instruction == 0 {
+		return errors.New("-1: ILLEGAL INSTRUCTION. HALT")
+	}
+	opcode := c.Decode(instruction)
+	return opcode(int16(instruction))
 }
 
 // helper functions:

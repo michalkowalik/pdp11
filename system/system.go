@@ -45,7 +45,7 @@ func InitializeSystem(statusView, consoleView, regView *gocui.View) *System {
 
 	fmt.Fprintf(statusView, "Initializing PDP11 CPU...\n")
 	sys.CPU = pdpcpu.New(&mmunit)
-
+	sys.CPU.State = pdpcpu.RUN
 	return sys
 }
 
