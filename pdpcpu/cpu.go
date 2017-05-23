@@ -2,7 +2,6 @@ package pdpcpu
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"pdp/mmu"
 
@@ -90,7 +89,7 @@ func New(mmunit *mmu.MMU) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	instruction := c.readWord(c.Registers[7])
+	instruction := c.mmunit.ReadMemoryWord(c.Registers[7])
 	c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	return instruction
 }
@@ -100,12 +99,16 @@ func (c *CPU) Decode(instr uint16) func(int16) error {
 	var opcode uint16
 	// 2 operand instructions:
 	if (instr & 0170000) > 0 {
-		opcode = instr >> 9
+		opcode = instr >> 12
 	} else if instr&0177700 > 0 {
 		// single operand
 		opcode = instr >> 6
+	} else {
+		// default: -> no shift needed.
+		opcode = instr
 	}
-	// default: -> no shift needed.
+	// TODO: add "if debug"
+	// fmt.Printf("opcode: %#o\n", opcode)
 	return c.opcodes[opcode]
 
 }
@@ -113,9 +116,6 @@ func (c *CPU) Decode(instr uint16) func(int16) error {
 // Execute decoded instruction
 func (c *CPU) Execute() error {
 	instruction := c.Fetch()
-	if instruction == 0 {
-		return errors.New("-1: ILLEGAL INSTRUCTION. HALT")
-	}
 	opcode := c.Decode(instruction)
 	return opcode(int16(instruction))
 }
@@ -127,6 +127,7 @@ func (c *CPU) readWord(op uint16) uint16 {
 	// check mode:
 	mode := op >> 3
 	register := op & 07
+
 	if mode == 0 {
 		//value directly in register
 		return c.Registers[register]

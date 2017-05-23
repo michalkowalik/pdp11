@@ -102,7 +102,7 @@ func TestCPU_movOp(t *testing.T) {
 	c.Registers[1] = 0
 	c.mmunit = &mmu.MMU{}
 	c.mmunit.Memory = &memory
-	c.mmunit.Memory[0xff] = uint8(-4)
+	c.mmunit.Memory[0xff] = uint8(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

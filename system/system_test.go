@@ -1,6 +1,7 @@
 package system
 
 import (
+	"fmt"
 	"pdp/mmu"
 	"pdp/pdpcpu"
 	"testing"
@@ -31,7 +32,7 @@ var virtualAddressTests = []struct {
 	{010, 2, true},
 	{020, 2, true},
 	{030, 2, true},
-	{040, 0, true}, // <- autodecrement! expect dragons! and re-test with byte mode
+	{040, 4, true}, // <- autodecrement! expect dragons! and re-test with byte mode
 	{050, 0, true},
 	{061, 020, true},
 	{071, 040, true},
@@ -80,9 +81,9 @@ func TestRunCode(t *testing.T) {
 
 	code := []uint16{
 		012701, // 001000 mov 0xff R1
-		001012, // 001002 000377
+		000377, // 001002 000377
 		062711, // 001004 add 2  to memory pointed by R1 -> mem[0xff]  = 4
-		001014, // 001006
+		000002, // 001006
 		000000, // 001010 done, halt
 		000377, // 001012 0377 -> memory address to be loaded to R1
 		000002, // 001014 2 -> value to be added
@@ -101,6 +102,7 @@ func TestRunCode(t *testing.T) {
 
 	for sys.CPU.State == pdpcpu.RUN {
 		sys.CPU.Execute()
+		fmt.Printf("REG: %s\n", sys.CPU.PrintRegisters())
 	}
 
 	// assert memory at 0xff = 4

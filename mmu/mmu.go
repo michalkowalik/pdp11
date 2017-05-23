@@ -174,7 +174,7 @@ func (m *MMU) WriteMemoryByte(addr uint16, data byte) error {
 // accessMode -> one of the Read, write, modify -> binary value, 0, 1, 2, 4 etc.
 func (m *MMU) GetVirtualByMode(registers *[8]uint16,
 	instruction, accessMode uint16) (uint32, error) {
-	var addressInc int16
+	var addressInc uint16
 	reg := instruction & 7
 	addressMode := (instruction >> 3) & 7
 	var virtAddress uint32
@@ -184,25 +184,28 @@ func (m *MMU) GetVirtualByMode(registers *[8]uint16,
 		return 0, errors.New("Wrong address mode - throw trap?")
 	case 1:
 		// register keeps the address:
+		addressInc = 0
 		virtAddress = uint32(registers[reg])
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)
 		// TODO: value should be incremented by 1 if byte instruction used.
 		addressInc = 2
 		virtAddress = uint32(registers[reg])
+		registers[reg] = (registers[reg] + addressInc) & 0xffff
 	case 3:
 		// autoincrement deferred
 		// TODO: ADD special cases (R6 and R7)
 		addressInc = 2
-		virtAddress = uint32(registers[reg])
+		virtAddress = uint32(registers[reg]) // <- TODO: is it correct at all???
+		registers[reg] = (registers[reg] + addressInc) & 0xffff
 	case 4:
 		// autodecrement - step depends on which register is in use:
-		addressInc = -2
+		addressInc = 2
 		if (reg < 6) && (accessMode&ByteMode > 0) {
-			addressInc = -1
+			addressInc = 1
 		}
 		virtAddress = uint32(int32(registers[reg])+int32(addressInc)) & 0xffff
-		addressInc = 0
+		registers[reg] = (registers[reg] - addressInc) & 0xffff
 	case 5:
 		// autodecrement deferred
 		virtAddress = uint32(registers[reg]-2) & 0xffff
@@ -220,8 +223,6 @@ func (m *MMU) GetVirtualByMode(registers *[8]uint16,
 		// increment program counter register
 		registers[7] = (registers[7] + 2) & 0xffff
 	}
-	// deal with change of address pointer in the register if needed:
-
 	// all-catcher return
 	return virtAddress, nil
 }
