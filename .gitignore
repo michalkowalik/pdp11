@@ -7,3 +7,5 @@ pdp
 pdp.exe
 src/*.com/*
 src/*.org/*
+**/debug
+**/debug.test

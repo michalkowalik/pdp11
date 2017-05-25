@@ -43,7 +43,9 @@ type CPU struct {
 	// the opcode function should append to the following signature:
 	// param: instruction int16
 	// return: error -> nil if everything went OK
-	opcodes map[uint16](func(int16) error)
+	singleOpOpcodes map[uint16](func(int16) error)
+	doubleOpOpcodes map[uint16](func(int16) error)
+	otherOpcodes    map[uint16](func(int16) error)
 }
 
 /**
@@ -70,17 +72,24 @@ func New(mmunit *mmu.MMU) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	// single operand
-	c.opcodes = make(map[uint16](func(int16) error))
+	c.singleOpOpcodes = make(map[uint16](func(int16) error))
+	c.doubleOpOpcodes = make(map[uint16](func(int16) error))
+	c.otherOpcodes = make(map[uint16](func(int16) error))
 
 	// single opearnd:
-	c.opcodes[050] = c.clrOp
+	c.singleOpOpcodes[050] = c.clrOp
 
 	// dual operand:
-	c.opcodes[01] = c.movOp
-	c.opcodes[06] = c.addOp
+	c.doubleOpOpcodes[01] = c.movOp
+	c.doubleOpOpcodes[02] = c.cmpOp
+	c.doubleOpOpcodes[03] = c.bitOp
+	c.doubleOpOpcodes[04] = c.bicOp
+	c.doubleOpOpcodes[05] = c.bisOp
+	c.doubleOpOpcodes[06] = c.addOp
+	c.doubleOpOpcodes[016] = c.subOp
 
 	// no operand:
-	c.opcodes[0] = c.haltOp
+	c.otherOpcodes[0] = c.haltOp
 	return &c
 }
 
@@ -100,16 +109,19 @@ func (c *CPU) Decode(instr uint16) func(int16) error {
 	// 2 operand instructions:
 	if (instr & 0170000) > 0 {
 		opcode = instr >> 12
-	} else if instr&0177700 > 0 {
+		return c.doubleOpOpcodes[opcode]
+	}
+	if instr&0177700 > 0 {
 		// single operand
 		opcode = instr >> 6
-	} else {
-		// default: -> no shift needed.
-		opcode = instr
+		return c.singleOpOpcodes[opcode]
 	}
+
 	// TODO: add "if debug"
 	// fmt.Printf("opcode: %#o\n", opcode)
-	return c.opcodes[opcode]
+
+	// everything else:
+	return c.otherOpcodes[instr]
 
 }
 

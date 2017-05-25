@@ -3,6 +3,11 @@ package pdpcpu
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
+//getSignWord is useful to calculate the overflow bit:
+func getSignWord(i uint16) uint16 {
+	return (i >> 0xf) & 1
+}
+
 // single operand cpu instructions:
 func (c *CPU) clrOp(instruction int16) error {
 	// address mode 0 -> clear register
@@ -24,6 +29,50 @@ func (c *CPU) clrOp(instruction int16) error {
 }
 
 // double operand cpu instructions:
+
+// move (1)
+func (c *CPU) movOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	c.writeWord(uint16(dest), sourceVal)
+	if sourceVal < 0 {
+		c.SetFlag("N", true)
+	}
+	if sourceVal == 0 {
+		c.SetFlag("Z", true)
+	}
+	// V is always cleared by MOV
+	c.SetFlag("V", false)
+	return nil
+}
+
+func (c *CPU) haltOp(instruction int16) error {
+	// halt is an empty instruction. just stop CPU
+	c.State = HALT
+	return nil
+}
+
+// compare (2)
+func (c *CPU) cmpOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	res := sourceVal - destVal
+
+	c.SetFlag("N", res < 0)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("C", sourceVal < destVal)
+	c.SetFlag("V", getSignWord((sourceVal^destVal)&(^destVal^res)) == 1)
+
+	return nil
+}
+
+//add (6)
 func (c *CPU) addOp(instruction int16) error {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
@@ -48,25 +97,28 @@ func (c *CPU) addOp(instruction int16) error {
 	return nil
 }
 
-func (c *CPU) movOp(instruction int16) error {
-	source := (instruction & 07700) >> 6
-	dest := instruction & 077
-
-	sourceVal := c.readWord(uint16(source))
-	c.writeWord(uint16(dest), sourceVal)
-	if sourceVal < 0 {
-		c.SetFlag("N", true)
-	}
-	if sourceVal == 0 {
-		c.SetFlag("Z", true)
-	}
-	// V is always cleared by MOV
-	c.SetFlag("V", false)
+// substract (16)
+func (c *CPU) subOp(instruction int16) error {
 	return nil
 }
 
-func (c *CPU) haltOp(instruction int16) error {
-	// halt is an empty instruction. just stop CPU
-	c.State = HALT
+//bit (3)
+func (c *CPU) bitOp(instruction int16) error {
+	return nil
+}
+
+// bit clear (4)
+func (c *CPU) bicOp(instruction int16) error {
+	return nil
+}
+
+// bit inclusive or (5)
+func (c *CPU) bisOp(instruction int16) error {
+	return nil
+}
+
+// OK - multiply is not a clear dual operand 
+// multiply (7) --> EIS option, but let's have it
+func (c *CPU) mulOp(instruction int16) error {
 	return nil
 }

@@ -184,7 +184,6 @@ func (m *MMU) GetVirtualByMode(registers *[8]uint16,
 		return 0, errors.New("Wrong address mode - throw trap?")
 	case 1:
 		// register keeps the address:
-		addressInc = 0
 		virtAddress = uint32(registers[reg])
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)
