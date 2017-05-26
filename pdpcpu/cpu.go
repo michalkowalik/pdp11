@@ -45,6 +45,8 @@ type CPU struct {
 	// return: error -> nil if everything went OK
 	singleOpOpcodes map[uint16](func(int16) error)
 	doubleOpOpcodes map[uint16](func(int16) error)
+	rddOpOpcodes    map[uint16](func(int16) error)
+	controlOpcodes  map[uint16](func(int16) error)
 	otherOpcodes    map[uint16](func(int16) error)
 }
 
@@ -74,6 +76,8 @@ func New(mmunit *mmu.MMU) *CPU {
 	// single operand
 	c.singleOpOpcodes = make(map[uint16](func(int16) error))
 	c.doubleOpOpcodes = make(map[uint16](func(int16) error))
+	c.rddOpOpcodes = make(map[uint16](func(int16) error))
+	c.controlOpcodes = make(map[uint16](func(int16) error))
 	c.otherOpcodes = make(map[uint16](func(int16) error))
 
 	// single opearnd:
@@ -87,6 +91,15 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.doubleOpOpcodes[05] = c.bisOp
 	c.doubleOpOpcodes[06] = c.addOp
 	c.doubleOpOpcodes[016] = c.subOp
+
+	// RDD dual operand:
+	c.rddOpOpcodes[070] = c.mulOp
+	c.rddOpOpcodes[071] = c.divOp
+	c.rddOpOpcodes[072] = c.ashOp
+	c.rddOpOpcodes[073] = c.ashOp
+	c.rddOpOpcodes[074] = c.ashOp
+
+	// control instructions:
 
 	// no operand:
 	c.otherOpcodes[0] = c.haltOp
@@ -111,7 +124,20 @@ func (c *CPU) Decode(instr uint16) func(int16) error {
 		opcode = instr >> 12
 		return c.doubleOpOpcodes[opcode]
 	}
-	if instr&0177700 > 0 {
+
+	// 2 operand instruction in RDD format
+	if (instr & 0177000) > 0 {
+		opcode = instr >> 9
+		return c.rddOpOpcodes[opcode]
+	}
+
+	// control instructions:
+	if (instr & 0177400) > 0 {
+		opcode = instr >> 8
+		return c.controlOpcodes[opcode]
+	}
+
+	if (instr & 0177700) > 0 {
 		// single operand
 		opcode = instr >> 6
 		return c.singleOpOpcodes[opcode]

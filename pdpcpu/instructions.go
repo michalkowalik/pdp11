@@ -117,8 +117,28 @@ func (c *CPU) bisOp(instruction int16) error {
 	return nil
 }
 
-// OK - multiply is not a clear dual operand 
-// multiply (7) --> EIS option, but let's have it
+// RDD opcodes:
+// multiply (070) --> EIS option, but let's have it
 func (c *CPU) mulOp(instruction int16) error {
+	return nil
+}
+
+// divide (071)
+func (c *CPU) divOp(instruction int16) error {
+	return nil
+}
+
+// shift arithmetically
+func (c *CPU) ashOp(instruction int16) error {
+	return nil
+}
+
+// arithmetic shift combined:
+func (c *CPU) ashcOp(instruction int16) error {
+	return nil
+}
+
+// xor
+func (c *CPU) xorOp(instruction int16) error {
 	return nil
 }
