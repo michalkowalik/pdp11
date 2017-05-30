@@ -84,22 +84,30 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.singleOpOpcodes[050] = c.clrOp
 
 	// dual operand:
-	c.doubleOpOpcodes[01] = c.movOp
-	c.doubleOpOpcodes[02] = c.cmpOp
-	c.doubleOpOpcodes[03] = c.bitOp
-	c.doubleOpOpcodes[04] = c.bicOp
-	c.doubleOpOpcodes[05] = c.bisOp
-	c.doubleOpOpcodes[06] = c.addOp
-	c.doubleOpOpcodes[016] = c.subOp
+	c.doubleOpOpcodes[010000] = c.movOp
+	c.doubleOpOpcodes[020000] = c.cmpOp
+	c.doubleOpOpcodes[030000] = c.bitOp
+	c.doubleOpOpcodes[040000] = c.bicOp
+	c.doubleOpOpcodes[050000] = c.bisOp
+	c.doubleOpOpcodes[060000] = c.addOp
+	c.doubleOpOpcodes[0160000] = c.subOp
 
 	// RDD dual operand:
-	c.rddOpOpcodes[070] = c.mulOp
-	c.rddOpOpcodes[071] = c.divOp
-	c.rddOpOpcodes[072] = c.ashOp
-	c.rddOpOpcodes[073] = c.ashOp
-	c.rddOpOpcodes[074] = c.ashOp
+	c.rddOpOpcodes[070000] = c.mulOp
+	c.rddOpOpcodes[071000] = c.divOp
+	c.rddOpOpcodes[072000] = c.ashOp
+	c.rddOpOpcodes[073000] = c.ashOp
+	c.rddOpOpcodes[074000] = c.ashOp
 
 	// control instructions:
+	c.controlOpcodes[0400] = c.brOp // it's 0400 >> 010 -> 1
+	c.controlOpcodes[01000] = c.bneOp
+	c.controlOpcodes[01400] = c.beqOp
+	c.controlOpcodes[0100000] = c.bplOp
+	c.controlOpcodes[0100400] = c.bmiOp
+	c.controlOpcodes[0102000] = c.bvsOp
+	c.controlOpcodes[0103000] = c.bccOp
+	c.controlOpcodes[0103400] = c.bcsOp
 
 	// no operand:
 	c.otherOpcodes[0] = c.haltOp
@@ -116,25 +124,31 @@ func (c *CPU) Fetch() uint16 {
 	return instruction
 }
 
-//Decode fetched instruction
+// Decode fetched instruction
+// if instruction matching the mask not found in the opcodes map, fallback and try
+// to match anything lower.
+// Fail ultimately.
 func (c *CPU) Decode(instr uint16) func(int16) error {
 	var opcode uint16
 	// 2 operand instructions:
-	if (instr & 0170000) > 0 {
-		opcode = instr >> 12
-		return c.doubleOpOpcodes[opcode]
+	if opcode := instr & 0170000; opcode > 0 {
+		if val, ok := c.doubleOpOpcodes[opcode]; ok {
+			return val
+		}
 	}
 
-	// 2 operand instruction in RDD format
-	if (instr & 0177000) > 0 {
-		opcode = instr >> 9
-		return c.rddOpOpcodes[opcode]
+	// 2 operand instructixon in RDD format
+	if opcode := instr & 0177000; opcode > 0 {
+		if val, ok := c.rddOpOpcodes[opcode]; ok {
+			return val
+		}
 	}
 
 	// control instructions:
-	if (instr & 0177400) > 0 {
-		opcode = instr >> 8
-		return c.controlOpcodes[opcode]
+	if opcode := instr & 0177400; opcode > 0 {
+		if val, ok := c.controlOpcodes[opcode]; ok {
+			return val
+		}
 	}
 
 	if (instr & 0177700) > 0 {

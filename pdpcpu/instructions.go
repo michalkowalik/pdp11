@@ -142,3 +142,50 @@ func (c *CPU) ashcOp(instruction int16) error {
 func (c *CPU) xorOp(instruction int16) error {
 	return nil
 }
+
+// control opcodes:
+// br - unconditional branching (000400 + offset)
+func (c *CPU) brOp(instruction int16) error {
+	return nil
+}
+
+// bne - branch if not equal (to zero) 0010000 + offset
+func (c *CPU) bneOp(instruction int16) error {
+	return nil
+}
+
+// beq - branch if equal (to zero) 001400 + offset
+func (c *CPU) beqOp(instruction int16) error {
+	return nil
+}
+
+// bpl - branch if plus
+// bpl has rather weird opcode of 0100000
+func (c *CPU) bplOp(instruction int16) error {
+	return nil
+}
+
+// bmi - branch if minus
+func (c *CPU) bmiOp(instruction int16) error {
+	return nil
+}
+
+// bvc - branch if overflow is clear
+func (c *CPU) bvcOp(instruction int16) error {
+	return nil
+}
+
+// bvs - branch if overflow is set
+func (c *CPU) bvsOp(instruction int16) error {
+	return nil
+}
+
+// bcc branch if carry is clear
+func (c *CPU) bccOp(instruction int16) error {
+	return nil
+}
+
+// bcs - branch if carry is set
+func (c *CPU) bcsOp(instruction int16) error {
+	return nil
+}
