@@ -28,6 +28,13 @@ func (c *CPU) clrOp(instruction int16) error {
 	return nil
 }
 
+// jmp - jump to address:
+func (c *CPU) jmpOp(instruction int16) error {
+	return nil
+}
+
+
+
 // double operand cpu instructions:
 
 // move (1)
@@ -187,5 +194,45 @@ func (c *CPU) bccOp(instruction int16) error {
 
 // bcs - branch if carry is set
 func (c *CPU) bcsOp(instruction int16) error {
+	return nil
+}
+
+// bge - branch if greater than or equal (signed int)
+func (c *CPU) bgeOp(instruction int16) error {
+	return nil
+}
+
+// blt - branch if less than (zero)
+func (c *CPU) bltOp(instruction int16) error {
+	return nil
+}
+
+// bgt - branch if greater than (zero)
+func (c *CPU) bgtOp(instruction int16) error {
+	return nil
+}
+
+// ble - branch if less than or equal
+func (c *CPU) bleOp(instruction int16) error {
+	return nil
+}
+
+// bhi - branch if higher
+func (c *CPU) bhiOp(instruction int16) error {
+	return nil
+}
+
+// blos - branch if lower or same
+func (c *CPU) blosOp(instruction int16) error {
+	return nil
+}
+
+// bhis - branch if higher or the same
+func (c *CPU) bhisOp(instruction int16) error {
+	return nil
+}
+
+// blo - branch if lower
+func (c *CPU) bloOp(instruction int16) error {
 	return nil
 }

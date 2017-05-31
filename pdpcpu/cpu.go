@@ -81,7 +81,8 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.otherOpcodes = make(map[uint16](func(int16) error))
 
 	// single opearnd:
-	c.singleOpOpcodes[050] = c.clrOp
+	c.singleOpOpcodes[05000] = c.clrOp // check if it OK?
+	c.singleOpOpcodes[0100] = c.jmpOp
 
 	// dual operand:
 	c.doubleOpOpcodes[010000] = c.movOp
@@ -109,6 +110,18 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.controlOpcodes[0103000] = c.bccOp
 	c.controlOpcodes[0103400] = c.bcsOp
 
+	// conditional branching - signed int
+	c.controlOpcodes[02000] = c.bgeOp
+	c.controlOpcodes[02400] = c.bltOp
+	c.controlOpcodes[03000] = c.bgtOp
+	c.controlOpcodes[03400] = c.bleOp
+
+	// conditional branching - unsigned int
+	c.controlOpcodes[0101000] = c.bhiOp
+	c.controlOpcodes[0101400] = c.blosOp
+	c.controlOpcodes[0103000] = c.bhisOp
+	c.controlOpcodes[0103400] = c.bloOp
+
 	// no operand:
 	c.otherOpcodes[0] = c.haltOp
 	return &c
@@ -129,7 +142,6 @@ func (c *CPU) Fetch() uint16 {
 // to match anything lower.
 // Fail ultimately.
 func (c *CPU) Decode(instr uint16) func(int16) error {
-	var opcode uint16
 	// 2 operand instructions:
 	if opcode := instr & 0170000; opcode > 0 {
 		if val, ok := c.doubleOpOpcodes[opcode]; ok {
@@ -151,10 +163,10 @@ func (c *CPU) Decode(instr uint16) func(int16) error {
 		}
 	}
 
-	if (instr & 0177700) > 0 {
-		// single operand
-		opcode = instr >> 6
-		return c.singleOpOpcodes[opcode]
+	if opcode := instr & 0177700; opcode > 0 {
+		if val, ok := c.singleOpOpcodes[opcode]; ok {
+			return val
+		}
 	}
 
 	// TODO: add "if debug"
