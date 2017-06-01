@@ -43,11 +43,12 @@ type CPU struct {
 	// the opcode function should append to the following signature:
 	// param: instruction int16
 	// return: error -> nil if everything went OK
-	singleOpOpcodes map[uint16](func(int16) error)
-	doubleOpOpcodes map[uint16](func(int16) error)
-	rddOpOpcodes    map[uint16](func(int16) error)
-	controlOpcodes  map[uint16](func(int16) error)
-	otherOpcodes    map[uint16](func(int16) error)
+	singleOpOpcodes       map[uint16](func(int16) error)
+	doubleOpOpcodes       map[uint16](func(int16) error)
+	rddOpOpcodes          map[uint16](func(int16) error)
+	controlOpcodes        map[uint16](func(int16) error)
+	singleRegisterOpcodes map[uint16](func(int16) error)
+	otherOpcodes          map[uint16](func(int16) error)
 }
 
 /**
@@ -79,6 +80,7 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.rddOpOpcodes = make(map[uint16](func(int16) error))
 	c.controlOpcodes = make(map[uint16](func(int16) error))
 	c.otherOpcodes = make(map[uint16](func(int16) error))
+	c.singleRegisterOpcodes = make(map[uint16](func(int16) error))
 
 	// single opearnd:
 	c.singleOpOpcodes[05000] = c.clrOp // check if it OK?
@@ -97,8 +99,9 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.rddOpOpcodes[070000] = c.mulOp
 	c.rddOpOpcodes[071000] = c.divOp
 	c.rddOpOpcodes[072000] = c.ashOp
-	c.rddOpOpcodes[073000] = c.ashOp
-	c.rddOpOpcodes[074000] = c.ashOp
+	c.rddOpOpcodes[073000] = c.ashcOp
+	c.rddOpOpcodes[074000] = c.xorOp
+	c.rddOpOpcodes[04000] = c.jsrOp
 
 	// control instructions:
 	c.controlOpcodes[0400] = c.brOp // it's 0400 >> 010 -> 1
@@ -121,6 +124,9 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.controlOpcodes[0101400] = c.blosOp
 	c.controlOpcodes[0103000] = c.bhisOp
 	c.controlOpcodes[0103400] = c.bloOp
+
+	// single register opcodes
+	c.singleRegisterOpcodes[0200] = c.rtsOp
 
 	// no operand:
 	c.otherOpcodes[0] = c.haltOp
@@ -163,8 +169,16 @@ func (c *CPU) Decode(instr uint16) func(int16) error {
 		}
 	}
 
+	// single operand opcodes
 	if opcode := instr & 0177700; opcode > 0 {
 		if val, ok := c.singleOpOpcodes[opcode]; ok {
+			return val
+		}
+	}
+
+	// single register opcodes
+	if opcode := instr & 0177770; opcode > 0 {
+		if val, ok := c.singleRegisterOpcodes[opcode]; ok {
 			return val
 		}
 	}

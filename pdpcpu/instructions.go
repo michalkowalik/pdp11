@@ -33,8 +33,6 @@ func (c *CPU) jmpOp(instruction int16) error {
 	return nil
 }
 
-
-
 // double operand cpu instructions:
 
 // move (1)
@@ -125,6 +123,12 @@ func (c *CPU) bisOp(instruction int16) error {
 }
 
 // RDD opcodes:
+
+// jsr - jump to subroutine
+func (c *CPU) jsrOp(instruction int16) error {
+	return nil
+}
+
 // multiply (070) --> EIS option, but let's have it
 func (c *CPU) mulOp(instruction int16) error {
 	return nil
@@ -234,5 +238,11 @@ func (c *CPU) bhisOp(instruction int16) error {
 
 // blo - branch if lower
 func (c *CPU) bloOp(instruction int16) error {
+	return nil
+}
+
+// Single Register opcodes
+// rts - return from subroutine
+func (c *CPU) rtsOp(instruction int16) error {
 	return nil
 }
