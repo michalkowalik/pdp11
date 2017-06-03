@@ -85,6 +85,9 @@ func New(mmunit *mmu.MMU) *CPU {
 	// single opearnd:
 	c.singleOpOpcodes[05000] = c.clrOp // check if it OK?
 	c.singleOpOpcodes[0100] = c.jmpOp
+	c.singleOpOpcodes[06400] = c.markOp
+	c.singleOpOpcodes[06500] = c.mfpiOp
+	c.singleOpOpcodes[06600] = c.mtpiOp
 
 	// dual operand:
 	c.doubleOpOpcodes[010000] = c.movOp
@@ -102,9 +105,10 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.rddOpOpcodes[073000] = c.ashcOp
 	c.rddOpOpcodes[074000] = c.xorOp
 	c.rddOpOpcodes[04000] = c.jsrOp
+	c.rddOpOpcodes[077000] = c.sobOp
 
-	// control instructions:
-	c.controlOpcodes[0400] = c.brOp // it's 0400 >> 010 -> 1
+	// control instructions & traps:
+	c.controlOpcodes[0400] = c.brOp
 	c.controlOpcodes[01000] = c.bneOp
 	c.controlOpcodes[01400] = c.beqOp
 	c.controlOpcodes[0100000] = c.bplOp
@@ -112,6 +116,8 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.controlOpcodes[0102000] = c.bvsOp
 	c.controlOpcodes[0103000] = c.bccOp
 	c.controlOpcodes[0103400] = c.bcsOp
+	c.controlOpcodes[0104000] = c.emtOp
+	c.controlOpcodes[0104400] = c.trapOp
 
 	// conditional branching - signed int
 	c.controlOpcodes[02000] = c.bgeOp
@@ -125,11 +131,21 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.controlOpcodes[0103000] = c.bhisOp
 	c.controlOpcodes[0103400] = c.bloOp
 
-	// single register opcodes
+	// single register & condition code opcodes
 	c.singleRegisterOpcodes[0200] = c.rtsOp
+	c.singleRegisterOpcodes[0240] = c.setFlagOp
+	c.singleRegisterOpcodes[0250] = c.setFlagOp
+	c.singleRegisterOpcodes[0260] = c.clearFlagOp
+	c.singleRegisterOpcodes[0270] = c.clearFlagOp
 
 	// no operand:
 	c.otherOpcodes[0] = c.haltOp
+	c.otherOpcodes[1] = c.waitOp
+	c.otherOpcodes[2] = c.rtiOp
+	c.otherOpcodes[3] = c.bptOp
+	c.otherOpcodes[4] = c.iotOp
+	c.otherOpcodes[5] = c.resetOp
+	c.otherOpcodes[6] = c.rttOp
 	return &c
 }
 

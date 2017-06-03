@@ -33,6 +33,21 @@ func (c *CPU) jmpOp(instruction int16) error {
 	return nil
 }
 
+// mark - used as a part of subroutine return convention on pdp11
+func (c *CPU) markOp(instruction int16) error {
+	return nil
+}
+
+// mfpi - move from previous instruction space
+func (c *CPU) mfpiOp(instruction int16) error {
+	return nil
+}
+
+// mtpi - move to previous instruction space
+func (c *CPU) mtpiOp(instruction int16) error {
+	return nil
+}
+
 // double operand cpu instructions:
 
 // move (1)
@@ -53,9 +68,40 @@ func (c *CPU) movOp(instruction int16) error {
 	return nil
 }
 
+// misc instructions (decode all bits)
+// halt
 func (c *CPU) haltOp(instruction int16) error {
 	// halt is an empty instruction. just stop CPU
 	c.State = HALT
+	return nil
+}
+
+// bpt - breakpoint trap
+func (c *CPU) bptOp(instruction int16) error {
+	return nil
+}
+
+// iot - i/o trap
+func (c *CPU) iotOp(instruction int16) error {
+	return nil
+}
+
+// rti - return from interrupt
+func (c *CPU) rtiOp(instruction int16) error {
+	return nil
+}
+
+// rtt - return from interrupt - same as rti, with distinction of inhibits a trace trap
+func (c *CPU) rttOp(instruction int16) error {
+	return nil
+}
+
+// wait
+func (c *CPU) waitOp(instruction int16) error {
+	return nil
+}
+
+func (c *CPU) resetOp(instruction int16) error {
 	return nil
 }
 
@@ -154,6 +200,11 @@ func (c *CPU) xorOp(instruction int16) error {
 	return nil
 }
 
+// sob - substract one and branch (if not equal 0)
+func (c *CPU) sobOp(instruction int16) error {
+	return nil
+}
+
 // control opcodes:
 // br - unconditional branching (000400 + offset)
 func (c *CPU) brOp(instruction int16) error {
@@ -241,8 +292,31 @@ func (c *CPU) bloOp(instruction int16) error {
 	return nil
 }
 
+// trap opcodes:
+// emt - emulator trap
+func (c *CPU) emtOp(instruction int16) error {
+	return nil
+}
+
+// trap
+func (c *CPU) trapOp(instruction int16) error {
+	return nil
+}
+
 // Single Register opcodes
 // rts - return from subroutine
 func (c *CPU) rtsOp(instruction int16) error {
+	return nil
+}
+
+// clear flag opcodes
+// covers following operations: CLN, CLZ, CLV, CLC, CCC
+func (c *CPU) clearFlagOp(instruction int16) error {
+	return nil
+}
+
+// set flag opcodes
+// covers following operations: SEN, SEZ, SEV, SEC, SCC
+func (c *CPU) setFlagOp(instruction int16) error {
 	return nil
 }
