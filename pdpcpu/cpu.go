@@ -83,11 +83,24 @@ func New(mmunit *mmu.MMU) *CPU {
 	c.singleRegisterOpcodes = make(map[uint16](func(int16) error))
 
 	// single opearnd:
-	c.singleOpOpcodes[05000] = c.clrOp // check if it OK?
 	c.singleOpOpcodes[0100] = c.jmpOp
+	c.singleOpOpcodes[0300] = c.swabOp
+	c.singleOpOpcodes[05000] = c.clrOp
+	c.singleOpOpcodes[05100] = c.comOp
+	c.singleOpOpcodes[05200] = c.incOp
+	c.singleOpOpcodes[05300] = c.decOp
+	c.singleOpOpcodes[05400] = c.negOp
+	c.singleOpOpcodes[05500] = c.adcOp
+	c.singleOpOpcodes[05600] = c.sbcOp
+	c.singleOpOpcodes[05700] = c.tstOp
+	c.singleOpOpcodes[06000] = c.rorOp
+	c.singleOpOpcodes[06100] = c.rolOp
+	c.singleOpOpcodes[06200] = c.asrOp
+	c.singleOpOpcodes[06300] = c.aslOp
 	c.singleOpOpcodes[06400] = c.markOp
 	c.singleOpOpcodes[06500] = c.mfpiOp
 	c.singleOpOpcodes[06600] = c.mtpiOp
+	c.singleOpOpcodes[06700] = c.sxtOp
 
 	// dual operand:
 	c.doubleOpOpcodes[010000] = c.movOp

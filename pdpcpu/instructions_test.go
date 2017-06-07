@@ -118,3 +118,25 @@ func TestCPU_movOp(t *testing.T) {
 		})
 	}
 }
+
+// TODO: finish test implementation
+func TestCPU_comOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name    string
+		c       *CPU
+		args    args
+		wantErr bool
+	}{
+	// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.c.comOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.comOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

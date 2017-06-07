@@ -28,8 +28,85 @@ func (c *CPU) clrOp(instruction int16) error {
 	return nil
 }
 
+// com - complement dst -> replace the contents of the destination address
+// by their logical complement (each bit equal 0 is set to 1, each 1 is cleared)
+func (c *CPU) comOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	c.writeWord(uint16(instruction&077), ^dest)
+	return nil
+}
+
+// inc - increment dst
+func (c *CPU) incOp(instruction int16) error {
+	return nil
+}
+
+// dec - decrement dst
+func (c *CPU) decOp(instruction int16) error {
+	return nil
+}
+
+// neg - negate dst
+// replace the contents of the destination address
+// by it's 2 complement. 01000000 is replaced by itself
+func (c *CPU) negOp(instruction int16) error {
+	return nil
+}
+
+// adc - add cary
+func (c *CPU) adcOp(instruction int16) error {
+	return nil
+}
+
+// sbc - substract carry
+func (c *CPU) sbcOp(instruction int16) error {
+	return nil
+}
+
+// tst - sets the condition cods N and Z according to the contents
+// of the destination address
+func (c *CPU) tstOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+
+	if dest == 0 {
+		c.SetFlag("Z", true)
+	}
+	if dest < 0 {
+		c.SetFlag("N", true)
+	}
+	c.SetFlag("V", false)
+	c.SetFlag("C", false)
+
+	return nil
+}
+
+// asr - arithmetic shift right
+func (c *CPU) asrOp(instruction int16) error {
+	return nil
+}
+
+// asl - arithmetic shift left
+func (c *CPU) aslOp(instruction int16) error {
+	return nil
+}
+
+// ror - rotate right
+func (c *CPU) rorOp(instruction int16) error {
+	return nil
+}
+
+// rol - rorare left
+func (c *CPU) rolOp(instruction int16) error {
+	return nil
+}
+
 // jmp - jump to address:
 func (c *CPU) jmpOp(instruction int16) error {
+	return nil
+}
+
+// swab - swap bytes
+func (c *CPU) swabOp(instruction int16) error {
 	return nil
 }
 
@@ -45,6 +122,11 @@ func (c *CPU) mfpiOp(instruction int16) error {
 
 // mtpi - move to previous instruction space
 func (c *CPU) mtpiOp(instruction int16) error {
+	return nil
+}
+
+// sxt - sign extended
+func (c *CPU) sxtOp(instruction int16) error {
 	return nil
 }
 
