@@ -126,16 +126,35 @@ func TestCPU_comOp(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		c       *CPU
 		args    args
 		wantErr bool
+		dst     uint16
 	}{
-	// TODO: Add test cases.
+		{"complement dst on value in register", args{005100}, false, 0xff0f},
 	}
+
+	var c = &CPU{}
+	var memory [0x400000]byte
+	c.Registers[0] = 0xf0
+	c.mmunit = &mmu.MMU{}
+	c.mmunit.Memory = &memory
+	c.mmunit.Memory[0xff] = uint8(4)
+
+	// this will be needed by decode:
+	c.singleOpOpcodes = make(map[uint16](func(int16) error))
+	c.singleOpOpcodes[05100] = c.comOp
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.c.comOp(tt.args.instruction); (err != nil) != tt.wantErr {
+			opcode := c.Decode(uint16(tt.args.instruction))
+			if err := opcode(tt.args.instruction); (err != nil) != tt.wantErr {
 				t.Errorf("CPU.comOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			d := c.readWord(uint16(tt.args.instruction & 077))
+
+			if d != tt.dst {
+				t.Logf("destination addr: %x\n", tt.args.instruction&077)
+				t.Errorf("Expected destination: %x, got %x\n", tt.dst, d)
 			}
 		})
 	}
