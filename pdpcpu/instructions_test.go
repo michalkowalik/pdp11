@@ -152,3 +152,102 @@ func TestCPU_comOp(t *testing.T) {
 		})
 	}
 }
+
+func TestCPU_incOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		regVal  uint16
+		dst     uint16
+		wantErr bool
+		vFlag   bool
+		zFlag   bool
+		nFlag   bool
+	}{
+
+		{"INC on 0x7FFF should set V and N flag",
+			args{05200}, 0x7FFF, 0x8000, false, true, false, true},
+		{"INC on 0x0000 should set no flags",
+			args{05200}, 0, 1, false, false, false, false},
+		{"INC on 0xffff should set Z flag",
+			args{05200}, 0xffff, 0, false, false, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.Registers[0] = tt.regVal
+			instruction := c.Decode(uint16(tt.args.instruction))
+			if err := instruction(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.incOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			d := c.readWord(uint16(tt.args.instruction & 077))
+			if d != tt.dst {
+				t.Errorf("Expected value: %x, got: %x\n", tt.dst, d)
+			}
+			if v := c.GetFlag("V"); v != tt.vFlag {
+				t.Errorf("Overflow flag error. Expected %v, got %v\n", tt.vFlag, v)
+			}
+			if z := c.GetFlag("Z"); z != tt.zFlag {
+				t.Errorf("Zero flag error. expected %v, got %v\n", tt.zFlag, z)
+			}
+			if n := c.GetFlag("N"); n != tt.nFlag {
+				t.Errorf("Negative flag error. Expected %v, got %v\n", tt.nFlag, n)
+			}
+		})
+	}
+}
+
+func TestCPU_negOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		regVal  uint16
+		dst     uint16
+		wantErr bool
+		vFlag   bool
+		zFlag   bool
+		nFlag   bool
+		cFlag   bool
+	}{
+		{"Neg on -1 should give 1 and set C flag",
+			args{05400}, 0xffff, 1, false, false, false, false, true},
+		{"Neg on 10 should give  -10 and set C and N flags",
+			args{05400}, 0xA, 0xfff6, false, false, false, true, true},
+		{"Neg on 0 should give 0, set Z and unset C",
+			args{05400}, 0, 0, false, false, true, false, false},
+		{"Neg on 0x8000 should cause overflow and set N flag",
+			args{05400}, 0x8000, 0x8000, false, true, false, true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.Registers[0] = tt.regVal
+			instruction := c.Decode(uint16(tt.args.instruction))
+			if err := instruction(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.negOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if c.Registers[0] != tt.dst {
+				t.Errorf("NEG returned unexpected result. expected %v, got %v\n",
+					tt.dst, c.Registers[0])
+			}
+			if z := c.GetFlag("Z"); z != tt.zFlag {
+				t.Errorf("Z flag error. Expected %v, got %v\n", tt.zFlag, z)
+			}
+			if c := c.GetFlag("C"); c != tt.cFlag {
+				t.Errorf("C flag error. Expected %v, got %v\n", tt.cFlag, c)
+			}
+			if n := c.GetFlag("N"); n != tt.nFlag {
+				t.Errorf("N flag error. Expected %v, got %v\n", tt.nFlag, n)
+			}
+			if v := c.GetFlag("V"); v != tt.vFlag {
+				t.Errorf("V flag error. Expected %v, got %v\n", tt.vFlag, v)
+			}
+		})
+	}
+}

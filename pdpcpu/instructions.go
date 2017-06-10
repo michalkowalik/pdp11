@@ -40,19 +40,19 @@ func (c *CPU) comOp(instruction int16) error {
 // todo: make sure overflow is set properly
 // todo2: readWord should be able to handle reading operand with any addressing mode.
 func (c *CPU) incOp(instruction int16) error {
-	if addressMode := instruction & 0x38; addressMode == 0 {
+	if addressMode := instruction & 070; addressMode == 0 {
 		dst := c.Registers[instruction&7]
 		result := dst + 1
 		c.Registers[instruction&7] = result & 0xffff
 		c.SetFlag("Z", result == 0)
-		c.SetFlag("N", result < 0)
+		c.SetFlag("N", int16(result) < 0)
 		c.SetFlag("V", dst == 0x7FFF)
 	} else {
 		dst := c.readWord(uint16(instruction & 077))
 		res := dst + 1
 		c.writeWord(uint16(instruction&077), res&0xffff)
 		c.SetFlag("Z", res == 0)
-		c.SetFlag("N", res < 0)
+		c.SetFlag("N", int16(res) < 0)
 		c.SetFlag("V", dst == 0x7FFF)
 	}
 	return nil
@@ -60,6 +60,21 @@ func (c *CPU) incOp(instruction int16) error {
 
 // dec - decrement dst
 func (c *CPU) decOp(instruction int16) error {
+	if addressMode := instruction & 070; addressMode == 0 {
+		dst := c.Registers[instruction&7]
+		result := dst - 1
+		c.Registers[instruction&7] = result & 0xffff // <- this is not really necessary, isn't it?
+		c.SetFlag("Z", result == 0)
+		c.SetFlag("N", int16(result) < 0)
+		c.SetFlag("V", dst == 0x8000)
+	} else {
+		dst := c.readWord(uint16(instruction & 077))
+		result := dst - 1
+		c.writeWord(uint16(instruction&077), result&0xffff)
+		c.SetFlag("Z", result == 0)
+		c.SetFlag("N", int16(result) < 0)
+		c.SetFlag("V", dst == 0x7FFF)
+	}
 	return nil
 }
 
@@ -67,6 +82,13 @@ func (c *CPU) decOp(instruction int16) error {
 // replace the contents of the destination address
 // by it's 2 complement. 01000000 is replaced by itself
 func (c *CPU) negOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	result := ^dest + 1
+	c.writeWord(uint16(instruction&077), result)
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("N", int16(result) < 0)
+	c.SetFlag("V", result == 0x8000)
+	c.SetFlag("C", result != 0)
 	return nil
 }
 
@@ -227,18 +249,15 @@ func (c *CPU) addOp(instruction int16) error {
 	destVal := c.readWord(uint16(dest))
 
 	sum := sourceVal + destVal
-	if sum < 0 {
-		c.SetFlag("N", true)
-	}
-	if sum == 0 {
-		c.SetFlag("Z", true)
-	}
+	c.SetFlag("N", sum < 0)
+	c.SetFlag("Z", sum == 0)
 	if sourceVal > 0 && destVal > 0 && sum < 0 {
 		c.SetFlag("V", true)
 	}
-	if sum > 0xffff {
-		c.SetFlag("C", true)
-	}
+
+	// this is possible, as type of sume is infered by compiler
+	c.SetFlag("C", sum > 0xffff)
+
 	c.writeWord(uint16(dest), uint16(sum)&0xffff)
 	return nil
 }
