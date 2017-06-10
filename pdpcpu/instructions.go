@@ -37,7 +37,24 @@ func (c *CPU) comOp(instruction int16) error {
 }
 
 // inc - increment dst
+// todo: make sure overflow is set properly
+// todo2: readWord should be able to handle reading operand with any addressing mode.
 func (c *CPU) incOp(instruction int16) error {
+	if addressMode := instruction & 0x38; addressMode == 0 {
+		dst := c.Registers[instruction&7]
+		result := dst + 1
+		c.Registers[instruction&7] = result & 0xffff
+		c.SetFlag("Z", result == 0)
+		c.SetFlag("N", result < 0)
+		c.SetFlag("V", dst == 0x7FFF)
+	} else {
+		dst := c.readWord(uint16(instruction & 077))
+		res := dst + 1
+		c.writeWord(uint16(instruction&077), res&0xffff)
+		c.SetFlag("Z", res == 0)
+		c.SetFlag("N", res < 0)
+		c.SetFlag("V", dst == 0x7FFF)
+	}
 	return nil
 }
 
@@ -139,12 +156,8 @@ func (c *CPU) movOp(instruction int16) error {
 
 	sourceVal := c.readWord(uint16(source))
 	c.writeWord(uint16(dest), sourceVal)
-	if sourceVal < 0 {
-		c.SetFlag("N", true)
-	}
-	if sourceVal == 0 {
-		c.SetFlag("Z", true)
-	}
+	c.SetFlag("N", source < 0)
+	c.SetFlag("Z", sourceVal == 0)
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
 	return nil

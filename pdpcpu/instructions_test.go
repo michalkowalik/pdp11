@@ -1,9 +1,23 @@
 package pdpcpu
 
 import (
+	"os"
 	"pdp/mmu"
 	"testing"
 )
+
+// global shared resources: CPU, memory etc.
+var c *CPU
+var memory [0x400000]byte // 64KB of memory is all everyone needs
+
+// TestMain to resucure -> initialize memory and CPU
+func TestMain(m *testing.M) {
+	mmu := &mmu.MMU{}
+	mmu.Memory = &memory
+	c = New(mmu)
+
+	os.Exit(m.Run())
+}
 
 func TestCPU_clrOp(t *testing.T) {
 	type args struct {
@@ -17,13 +31,8 @@ func TestCPU_clrOp(t *testing.T) {
 		{"value in register", args{05000}, false},
 		{"address in register", args{05011}, false},
 	}
-
-	var c = &CPU{}
-	var memory [0x400000]byte // 64KB of memory is all everyone needs
 	c.Registers[0] = 0xff
 	c.Registers[1] = 0xff
-	c.mmunit = &mmu.MMU{}
-	c.mmunit.Memory = &memory
 	c.mmunit.Memory[0xff] = 2
 
 	for _, tt := range tests {
@@ -56,14 +65,10 @@ func TestCPU_addOp(t *testing.T) {
 		{"dst in register, src memory value", args{061100}, false, 0x1fe},
 	}
 
-	var c = &CPU{}
-	var memory [0x400000]byte
 	c.Registers[0] = 0xff
 	c.Registers[1] = 0xff
 	c.Registers[2] = 0
 	c.Registers[3] = 2
-	c.mmunit = &mmu.MMU{}
-	c.mmunit.Memory = &memory
 	c.mmunit.Memory[0xff] = 0xff
 	c.mmunit.Memory[0] = 2
 	c.mmunit.Memory[3] = 3
@@ -96,12 +101,8 @@ func TestCPU_movOp(t *testing.T) {
 		{"move from memory to register", args{011001}, false, 4},
 	}
 
-	var c = &CPU{}
-	var memory [0x400000]byte
 	c.Registers[0] = 0xff
 	c.Registers[1] = 0
-	c.mmunit = &mmu.MMU{}
-	c.mmunit.Memory = &memory
 	c.mmunit.Memory[0xff] = uint8(4)
 
 	for _, tt := range tests {
@@ -133,16 +134,8 @@ func TestCPU_comOp(t *testing.T) {
 		{"complement dst on value in register", args{005100}, false, 0xff0f},
 	}
 
-	var c = &CPU{}
-	var memory [0x400000]byte
 	c.Registers[0] = 0xf0
-	c.mmunit = &mmu.MMU{}
-	c.mmunit.Memory = &memory
 	c.mmunit.Memory[0xff] = uint8(4)
-
-	// this will be needed by decode:
-	c.singleOpOpcodes = make(map[uint16](func(int16) error))
-	c.singleOpOpcodes[05100] = c.comOp
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
