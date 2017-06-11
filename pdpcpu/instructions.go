@@ -169,7 +169,22 @@ func (c *CPU) rorOp(instruction int16) error {
 }
 
 // rol - rorare left
+// : Rotate all bits of the destination left one place. Bit 15
+// is loaded into the C·bit of the status word and the previous
+// contents of the C-bit are loaded into Bit 0 of the destination.
 func (c *CPU) rolOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	c.SetFlag("C", (dest&0x8000) == 0x8000)
+	result := dest >> 1
+	if c.GetFlag("C") {
+		result = result | 1
+	}
+	if err := c.writeWord(uint16(instruction&077), result); err != nil {
+		return err
+	}
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
 	return nil
 }
 
@@ -179,7 +194,25 @@ func (c *CPU) jmpOp(instruction int16) error {
 }
 
 // swab - swap bytes
+// Exchanges high-order byte and low-order byte of the destination
+// word (destination must be a word address).
+// N: set if high-order bit of low-order byte (bit 7) of result is set;
+// cleared otherwise
+// Z: set if low-order byte of result = 0; cleared otherwise
+// V: cleared
+// C: cleared
 func (c *CPU) swabOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	result := (dest << 8) | (dest >> 8)
+
+	if err := c.writeWord(uint16(instruction&077), result); err != nil {
+		return err
+	}
+
+	c.SetFlag("N", (result&0x80) == 0x80)
+	c.SetFlag("Z", (result&0xff) == 0)
+	c.SetFlag("V", false)
+	c.SetFlag("C", false)
 	return nil
 }
 
