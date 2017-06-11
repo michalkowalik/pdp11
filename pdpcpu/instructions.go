@@ -106,31 +106,65 @@ func (c *CPU) sbcOp(instruction int16) error {
 // of the destination address
 func (c *CPU) tstOp(instruction int16) error {
 	dest := c.readWord(uint16(instruction & 077))
-
-	if dest == 0 {
-		c.SetFlag("Z", true)
-	}
-	if dest < 0 {
-		c.SetFlag("N", true)
-	}
+	c.SetFlag("Z", dest == 0)
+	c.SetFlag("N", dest < 0)
 	c.SetFlag("V", false)
 	c.SetFlag("C", false)
-
 	return nil
 }
 
 // asr - arithmetic shift right
+// 	Shifts all bits of the destination right one place. Bit 15
+// is replicated. The C-bit is loaded from bit 0 of the destination.
+// ASR performs signed division of the destination by two.
 func (c *CPU) asrOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	result := (dest & 0x8000) | (dest >> 1)
+	if err := c.writeWord(uint16(instruction&077), result); err != nil {
+		return err
+	}
+	c.SetFlag("C", (dest&1) == 1)
+	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("Z", result == 0)
+
+	// V flag is a XOR on C and N flag, but golang doesn't provide boolean XOR
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
 	return nil
 }
 
 // asl - arithmetic shift left
+// Shifts all bits of the destination left one place. Bit 0 is
+// loaded with an 0. The C·bit of the status word is loaded from
+// the most significant bit of the destination. ASL performs a
+// signed multiplication of the destination by 2 with overflow indication.
 func (c *CPU) aslOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	result := dest << 1
+	if err := c.writeWord(uint16(instruction&077), result); err != nil {
+		return err
+	}
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("C", (dest&0x8000) == 0x8000)
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
 	return nil
 }
 
 // ror - rotate right
+// Rotates all bits of the destination right one place. Bit 0 is
+// loaded into the C-bit and the previous contents of the C-bit
+// are loaded into bit 15 of the destination.
 func (c *CPU) rorOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	cBit := (dest & 1) << 15
+	result := (dest >> 1) | cBit
+	if err := c.writeWord(uint16(instruction&077), result); err != nil {
+		return err
+	}
+	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("C", cBit > 0)
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
 	return nil
 }
 
