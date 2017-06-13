@@ -83,7 +83,7 @@ func (c *CPU) decOp(instruction int16) error {
 // by it's 2 complement. 01000000 is replaced by itself
 func (c *CPU) negOp(instruction int16) error {
 	dest := c.readWord(uint16(instruction & 077))
-	result := ^dest + 1
+	result := dest + 1
 	c.writeWord(uint16(instruction&077), result)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", int16(result) < 0)
@@ -94,6 +94,21 @@ func (c *CPU) negOp(instruction int16) error {
 
 // adc - add cary
 func (c *CPU) adcOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+
+	result := dest
+	if c.GetFlag("C") {
+		result = dest + 1
+	}
+
+	if err := c.writeWord(uint16(instruction&077), result); err != nil {
+		return err
+	}
+
+	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("V", (dest == 077777) && c.GetFlag("C"))
+	c.SetFlag("C", (dest == 0xFFFF) && c.GetFlag("C"))
 	return nil
 }
 
