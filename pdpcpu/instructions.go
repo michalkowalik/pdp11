@@ -83,7 +83,7 @@ func (c *CPU) decOp(instruction int16) error {
 // by it's 2 complement. 01000000 is replaced by itself
 func (c *CPU) negOp(instruction int16) error {
 	dest := c.readWord(uint16(instruction & 077))
-	result := dest + 1
+	result := ^dest + 1
 	c.writeWord(uint16(instruction&077), result)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", int16(result) < 0)
