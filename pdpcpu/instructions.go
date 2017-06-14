@@ -114,6 +114,20 @@ func (c *CPU) adcOp(instruction int16) error {
 
 // sbc - substract carry
 func (c *CPU) sbcOp(instruction int16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	result := dest
+	if c.GetFlag("C") {
+		result = result - 1
+	}
+
+	if err := c.writeWord(uint16(instruction&077), result); err != nil {
+		return err
+	}
+
+	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("V", dest == 0x8000)
+	c.SetFlag("V", (dest != 0) || c.GetFlag("C"))
 	return nil
 }
 
