@@ -261,7 +261,20 @@ func (c *CPU) mtpiOp(instruction int16) error {
 }
 
 // sxt - sign extended
+// If the condition code bit N is set then a -1 is placed in the
+// destination operand: if N bit is clear, then a 0 is placed in the
+// destination operand.
 func (c *CPU) sxtOp(instruction int16) error {
+	res := 0
+	if c.GetFlag("N") {
+		res = -1
+	}
+
+	if err := c.writeWord(uint16(instruction&077), uint16(res)); err != nil {
+		return err
+	}
+
+	c.SetFlag("Z", !c.GetFlag("N"))
 	return nil
 }
 
@@ -412,93 +425,6 @@ func (c *CPU) xorOp(instruction int16) error {
 
 // sob - substract one and branch (if not equal 0)
 func (c *CPU) sobOp(instruction int16) error {
-	return nil
-}
-
-// control opcodes:
-// br - unconditional branching (000400 + offset)
-func (c *CPU) brOp(instruction int16) error {
-	return nil
-}
-
-// bne - branch if not equal (to zero) 0010000 + offset
-func (c *CPU) bneOp(instruction int16) error {
-	return nil
-}
-
-// beq - branch if equal (to zero) 001400 + offset
-func (c *CPU) beqOp(instruction int16) error {
-	return nil
-}
-
-// bpl - branch if plus
-// bpl has rather weird opcode of 0100000
-func (c *CPU) bplOp(instruction int16) error {
-	return nil
-}
-
-// bmi - branch if minus
-func (c *CPU) bmiOp(instruction int16) error {
-	return nil
-}
-
-// bvc - branch if overflow is clear
-func (c *CPU) bvcOp(instruction int16) error {
-	return nil
-}
-
-// bvs - branch if overflow is set
-func (c *CPU) bvsOp(instruction int16) error {
-	return nil
-}
-
-// bcc branch if carry is clear
-func (c *CPU) bccOp(instruction int16) error {
-	return nil
-}
-
-// bcs - branch if carry is set
-func (c *CPU) bcsOp(instruction int16) error {
-	return nil
-}
-
-// bge - branch if greater than or equal (signed int)
-func (c *CPU) bgeOp(instruction int16) error {
-	return nil
-}
-
-// blt - branch if less than (zero)
-func (c *CPU) bltOp(instruction int16) error {
-	return nil
-}
-
-// bgt - branch if greater than (zero)
-func (c *CPU) bgtOp(instruction int16) error {
-	return nil
-}
-
-// ble - branch if less than or equal
-func (c *CPU) bleOp(instruction int16) error {
-	return nil
-}
-
-// bhi - branch if higher
-func (c *CPU) bhiOp(instruction int16) error {
-	return nil
-}
-
-// blos - branch if lower or same
-func (c *CPU) blosOp(instruction int16) error {
-	return nil
-}
-
-// bhis - branch if higher or the same
-func (c *CPU) bhisOp(instruction int16) error {
-	return nil
-}
-
-// blo - branch if lower
-func (c *CPU) bloOp(instruction int16) error {
 	return nil
 }
 
