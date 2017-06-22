@@ -2,6 +2,29 @@ package pdpcpu
 
 // Definitions of the PDP CPU branching instructions
 
+// branch calculates the branch to PC for a branch instruction offset
+func (c *CPU) branch(instruction int16) uint16 {
+
+	// offset is an 8 bit signed integer
+	var offset uint16
+	var negBit bool
+	pc := c.Registers[7]
+
+	// offset is being kept in the low 8 bits of the command
+	negBit = (instruction & 0200) > 0
+
+	if negBit {
+		offset = uint16(^(instruction & 0xff) + 1)
+	}
+	// else:
+	offset = uint16(instruction & 0xff)
+
+	if negBit {
+		return pc - 2*offset
+	}
+	return pc + 2*offset
+}
+
 // control opcodes:
 // br - unconditional branching (000400 + offset)
 func (c *CPU) brOp(instruction int16) error {
