@@ -110,3 +110,54 @@ func TestRunCode(t *testing.T) {
 		t.Errorf("Expected memory cell at 0xff to be equal 4, got %x\n", memVal)
 	}
 }
+
+// another try of running a bit of assembler code
+// this time with branch instructions
+// the instruction is to start at memory address 0xff
+// and fill the next 256 memory addresses with increasing values
+// bne should break the loop
+func TestRunBranchCode(t *testing.T) {
+	sys := new(System)
+	mmunit = mmu.MMU{}
+	mmunit.Memory = &sys.Memory
+	sys.CPU = pdpcpu.New(&mmunit)
+	sys.CPU.State = pdpcpu.RUN
+
+	// lets start from here:
+	//sys.Memory[0xff] = 0
+
+	// sample code
+	code := []uint16{
+		012700, // 001000 mov 0xff R0
+		000377, // 001002 000377 <- value pointed at by R7
+		012701, // 001004 mov 0xff R1
+		000377, // 001006 0xff <- value pointed at by R7, to be loaded to R1
+		//// the loop starts here:
+		//// move the value from R1 to the address pointed by R0
+		010121, // 001010 mov R1, (R0)+
+		005301, // 001012 dec R1
+		001401, // 001014 BEQ 1	<- branch to halt if R1 == 0
+		000000, // 001016 done, halt
+	}
+
+	// load sample code to memory
+	memPointer := 001000
+	for _, c := range code {
+		mmunit.Memory[memPointer] = byte(c & 0xff)
+		mmunit.Memory[memPointer+1] = byte(c >> 8)
+		memPointer += 2
+	}
+
+	// set PC to starting point
+	sys.CPU.Registers[7] = 001000
+
+	for sys.CPU.State == pdpcpu.RUN {
+		sys.CPU.Execute()
+		fmt.Printf("REG: %s\n", sys.CPU.PrintRegisters())
+	}
+
+	// registers status after the program execution
+	fmt.Printf("REG: %s\n", sys.CPU.PrintRegisters())
+
+	// assert results
+}
