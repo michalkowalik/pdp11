@@ -134,9 +134,9 @@ func TestRunBranchCode(t *testing.T) {
 		000377, // 001006 0xff <- value pointed at by R7, to be loaded to R1
 		//// the loop starts here:
 		//// move the value from R1 to the address pointed by R0
-		010121, // 001010 mov R1, (R0)+
+		010120, // 001010 mov R1, (R0)+
 		005301, // 001012 dec R1
-		001401, // 001014 BEQ 1	<- branch to halt if R1 == 0
+		001375, // 001014 BNE -2	<- branch to mov
 		000000, // 001016 done, halt
 	}
 

@@ -12,12 +12,11 @@ func (c *CPU) branch(instruction int16) uint16 {
 
 	// offset is being kept in the low 8 bits of the command
 	negBit = (instruction & 0200) > 0
+	offset = uint16(instruction & 0xff)
 
 	if negBit {
-		offset = uint16(^(instruction & 0xff) + 1)
+		offset = 0377 - offset + 1
 	}
-	// else:
-	offset = uint16(instruction & 0xff)
 
 	if negBit {
 		return pc - 2*offset
