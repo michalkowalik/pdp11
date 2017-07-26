@@ -322,8 +322,9 @@ func (c *CPU) rttOp(instruction int16) error {
 	return nil
 }
 
-// wait
+// wait for interrupt
 func (c *CPU) waitOp(instruction int16) error {
+	c.State = WAIT
 	return nil
 }
 

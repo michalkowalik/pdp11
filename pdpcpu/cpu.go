@@ -22,9 +22,10 @@ const (
 	// ModifyWord ->  Read and write word in memory
 	ModifyWord = ReadMode | WriteMode
 
-	// CPU state: Run / Halt:
+	// CPU state: Run / Halt / Wait:
 	HALT = 0
 	RUN  = 1
+	WAIT = 2
 )
 
 // CPU type:
