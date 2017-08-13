@@ -300,3 +300,33 @@ func TestCPU_adcOp(t *testing.T) {
 		})
 	}
 }
+
+func TestCPU_xorOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		wantRes uint16
+	}{
+		{"dst value in REG", args{074002}, false, 000325},
+	}
+
+	c.Registers[0] = 001234
+	c.Registers[2] = 001111
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := c.xorOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.xorOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			w := c.readWord(uint16(tt.args.instruction & 077))
+			t.Logf("Value at dst: %x \n", w)
+			if w != tt.wantRes {
+				t.Errorf("expected %x, got %x\n", tt.wantRes, w)
+			}
+		})
+	}
+}

@@ -328,6 +328,8 @@ func (c *CPU) waitOp(instruction int16) error {
 	return nil
 }
 
+// Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
+// Implementation needs to wait for the unibus.
 func (c *CPU) resetOp(instruction int16) error {
 	return nil
 }
@@ -421,11 +423,29 @@ func (c *CPU) ashcOp(instruction int16) error {
 
 // xor
 func (c *CPU) xorOp(instruction int16) error {
+	sourceVal := c.Registers[(instruction>>6)&7]
+	dest := instruction & 077
+	destVal := c.readWord(uint16(dest))
+
+	res := sourceVal ^ destVal
+
+	c.SetFlag("N", res < 0)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("V", false)
+
+	c.writeWord(uint16(dest), uint16(res))
 	return nil
 }
 
 // sob - substract one and branch (if not equal 0)
+// if value of the register sourceReg is not 0, susbtract
+// twice the value of the offset (lowest 6 bits) from the SP
 func (c *CPU) sobOp(instruction int16) error {
+	sourceReg := (instruction >> 6) & 7
+	c.Registers[sourceReg] = (c.Registers[sourceReg] - 1) & 0xffff
+	if c.Registers[sourceReg] != 0 {
+		c.Registers[7] = (c.Registers[7] - ((uint16(instruction) & 077) << 1)) & 0xffff
+	}
 	return nil
 }
 
