@@ -416,8 +416,46 @@ func (c *CPU) ashOp(instruction int16) error {
 	return nil
 }
 
-// arithmetic shift combined:
+// TODO: Write a decent unit test for this op!
+// arithmetic shift combined (EIS option)
 func (c *CPU) ashcOp(instruction int16) error {
+
+	var result uint32
+	offset := uint16(instruction & 077)
+	if offset == 0 {
+		return nil
+	}
+
+	register := (instruction >> 6) & 7
+	dst := (uint32(c.Registers[register]) << 16) | uint32(c.Registers[register|1])
+
+	// negative number -> shift right
+	if (offset & 040) > 0 {
+		offset = 64 - offset
+		if offset > 32 {
+			offset = 32
+		}
+		result = dst >> (offset - 1)
+		c.SetFlag("C", (result<<16) != 0)
+		result = result >> 1
+		if (dst & 0x80000000) != 0 {
+			// TODO: Why???
+			result = result | (0xffffffff << (32 - offset))
+		}
+	} else {
+		result = dst << (offset - 1)
+		c.SetFlag("C", (result>>15) != 0)
+		result = result << 1
+
+	}
+
+	c.Registers[register] = uint16((result >> 16) & 0xffff)
+	c.Registers[register|1] = uint16(result & 0xffff)
+	c.SetFlag("N", result < 0)
+	c.SetFlag("Z", result == 0)
+	// V flag set if the sign bit changed during the shift
+	c.SetFlag("V", (dst>>31) != (result>>31))
+
 	return nil
 }
 

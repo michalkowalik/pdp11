@@ -121,6 +121,12 @@ func TestCPU_movOp(t *testing.T) {
 }
 
 // TODO: finish test implementation
+// tests:
+// - offset 0 -> no res
+// - negative offset
+// - positive offset
+// - with and without the V flag set?
+// - odd register number -> basically a rotate
 func TestCPU_comOp(t *testing.T) {
 	type args struct {
 		instruction int16
@@ -326,6 +332,27 @@ func TestCPU_xorOp(t *testing.T) {
 			t.Logf("Value at dst: %x \n", w)
 			if w != tt.wantRes {
 				t.Errorf("expected %x, got %x\n", tt.wantRes, w)
+			}
+		})
+	}
+}
+
+func TestCPU_ashcOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name    string
+		c       *CPU
+		args    args
+		wantErr bool
+	}{
+	// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.c.ashcOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.ashcOp() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
