@@ -416,7 +416,6 @@ func (c *CPU) ashOp(instruction int16) error {
 	return nil
 }
 
-// TODO: Write a decent unit test for this op!
 // arithmetic shift combined (EIS option)
 func (c *CPU) ashcOp(instruction int16) error {
 
@@ -436,7 +435,7 @@ func (c *CPU) ashcOp(instruction int16) error {
 			offset = 32
 		}
 		result = dst >> (offset - 1)
-		c.SetFlag("C", (result<<16) != 0)
+		c.SetFlag("C", (result&0x8000) != 0)
 		result = result >> 1
 		if (dst & 0x80000000) != 0 {
 			// TODO: Why???
@@ -444,7 +443,7 @@ func (c *CPU) ashcOp(instruction int16) error {
 		}
 	} else {
 		result = dst << (offset - 1)
-		c.SetFlag("C", (result>>15) != 0)
+		c.SetFlag("C", (result&0x8000) != 0)
 		result = result << 1
 
 	}
