@@ -413,3 +413,44 @@ func assertRegistersShifted(op int16, rValue, rPlusValue uint16) error {
 
 	return nil
 }
+
+func TestCPU_ashOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name         string
+		args         args   // arg value
+		rValue       uint16 // selected register value
+		rExpectedVal uint16
+		carrySet     bool
+		wantErr      bool
+	}{
+		{"left shift, no carry", args{072001}, 1, 2, false, false},
+		{"right shift, no carry", args{072077}, 2, 1, false, false},
+		{"left shift, carry", args{072001}, 0x8000, 0, true, false},
+		{"right shift, carry", args{072077}, 1, 0, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetFlag("C", false)
+			register := (tt.args.instruction >> 6) & 7
+			c.Registers[register] = tt.rValue
+			if err := c.ashOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.ashOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// assert values of shifted register:
+			if c.Registers[register] != tt.rExpectedVal {
+				t.Errorf(
+					"CPU.ashOp() expected Register value = %v, got %v",
+					tt.rExpectedVal,
+					c.Registers[register])
+			}
+			// assert carry flag set
+			if c.GetFlag("C") != tt.carrySet {
+				t.Errorf("CPU.ashOp() carry flag = %v, expected %v", c.GetFlag("C"), tt.carrySet)
+			}
+		})
+	}
+}

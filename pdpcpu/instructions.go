@@ -413,6 +413,39 @@ func (c *CPU) divOp(instruction int16) error {
 
 // shift arithmetically
 func (c *CPU) ashOp(instruction int16) error {
+
+	register := (instruction >> 6) & 7
+	offset := uint16(instruction & 077)
+	if offset == 0 {
+		return nil
+	}
+	result := uint16(c.Registers[register])
+
+	// negative number -> shift right
+	if (offset & 040) > 0 {
+		offset = 64 - offset
+		if offset > 16 {
+			offset = 16
+		}
+
+		// set C flag:
+		c.SetFlag("C", (result&(0x8000>>(16-offset))) != 0)
+		result = result >> offset
+	} else {
+		if offset > 16 {
+			result = 0
+		} else {
+			// set C flag:
+			c.SetFlag("C", (result&(1<<(16-offset))) != 0)
+			result = result << offset
+		}
+	}
+
+	// V flag set if sign changed:
+	c.SetFlag("V", (c.Registers[register]&0x8000) != (result&0x8000))
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("N", result < 0)
+	c.Registers[register] = result
 	return nil
 }
 
@@ -435,7 +468,7 @@ func (c *CPU) ashcOp(instruction int16) error {
 			offset = 32
 		}
 		result = dst >> (offset - 1)
-		c.SetFlag("C", (result&0x8000) != 0)
+		c.SetFlag("C", (result&0x0001) != 0)
 		result = result >> 1
 		if (dst & 0x80000000) != 0 {
 			// TODO: Why???
