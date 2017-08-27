@@ -367,7 +367,7 @@ func (c *CPU) addOp(instruction int16) error {
 		c.SetFlag("V", true)
 	}
 
-	// this is possible, as type of sume is infered by compiler
+	// this is possible, as type of sum is infered by compiler
 	c.SetFlag("C", sum > 0xffff)
 
 	c.writeWord(uint16(dest), uint16(sum)&0xffff)
@@ -376,6 +376,19 @@ func (c *CPU) addOp(instruction int16) error {
 
 // substract (16)
 func (c *CPU) subOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	res := destVal - sourceVal
+	c.SetFlag("C", sourceVal > destVal)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res < 0)
+	c.SetFlag("V", getSignWord((sourceVal^destVal)&(^destVal^res)) == 1)
+
+	c.writeWord(uint16(dest), uint16(res)&0xffff)
 	return nil
 }
 

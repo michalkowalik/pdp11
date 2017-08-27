@@ -454,3 +454,45 @@ func TestCPU_ashOp(t *testing.T) {
 		})
 	}
 }
+
+// for simplicity sake values are kept in registers directly,
+// src is always in R0
+// dst in R1
+// validity of decoding instructions and fetching from memory is tested in the cpu module
+// hence, it's always the same instruction.
+func TestCPU_subOp(t *testing.T) {
+	type flags struct {
+		c bool
+		v bool
+		z bool
+		n bool
+	}
+	// substract: R1 = R1 - R0
+	var instruction uint16
+	instruction = 0160001
+
+	tests := []struct {
+		name    string
+		r0Val   int16
+		r1Val   int16
+		res     int16
+		flags   flags
+		wantErr bool
+	}{
+		{"No flags set", 011111, 012345, 01234, flags{false, false, false, false}, false},
+	}
+	for _, tt := range tests {
+		c.Registers[0] = uint16(tt.r0Val)
+		c.Registers[1] = uint16(tt.r1Val)
+		t.Run(tt.name, func(t *testing.T) {
+			if err := c.subOp(int16(instruction)); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.subOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// assert value
+			if c.Registers[1] != uint16(tt.res) {
+				t.Errorf("CPU.subOp result = %x, expected %x", c.Registers[1], tt.res)
+			}
+		})
+	}
+}
