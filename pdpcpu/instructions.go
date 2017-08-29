@@ -403,7 +403,7 @@ func (c *CPU) bitOp(instruction int16) error {
 	res := sourceVal & destVal
 	c.SetFlag("V", false)
 	c.SetFlag("Z", res == 0)
-	c.SetFlag("N", res < 0)
+	c.SetFlag("N", (res&0x8000) > 0)
 	return nil
 }
 
@@ -417,7 +417,7 @@ func (c *CPU) bicOp(instruction int16) error {
 
 	destVal = destVal & (^sourceVal)
 	c.SetFlag("V", false)
-	c.SetFlag("N", destVal < 0)
+	c.SetFlag("N", (destVal&0x8000) > 0)
 	c.SetFlag("Z", destVal == 0)
 	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
 	return nil
