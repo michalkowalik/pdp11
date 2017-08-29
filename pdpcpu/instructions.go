@@ -394,11 +394,32 @@ func (c *CPU) subOp(instruction int16) error {
 
 //bit (3)
 func (c *CPU) bitOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	res := sourceVal & destVal
+	c.SetFlag("V", false)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res < 0)
 	return nil
 }
 
 // bit clear (4)
 func (c *CPU) bicOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	destVal = destVal & (^sourceVal)
+	c.SetFlag("V", false)
+	c.SetFlag("N", destVal < 0)
+	c.SetFlag("Z", destVal == 0)
+	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
 	return nil
 }
 

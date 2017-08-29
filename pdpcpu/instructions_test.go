@@ -1,11 +1,20 @@
 package pdpcpu
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"pdp/mmu"
 	"testing"
 )
+
+// flags is a struct used to assert cpu flags settings
+type flags struct {
+	c bool
+	v bool
+	z bool
+	n bool
+}
 
 // global shared resources: CPU, memory etc.
 var c *CPU
@@ -461,12 +470,6 @@ func TestCPU_ashOp(t *testing.T) {
 // validity of decoding instructions and fetching from memory is tested in the cpu module
 // hence, it's always the same instruction.
 func TestCPU_subOp(t *testing.T) {
-	type flags struct {
-		c bool
-		v bool
-		z bool
-		n bool
-	}
 	// substract: R1 = R1 - R0
 	var instruction uint16
 	instruction = 0160001
@@ -493,6 +496,72 @@ func TestCPU_subOp(t *testing.T) {
 			if c.Registers[1] != uint16(tt.res) {
 				t.Errorf("CPU.subOp result = %x, expected %x", c.Registers[1], tt.res)
 			}
+
+			// check flags
 		})
 	}
+}
+
+func TestCPU_bicOp(t *testing.T) {
+	// BIC R0, R1
+	var instruction uint16 = 040001
+
+	tests := []struct {
+		name    string
+		r0Val   uint16
+		r1Val   uint16
+		res     uint16
+		flags   flags
+		wantErr bool
+	}{
+		{"Clear all bits", 0xffff, 0xffff, 0, flags{false, false, true, false}, false},
+		{"N flag set", 0x7fff, 0xffff, 0x8000, flags{false, false, false, true}, false},
+	}
+	for _, tt := range tests {
+		c.Registers[0] = tt.r0Val
+		c.Registers[1] = tt.r1Val
+		t.Run(tt.name, func(t *testing.T) {
+			if err := c.bicOp(int16(instruction)); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.bicOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// assert value
+			if c.Registers[1] != tt.res {
+				t.Errorf("CPU.bicOp() r1 = %x, r0 = %x, exp -> %x",
+					c.Registers[1], c.Registers[0], tt.res)
+			}
+			// check flags
+			if err := assertFlags(tt.flags, c); err != nil {
+				t.Errorf(err.Error())
+			}
+		})
+	}
+}
+
+// helper functions
+func assertFlags(flags flags, c *CPU) error {
+	passed := true
+	errorMsg := ""
+	if c.GetFlag("C") != flags.c {
+		passed = false
+		errorMsg += fmt.Sprintf(" C -> exp %v, got %v ", flags.c, c.GetFlag("C"))
+	}
+	if c.GetFlag("Z") != flags.z {
+		passed = false
+		errorMsg += fmt.Sprintf(" Z -> exp %v, got %v ", flags.z, c.GetFlag("Z"))
+	}
+	if c.GetFlag("N") != flags.n {
+		passed = false
+		errorMsg += fmt.Sprintf(" N -> exp %v, got %v ", flags.n, c.GetFlag("N"))
+	}
+	if c.GetFlag("V") != flags.v {
+		passed = false
+		errorMsg += fmt.Sprintf(" V -> exp %v, got %v ", flags.v, c.GetFlag("V"))
+	}
+
+	if passed {
+		return nil
+	}
+
+	return errors.New(errorMsg)
 }
