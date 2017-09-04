@@ -425,6 +425,17 @@ func (c *CPU) bicOp(instruction int16) error {
 
 // bit inclusive or (5)
 func (c *CPU) bisOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	destVal = destVal | sourceVal
+	c.SetFlag("V", false)
+	c.SetFlag("N", (destVal&0x8000) > 0)
+	c.SetFlag("Z", destVal == 0)
+	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
 	return nil
 }
 
@@ -573,11 +584,45 @@ func (c *CPU) rtsOp(instruction int16) error {
 // clear flag opcodes
 // covers following operations: CLN, CLZ, CLV, CLC, CCC
 func (c *CPU) clearFlagOp(instruction int16) error {
+
+	switch flag := instruction & 0777; flag {
+	case 0241:
+		c.SetFlag("C", false)
+	case 0242:
+		c.SetFlag("V", false)
+	case 0243:
+		c.SetFlag("C", false)
+		c.SetFlag("V", false)
+	case 0244:
+		c.SetFlag("Z", false)
+	case 0250:
+		c.SetFlag("N", false)
+	case 0257:
+		c.SetFlag("N", false)
+		c.SetFlag("Z", false)
+		c.SetFlag("C", false)
+		c.SetFlag("V", false)
+	}
 	return nil
 }
 
 // set flag opcodes
 // covers following operations: SEN, SEZ, SEV, SEC, SCC
 func (c *CPU) setFlagOp(instruction int16) error {
+	switch flag := instruction & 0777; flag {
+	case 0261:
+		c.SetFlag("C", true)
+	case 0262:
+		c.SetFlag("V", true)
+	case 0264:
+		c.SetFlag("Z", true)
+	case 0270:
+		c.SetFlag("N", true)
+	case 0277:
+		c.SetFlag("N", true)
+		c.SetFlag("Z", true)
+		c.SetFlag("C", true)
+		c.SetFlag("V", true)
+	}
 	return nil
 }

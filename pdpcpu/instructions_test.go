@@ -498,6 +498,9 @@ func TestCPU_subOp(t *testing.T) {
 			}
 
 			// check flags
+			if err := assertFlags(tt.flags, c); err != nil {
+				t.Errorf(err.Error())
+			}
 		})
 	}
 }
@@ -530,6 +533,7 @@ func TestCPU_bicOp(t *testing.T) {
 				t.Errorf("CPU.bicOp() r1 = %x, r0 = %x, exp -> %x",
 					c.Registers[1], c.Registers[0], tt.res)
 			}
+
 			// check flags
 			if err := assertFlags(tt.flags, c); err != nil {
 				t.Errorf(err.Error())
