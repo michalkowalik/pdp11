@@ -26,6 +26,9 @@ const (
 	HALT = 0
 	RUN  = 1
 	WAIT = 2
+
+	// stack size:
+	StackOverflow = 0xff
 )
 
 // CPU type:
@@ -38,6 +41,9 @@ type CPU struct {
 
 	// memory access is required:
 	mmunit *mmu.MMU
+
+	// and stack pointer: kernel, super, illegal, user
+	StackPointer [4]uint16
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it

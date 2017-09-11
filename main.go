@@ -55,6 +55,10 @@ func startPdp(g *gocui.Gui) error {
 	fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
 	pdp := system.InitializeSystem(statusView, consoleView, regView)
 
+	if _, err := g.SetCurrentView("status"); err != nil {
+		log.Panic(err)
+	}
+
 	// update registers:
 	updateRegisters(pdp, g)
 	pdp.Noop()
@@ -111,6 +115,8 @@ func layout(g *gocui.Gui) error {
 			return err
 		}
 		v.Title = "Status"
+		v.Editable = true
+		v.Autoscroll = true
 	}
 	return nil
 }
