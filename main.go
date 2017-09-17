@@ -52,7 +52,7 @@ func startPdp(g *gocui.Gui) error {
 	}
 	consoleView.Clear()
 
-	fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
+	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
 	pdp := system.InitializeSystem(statusView, consoleView, regView)
 
 	if _, err := g.SetCurrentView("status"); err != nil {
@@ -61,9 +61,13 @@ func startPdp(g *gocui.Gui) error {
 	g.Cursor = true
 	g.Highlight = true
 
+	initConsole(g)
+	writeConsole("Initializing PDP11 CPU.")
+	writeConsole("Starting PDP-11/70 emulator.")
+
 	// update registers:
 	updateRegisters(pdp, g)
-	
+
 	pdp.Noop()
 
 	// default return value -> no errors encoutered
