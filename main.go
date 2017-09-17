@@ -58,9 +58,12 @@ func startPdp(g *gocui.Gui) error {
 	if _, err := g.SetCurrentView("status"); err != nil {
 		log.Panic(err)
 	}
+	g.Cursor = true
+	g.Highlight = true
 
 	// update registers:
 	updateRegisters(pdp, g)
+	
 	pdp.Noop()
 
 	// default return value -> no errors encoutered
