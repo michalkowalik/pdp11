@@ -1,7 +1,8 @@
-package main
+package console
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jroimartin/gocui"
 )
@@ -31,17 +32,31 @@ requested functionlity:
 // channel to  send console updates to:
 var consoleOut chan string
 
-func initConsole(g *gocui.Gui) {
-	consoleOut = make(chan string)
+// Console type definition
+type Console struct {
+	consoleOut  chan string // string channel, to which the console data is sent to
+	g           *gocui.Gui  // main gocui GUI object
+	v           *gocui.View // gocui view of the control console
+	currentLine int         // counter to keep the position of the cursor
+}
+
+// New returns a pointer to the new console and runs the initialization procedure:
+func New(g *gocui.Gui) *Console {
+	c := new(Console)
+	c.consoleOut = make(chan string)
+	c.g = g
+	c.v, _ = g.View("status")
+	c.initConsole()
+	return c
+}
+
+// initConsole initializes the emulator console
+func (c *Console) initConsole() {
 	go func() {
 		for {
-			s := <-consoleOut
-			g.Execute(func(g *gocui.Gui) error {
-				v, _ := g.View("status")
-				fmt.Fprintf(v, "%s\n", s)
-
-				// set cursor one line lower:
-				v.MoveCursor(0, 1, true)
+			s := <-c.consoleOut
+			c.g.Execute(func(g *gocui.Gui) error {
+				fmt.Fprintf(c.v, "%s", s)
 
 				// TODO: needed here?
 				return nil
@@ -50,8 +65,15 @@ func initConsole(g *gocui.Gui) {
 	}()
 }
 
-func writeConsole(msg string) error {
-	consoleOut <- msg
+// WriteConsole displays a string on the console
+func (c *Console) WriteConsole(msg string) error {
+	for _, line := range strings.Split(msg, "\n") {
+		if line != "" {
+			c.consoleOut <- line + "\n"
+			c.v.MoveCursor(0, 1, true)
+			c.currentLine++
+		}
+	}
 
 	// TODO: really needed here?
 	return nil

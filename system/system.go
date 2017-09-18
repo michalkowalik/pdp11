@@ -3,6 +3,7 @@ package system
 import (
 	"fmt"
 
+	"pdp/console"
 	"pdp/mmu"
 	"pdp/pdpcpu"
 
@@ -20,7 +21,7 @@ type System struct {
 	UnibusMap [32]int16
 
 	// console and status output:
-	statusView  *gocui.View
+	console     *console.Console
 	consoleView *gocui.View
 	regView     *gocui.View
 }
@@ -30,9 +31,9 @@ type System struct {
 var mmunit mmu.MMU
 
 // InitializeSystem initializes the emulated PDP-11/44 hardware
-func InitializeSystem(statusView, consoleView, regView *gocui.View) *System {
+func InitializeSystem(console *console.Console, consoleView, regView *gocui.View) *System {
 	sys := new(System)
-	sys.statusView = statusView
+	sys.console = console
 	sys.consoleView = consoleView
 	sys.regView = regView
 
@@ -43,7 +44,7 @@ func InitializeSystem(statusView, consoleView, regView *gocui.View) *System {
 	mmunit = mmu.MMU{}
 	mmunit.Memory = &sys.Memory
 
-	// fmt.Fprintf(statusView, "Initializing PDP11 CPU...\n")
+	console.WriteConsole("Initializing PDP11 CPU...\n")
 	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
 	return sys

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"pdp/console"
 	"pdp/system"
 	"time"
 
@@ -52,18 +53,17 @@ func startPdp(g *gocui.Gui) error {
 	}
 	consoleView.Clear()
 
+	console := console.New(g)
+	console.WriteConsole("Starting PDP-11/70 emulator.")
+
 	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
-	pdp := system.InitializeSystem(statusView, consoleView, regView)
+	pdp := system.InitializeSystem(console, consoleView, regView)
 
 	if _, err := g.SetCurrentView("status"); err != nil {
 		log.Panic(err)
 	}
 	g.Cursor = true
 	g.Highlight = true
-
-	initConsole(g)
-	writeConsole("Initializing PDP11 CPU.")
-	writeConsole("Starting PDP-11/70 emulator.")
 
 	// update registers:
 	updateRegisters(pdp, g)

@@ -9,3 +9,4 @@ src/*.com/*
 src/*.org/*
 **/debug
 **/debug.test
+**/debug.test~
