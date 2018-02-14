@@ -25,7 +25,7 @@ func main() {
 	}
 
 	// start emulation
-	g.Execute(startPdp)
+	g.Update(startPdp)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
@@ -83,7 +83,7 @@ func updateRegisters(pdp *system.System, g *gocui.Gui) {
 		i := 0
 		for range ticker.C {
 
-			g.Execute(func(g *gocui.Gui) error {
+			g.Update(func(g *gocui.Gui) error {
 				v, err := g.View("registers")
 				if err != nil {
 					return err

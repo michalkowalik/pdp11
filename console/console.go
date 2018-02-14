@@ -55,7 +55,7 @@ func (c *Console) initConsole() {
 	go func() {
 		for {
 			s := <-c.consoleOut
-			c.g.Execute(func(g *gocui.Gui) error {
+			c.g.Update(func(g *gocui.Gui) error {
 				fmt.Fprintf(c.v, "%s", s)
 
 				// TODO: needed here?
