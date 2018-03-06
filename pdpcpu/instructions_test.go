@@ -1,10 +1,20 @@
 package pdpcpu
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"pdp/mmu"
 	"testing"
 )
+
+// flags is a struct used to assert cpu flags settings
+type flags struct {
+	c bool
+	v bool
+	z bool
+	n bool
+}
 
 // global shared resources: CPU, memory etc.
 var c *CPU
@@ -121,6 +131,12 @@ func TestCPU_movOp(t *testing.T) {
 }
 
 // TODO: finish test implementation
+// tests:
+// - offset 0 -> no res
+// - negative offset
+// - positive offset
+// - with and without the V flag set?
+// - odd register number -> basically a rotate
 func TestCPU_comOp(t *testing.T) {
 	type args struct {
 		instruction int16
@@ -299,4 +315,257 @@ func TestCPU_adcOp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCPU_xorOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		wantRes uint16
+	}{
+		{"dst value in REG", args{074002}, false, 000325},
+	}
+
+	c.Registers[0] = 001234
+	c.Registers[2] = 001111
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := c.xorOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.xorOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			w := c.readWord(uint16(tt.args.instruction & 077))
+			t.Logf("Value at dst: %x \n", w)
+			if w != tt.wantRes {
+				t.Errorf("expected %x, got %x\n", tt.wantRes, w)
+			}
+		})
+	}
+}
+
+func TestCPU_ashcOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name             string
+		args             args   // arg value
+		rValue           uint16 // selected register value
+		rPlusValue       uint16 // r+1 value
+		rExpectedVal     uint16
+		rPlusExpectedVal uint16
+		carrySet         bool
+		wantErr          bool
+	}{
+		{"Even register number, no carry", args{073001}, 1, 1, 2, 2, false, false},
+		{"odd  register number, no carry", args{073103}, 1, 1, 8, 8, false, false},
+		{"Even register number, carry set", args{073001}, 0xffff, 0xffff, 0xffff, 0xfffe, true, false},
+		{"Even register number, no carry, right shift", args{073077}, 2, 2, 1, 1, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetFlag("C", false)
+			ashcLoadRegisters(tt.args.instruction, tt.rValue, tt.rPlusValue)
+			if err := c.ashcOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.ashcOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// assert the register and flag values after the op
+			if err := assertRegistersShifted(
+				tt.args.instruction, tt.rExpectedVal, tt.rPlusExpectedVal); err != nil {
+				t.Errorf("Register values after shift does not match: %s\n", err)
+			}
+
+			// assert carry flag set as expected:
+			if c.GetFlag("C") != tt.carrySet {
+				t.Errorf("Carry flag false value\n")
+			}
+		})
+	}
+}
+
+// helper functions:
+
+// ashcLoadRegisters loads the register values to the register number
+// extracted from the 8-6 bits of the opcode
+func ashcLoadRegisters(op int16, rValue, rPlusValue uint16) {
+	register := (op >> 6) & 7
+	c.Registers[register] = rValue
+	c.Registers[register|1] = rPlusValue
+}
+
+// assertRegistersShifted checks if the register values ar shifted after
+// the ashc operation
+// TODO: add right shift - but for now check the left at least
+func assertRegistersShifted(op int16, rValue, rPlusValue uint16) error {
+	register := (op >> 6) & 7
+	plusRegister := register | 1
+
+	regValue := c.Registers[register]
+	regPlusValue := c.Registers[plusRegister]
+
+	// fmt.Printf("regVal: %x, regPlusVal: %x\n", regValue, regPlusValue)
+
+	if regValue != rValue {
+		return fmt.Errorf("regValue != shifted rValue : %v vs %v",
+			regValue, rValue)
+	}
+
+	if regPlusValue != rPlusValue {
+		return fmt.Errorf("regPlusValue != shifted rValue: %v vs %v",
+			regPlusValue, rPlusValue)
+	}
+
+	return nil
+}
+
+func TestCPU_ashOp(t *testing.T) {
+	type args struct {
+		instruction int16
+	}
+	tests := []struct {
+		name         string
+		args         args   // arg value
+		rValue       uint16 // selected register value
+		rExpectedVal uint16
+		carrySet     bool
+		wantErr      bool
+	}{
+		{"left shift, no carry", args{072001}, 1, 2, false, false},
+		{"right shift, no carry", args{072077}, 2, 1, false, false},
+		{"left shift, carry", args{072001}, 0x8000, 0, true, false},
+		{"right shift, carry", args{072077}, 1, 0, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c.SetFlag("C", false)
+			register := (tt.args.instruction >> 6) & 7
+			c.Registers[register] = tt.rValue
+			if err := c.ashOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.ashOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// assert values of shifted register:
+			if c.Registers[register] != tt.rExpectedVal {
+				t.Errorf(
+					"CPU.ashOp() expected Register value = %v, got %v",
+					tt.rExpectedVal,
+					c.Registers[register])
+			}
+			// assert carry flag set
+			if c.GetFlag("C") != tt.carrySet {
+				t.Errorf("CPU.ashOp() carry flag = %v, expected %v", c.GetFlag("C"), tt.carrySet)
+			}
+		})
+	}
+}
+
+// for simplicity sake values are kept in registers directly,
+// src is always in R0
+// dst in R1
+// validity of decoding instructions and fetching from memory is tested in the cpu module
+// hence, it's always the same instruction.
+func TestCPU_subOp(t *testing.T) {
+	// substract: R1 = R1 - R0
+	var instruction uint16
+	instruction = 0160001
+
+	tests := []struct {
+		name    string
+		r0Val   int16
+		r1Val   int16
+		res     int16
+		flags   flags
+		wantErr bool
+	}{
+		{"No flags set", 011111, 012345, 01234, flags{false, false, false, false}, false},
+	}
+	for _, tt := range tests {
+		c.Registers[0] = uint16(tt.r0Val)
+		c.Registers[1] = uint16(tt.r1Val)
+		t.Run(tt.name, func(t *testing.T) {
+			if err := c.subOp(int16(instruction)); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.subOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// assert value
+			if c.Registers[1] != uint16(tt.res) {
+				t.Errorf("CPU.subOp result = %x, expected %x", c.Registers[1], tt.res)
+			}
+
+			// check flags
+			if err := assertFlags(tt.flags, c); err != nil {
+				t.Errorf(err.Error())
+			}
+		})
+	}
+}
+
+func TestCPU_bicOp(t *testing.T) {
+	// BIC R0, R1
+	var instruction uint16 = 040001
+
+	tests := []struct {
+		name    string
+		r0Val   uint16
+		r1Val   uint16
+		res     uint16
+		flags   flags
+		wantErr bool
+	}{
+		{"Clear all bits", 0xffff, 0xffff, 0, flags{false, false, true, false}, false},
+		{"N flag set", 0x7fff, 0xffff, 0x8000, flags{false, false, false, true}, false},
+	}
+	for _, tt := range tests {
+		c.Registers[0] = tt.r0Val
+		c.Registers[1] = tt.r1Val
+		t.Run(tt.name, func(t *testing.T) {
+			if err := c.bicOp(int16(instruction)); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.bicOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// assert value
+			if c.Registers[1] != tt.res {
+				t.Errorf("CPU.bicOp() r1 = %x, r0 = %x, exp -> %x",
+					c.Registers[1], c.Registers[0], tt.res)
+			}
+
+			// check flags
+			if err := assertFlags(tt.flags, c); err != nil {
+				t.Errorf(err.Error())
+			}
+		})
+	}
+}
+
+// helper functions
+func assertFlags(flags flags, c *CPU) error {
+	passed := true
+	errorMsg := ""
+	if c.GetFlag("C") != flags.c {
+		passed = false
+		errorMsg += fmt.Sprintf(" C -> exp %v, got %v ", flags.c, c.GetFlag("C"))
+	}
+	if c.GetFlag("Z") != flags.z {
+		passed = false
+		errorMsg += fmt.Sprintf(" Z -> exp %v, got %v ", flags.z, c.GetFlag("Z"))
+	}
+	if c.GetFlag("N") != flags.n {
+		passed = false
+		errorMsg += fmt.Sprintf(" N -> exp %v, got %v ", flags.n, c.GetFlag("N"))
+	}
+	if c.GetFlag("V") != flags.v {
+		passed = false
+		errorMsg += fmt.Sprintf(" V -> exp %v, got %v ", flags.v, c.GetFlag("V"))
+	}
+
+	if passed {
+		return nil
+	}
+
+	return errors.New(errorMsg)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"pdp/console"
 	"pdp/system"
 	"time"
 
@@ -24,7 +25,7 @@ func main() {
 	}
 
 	// start emulation
-	g.Execute(startPdp)
+	g.Update(startPdp)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		log.Panicln(err)
@@ -52,11 +53,21 @@ func startPdp(g *gocui.Gui) error {
 	}
 	consoleView.Clear()
 
-	fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
-	pdp := system.InitializeSystem(statusView, consoleView, regView)
+	console := console.New(g)
+	console.WriteConsole("Starting PDP-11/70 emulator.")
+
+	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
+	pdp := system.InitializeSystem(console, consoleView, regView)
+
+	if _, err := g.SetCurrentView("status"); err != nil {
+		log.Panic(err)
+	}
+	g.Cursor = true
+	g.Highlight = true
 
 	// update registers:
 	updateRegisters(pdp, g)
+
 	pdp.Noop()
 
 	// default return value -> no errors encoutered
@@ -72,7 +83,7 @@ func updateRegisters(pdp *system.System, g *gocui.Gui) {
 		i := 0
 		for range ticker.C {
 
-			g.Execute(func(g *gocui.Gui) error {
+			g.Update(func(g *gocui.Gui) error {
 				v, err := g.View("registers")
 				if err != nil {
 					return err
@@ -111,6 +122,8 @@ func layout(g *gocui.Gui) error {
 			return err
 		}
 		v.Title = "Status"
+		v.Editable = true
+		v.Autoscroll = true
 	}
 	return nil
 }

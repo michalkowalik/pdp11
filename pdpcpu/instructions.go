@@ -322,11 +322,14 @@ func (c *CPU) rttOp(instruction int16) error {
 	return nil
 }
 
-// wait
+// wait for interrupt
 func (c *CPU) waitOp(instruction int16) error {
+	c.State = WAIT
 	return nil
 }
 
+// Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
+// Implementation needs to wait for the unibus.
 func (c *CPU) resetOp(instruction int16) error {
 	return nil
 }
@@ -364,7 +367,7 @@ func (c *CPU) addOp(instruction int16) error {
 		c.SetFlag("V", true)
 	}
 
-	// this is possible, as type of sume is infered by compiler
+	// this is possible, as type of sum is infered by compiler
 	c.SetFlag("C", sum > 0xffff)
 
 	c.writeWord(uint16(dest), uint16(sum)&0xffff)
@@ -373,21 +376,66 @@ func (c *CPU) addOp(instruction int16) error {
 
 // substract (16)
 func (c *CPU) subOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	res := destVal - sourceVal
+	c.SetFlag("C", sourceVal > destVal)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res < 0)
+	c.SetFlag("V", getSignWord((sourceVal^destVal)&(^destVal^res)) == 1)
+
+	c.writeWord(uint16(dest), uint16(res)&0xffff)
 	return nil
 }
 
 //bit (3)
 func (c *CPU) bitOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	res := sourceVal & destVal
+	c.SetFlag("V", false)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", (res&0x8000) > 0)
 	return nil
 }
 
 // bit clear (4)
 func (c *CPU) bicOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	destVal = destVal & (^sourceVal)
+	c.SetFlag("V", false)
+	c.SetFlag("N", (destVal&0x8000) > 0)
+	c.SetFlag("Z", destVal == 0)
+	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
 	return nil
 }
 
 // bit inclusive or (5)
 func (c *CPU) bisOp(instruction int16) error {
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readWord(uint16(source))
+	destVal := c.readWord(uint16(dest))
+
+	destVal = destVal | sourceVal
+	c.SetFlag("V", false)
+	c.SetFlag("N", (destVal&0x8000) > 0)
+	c.SetFlag("Z", destVal == 0)
+	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
 	return nil
 }
 
@@ -410,21 +458,109 @@ func (c *CPU) divOp(instruction int16) error {
 
 // shift arithmetically
 func (c *CPU) ashOp(instruction int16) error {
+
+	register := (instruction >> 6) & 7
+	offset := uint16(instruction & 077)
+	if offset == 0 {
+		return nil
+	}
+	result := uint16(c.Registers[register])
+
+	// negative number -> shift right
+	if (offset & 040) > 0 {
+		offset = 64 - offset
+		if offset > 16 {
+			offset = 16
+		}
+
+		// set C flag:
+		c.SetFlag("C", (result&(0x8000>>(16-offset))) != 0)
+		result = result >> offset
+	} else {
+		if offset > 16 {
+			result = 0
+		} else {
+			// set C flag:
+			c.SetFlag("C", (result&(1<<(16-offset))) != 0)
+			result = result << offset
+		}
+	}
+
+	// V flag set if sign changed:
+	c.SetFlag("V", (c.Registers[register]&0x8000) != (result&0x8000))
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("N", result < 0)
+	c.Registers[register] = result
 	return nil
 }
 
-// arithmetic shift combined:
+// arithmetic shift combined (EIS option)
 func (c *CPU) ashcOp(instruction int16) error {
+
+	var result uint32
+	offset := uint16(instruction & 077)
+	if offset == 0 {
+		return nil
+	}
+
+	register := (instruction >> 6) & 7
+	dst := (uint32(c.Registers[register]) << 16) | uint32(c.Registers[register|1])
+
+	// negative number -> shift right
+	if (offset & 040) > 0 {
+		offset = 64 - offset
+		if offset > 32 {
+			offset = 32
+		}
+		result = dst >> (offset - 1)
+		c.SetFlag("C", (result&0x0001) != 0)
+		result = result >> 1
+		if (dst & 0x80000000) != 0 {
+			// TODO: Why???
+			result = result | (0xffffffff << (32 - offset))
+		}
+	} else {
+		result = dst << (offset - 1)
+		c.SetFlag("C", (result&0x8000) != 0)
+		result = result << 1
+
+	}
+
+	c.Registers[register] = uint16((result >> 16) & 0xffff)
+	c.Registers[register|1] = uint16(result & 0xffff)
+	c.SetFlag("N", result < 0)
+	c.SetFlag("Z", result == 0)
+	// V flag set if the sign bit changed during the shift
+	c.SetFlag("V", (dst>>31) != (result>>31))
+
 	return nil
 }
 
 // xor
 func (c *CPU) xorOp(instruction int16) error {
+	sourceVal := c.Registers[(instruction>>6)&7]
+	dest := instruction & 077
+	destVal := c.readWord(uint16(dest))
+
+	res := sourceVal ^ destVal
+
+	c.SetFlag("N", res < 0)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("V", false)
+
+	c.writeWord(uint16(dest), uint16(res))
 	return nil
 }
 
 // sob - substract one and branch (if not equal 0)
+// if value of the register sourceReg is not 0, susbtract
+// twice the value of the offset (lowest 6 bits) from the SP
 func (c *CPU) sobOp(instruction int16) error {
+	sourceReg := (instruction >> 6) & 7
+	c.Registers[sourceReg] = (c.Registers[sourceReg] - 1) & 0xffff
+	if c.Registers[sourceReg] != 0 {
+		c.Registers[7] = (c.Registers[7] - ((uint16(instruction) & 077) << 1)) & 0xffff
+	}
 	return nil
 }
 
@@ -448,11 +584,45 @@ func (c *CPU) rtsOp(instruction int16) error {
 // clear flag opcodes
 // covers following operations: CLN, CLZ, CLV, CLC, CCC
 func (c *CPU) clearFlagOp(instruction int16) error {
+
+	switch flag := instruction & 0777; flag {
+	case 0241:
+		c.SetFlag("C", false)
+	case 0242:
+		c.SetFlag("V", false)
+	case 0243:
+		c.SetFlag("C", false)
+		c.SetFlag("V", false)
+	case 0244:
+		c.SetFlag("Z", false)
+	case 0250:
+		c.SetFlag("N", false)
+	case 0257:
+		c.SetFlag("N", false)
+		c.SetFlag("Z", false)
+		c.SetFlag("C", false)
+		c.SetFlag("V", false)
+	}
 	return nil
 }
 
 // set flag opcodes
 // covers following operations: SEN, SEZ, SEV, SEC, SCC
 func (c *CPU) setFlagOp(instruction int16) error {
+	switch flag := instruction & 0777; flag {
+	case 0261:
+		c.SetFlag("C", true)
+	case 0262:
+		c.SetFlag("V", true)
+	case 0264:
+		c.SetFlag("Z", true)
+	case 0270:
+		c.SetFlag("N", true)
+	case 0277:
+		c.SetFlag("N", true)
+		c.SetFlag("Z", true)
+		c.SetFlag("C", true)
+		c.SetFlag("V", true)
+	}
 	return nil
 }
