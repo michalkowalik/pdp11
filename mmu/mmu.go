@@ -3,6 +3,7 @@ package mmu
 import (
 	"errors"
 	"fmt"
+	"pdp/psw"
 )
 
 // PDP11/70 can be equipped with up to 4MB of RAM.
@@ -72,6 +73,9 @@ type MMU struct {
 
 	// memory managemnt PDR registers by mode
 	MMUPRD [4][16]int16
+
+	// Processor status word:
+	Psw psw.PSW
 }
 
 // MapVirtualToPhysical maps the 17 bit I/D virtual address to a 22 bit physical address
