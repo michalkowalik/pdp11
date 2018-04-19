@@ -1,6 +1,10 @@
 package pdpcpu
 
-import "testing"
+import (
+	"pdp/mmu"
+	"pdp/psw"
+	"testing"
+)
 
 func Test_cpu_Fetch(t *testing.T) {
 	tests := []struct {
@@ -18,6 +22,7 @@ func Test_cpu_Fetch(t *testing.T) {
 
 func TestCPU_GetFlag(t *testing.T) {
 	var c = &CPU{}
+	c.mmunit = &mmu.MMU{}
 
 	tests := []struct {
 		name       string
@@ -38,7 +43,7 @@ func TestCPU_GetFlag(t *testing.T) {
 		{"T set", 0x1f, "T", true},
 	}
 	for _, tt := range tests {
-		c.statusRegister = tt.statusWord
+		c.mmunit.Psw = psw.PSW(tt.statusWord)
 		t.Run(tt.name, func(t *testing.T) {
 			if got := c.GetFlag(tt.args); got != tt.want {
 				t.Errorf("CPU.GetFlag() = %v, want %v", got, tt.want)

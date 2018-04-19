@@ -294,17 +294,33 @@ func (c *CPU) DumpRegisters(regView *gocui.View) {
 
 //SetFlag sets CPU carry flag in Processor Status Word
 func (c *CPU) SetFlag(flag string, set bool) {
-	if set == true {
-		c.statusRegister = c.statusRegister | cpuFlags[flag].setMask
-	} else {
-		c.statusRegister = c.statusRegister & cpuFlags[flag].unsetMask
+	switch flag {
+	case "C":
+		c.mmunit.Psw.SetC(set)
+	case "V":
+		c.mmunit.Psw.SetV(set)
+	case "Z":
+		c.mmunit.Psw.SetZ(set)
+	case "N":
+		c.mmunit.Psw.SetN(set)
+	case "T":
+		c.mmunit.Psw.SetT(set)
 	}
 }
 
 //GetFlag returns carry flag
 func (c *CPU) GetFlag(flag string) bool {
-	if c.statusRegister&cpuFlags[flag].setMask != 0 {
-		return true
+	switch flag {
+	case "C":
+		return c.mmunit.Psw.C()
+	case "V":
+		return c.mmunit.Psw.V()
+	case "Z":
+		return c.mmunit.Psw.Z()
+	case "N":
+		return c.mmunit.Psw.N()
+	case "T":
+		return c.mmunit.Psw.T()
 	}
 	return false
 }

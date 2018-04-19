@@ -20,6 +20,7 @@ func (c *CPU) clrOp(instruction int16) error {
 		c.mmunit.Memory[v+1] = 0
 	}
 
+	// TODO: move all condition codes to psw kept by mmu
 	// set flags:
 	c.SetFlag("C", false)
 	c.SetFlag("N", false)
