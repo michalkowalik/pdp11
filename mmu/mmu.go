@@ -3,6 +3,7 @@ package mmu
 import (
 	"errors"
 	"fmt"
+	"pdp/psw"
 )
 
 // PDP11/70 can be equipped with up to 4MB of RAM.
@@ -70,8 +71,13 @@ type MMU struct {
 	// 3 = user
 	MMUPar [4][16]int16
 
-	// memory managemnt PDR registers by mode
-	MMUPRD [4][16]int16
+	// Page description Regiserts
+	MMUPDR [4][16]int16
+
+	// Processor status word.
+	// MMU puts it in either 0177776 or 0777776 location
+	// (and I'm not really sure which is user where)
+	Psw psw.PSW
 }
 
 // MapVirtualToPhysical maps the 17 bit I/D virtual address to a 22 bit physical address
@@ -95,8 +101,9 @@ func (m *MMU) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint
 	fmt.Printf("DEBUG: page: %#o\n", page)
 	// TODO: Add error checking like in pdp11.js, line 484
 
+	// TODO: is it used anywhere?
 	// pdr: address pointed by PAR:
-	pdr := m.MMUPRD[m.MMUMode][page]
+	pdr := m.MMUPDR[m.MMUMode][page]
 	fmt.Printf("DEBUG: pdr: %#o\n", pdr)
 
 	// physical address calculation:
