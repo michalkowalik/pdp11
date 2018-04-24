@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"pdp/mmu"
+	"pdp/psw"
 
 	"github.com/jroimartin/gocui"
 )
@@ -43,7 +44,17 @@ type CPU struct {
 	mmunit *mmu.MMU
 
 	// and stack pointer: kernel, super, illegal, user
+	// TODO: Really? -> what is it good for?
 	StackPointer [4]uint16
+
+	// track double traps. initialize with false.
+	doubleTrap bool
+
+	// original PSW while dealing with trap
+	trapPsw psw.PSW
+
+	// trap mask
+	trapMask uint16
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it
@@ -81,6 +92,8 @@ var cpuFlags = map[string]struct {
 func New(mmunit *mmu.MMU) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
+	c.doubleTrap = false
+
 	// single operand
 	c.singleOpOpcodes = make(map[uint16](func(int16) error))
 	c.doubleOpOpcodes = make(map[uint16](func(int16) error))
@@ -290,8 +303,6 @@ func (c *CPU) DumpRegisters(regView *gocui.View) {
 	}
 }
 
-// status word handling:
-
 //SetFlag sets CPU carry flag in Processor Status Word
 func (c *CPU) SetFlag(flag string, set bool) {
 	switch flag {
@@ -323,4 +334,49 @@ func (c *CPU) GetFlag(flag string) bool {
 		return c.mmunit.Psw.T()
 	}
 	return false
+}
+
+// trap handles all trap / abort events.
+// TODO: Do I need to signal trap occurence?
+func (c *CPU) trap(vector uint16) error {
+	if !c.doubleTrap {
+		c.trapMask = 0
+		c.trapPsw = c.mmunit.Psw
+	} else {
+		if c.mmunit.MMUMode == 0 { // kernel mode
+			vector = 4
+			c.doubleTrap = true
+		}
+	}
+
+	// read from kernel D sapce
+	c.mmunit.MMUMode = 0
+
+	newPC := c.mmunit.ReadMemoryWord(vector)
+	newPSW := psw.PSW(c.mmunit.ReadMemoryWord(vector + 2))
+
+	// set PREVIOUS MODE bits in new PSW -> take it from currentMode bits in
+	// saved c.trapPSW
+	newPSW = (newPSW & 0xcfff) | ((c.trapPsw >> 2) & 0x3000)
+
+	// set new Processor Status Word
+	c.mmunit.Psw = newPSW
+
+	// TODO: - Double Trap not implemented
+
+	// set new Program counter:
+	c.Registers[7] = newPC
+
+	c.doubleTrap = false
+	return nil
+}
+
+// PopWord pops 1 word from Processor stack:
+func (c *CPU) PopWord() uint16 {
+	result := c.mmunit.ReadMemoryWord(c.Registers[6])
+
+	// update Stack Pointer after reading the word
+	c.Registers[6] = (c.Registers[6] + 2) & 0xffff
+
+	return result
 }

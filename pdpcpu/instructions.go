@@ -305,6 +305,8 @@ func (c *CPU) haltOp(instruction int16) error {
 
 // bpt - breakpoint trap
 func (c *CPU) bptOp(instruction int16) error {
+	// 14 is breakpoint trap vector
+	c.trap(14)
 	return nil
 }
 
@@ -566,19 +568,29 @@ func (c *CPU) sobOp(instruction int16) error {
 }
 
 // trap opcodes:
-// emt - emulator trap
+// emt - emulator trap - trap vector hardcoded to location 32
 func (c *CPU) emtOp(instruction int16) error {
+	c.trap(32)
 	return nil
 }
 
 // trap
+// trap vector for TRAP is hardcoded for all PDP11s to memory location 34
 func (c *CPU) trapOp(instruction int16) error {
+	c.trap(34)
 	return nil
 }
 
 // Single Register opcodes
 // rts - return from subroutine
 func (c *CPU) rtsOp(instruction int16) error {
+	register := instruction & 7
+
+	// load Program Counter from register passed in instruction
+	c.Registers[7] = c.Registers[register]
+
+	// load word popped from processor stack to "register"
+	c.Registers[register] = c.PopWord()
 	return nil
 }
 
