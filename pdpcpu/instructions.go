@@ -1,5 +1,9 @@
 package pdpcpu
 
+import (
+	"pdp/psw"
+)
+
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
@@ -306,17 +310,42 @@ func (c *CPU) haltOp(instruction int16) error {
 // bpt - breakpoint trap
 func (c *CPU) bptOp(instruction int16) error {
 	// 14 is breakpoint trap vector
-	c.trap(14)
+	c.trap(014)
 	return nil
 }
 
 // iot - i/o trap
 func (c *CPU) iotOp(instruction int16) error {
+	c.trap(020)
 	return nil
 }
 
 // rti - return from interrupt
+// I have seen in some other places, that the
+// PSW was masked by & 0xf8ff - but this makes
+// very little sense to me, as the bytes 8 to 12
+// aren't utilized anyway. skipping this part
 func (c *CPU) rtiOp(instruction int16) error {
+
+	// get destination address from the stack
+	dstAddr := c.Registers[6]
+
+	// read address kept in the address kept on stack
+	virtualAddress := c.mmunit.ReadMemoryWord(dstAddr)
+
+	dstAddr = (dstAddr + 2) & 0xffff
+	savePSW := c.mmunit.ReadMemoryWord(dstAddr)
+
+	// update stack pointer:
+	c.Registers[6] = (dstAddr + 2) & 0xffff
+
+	// TODO: user / super restriction
+
+	c.Registers[7] = virtualAddress
+	c.mmunit.Psw = psw.PSW(savePSW)
+
+	// turn off Trace trap
+	c.trapMask &= 0x10
 	return nil
 }
 

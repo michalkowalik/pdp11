@@ -124,6 +124,7 @@ func (m *MMU) ReadMemoryWord(addr uint16) uint16 {
 }
 
 // ReadMemoryByte returns single byte from the memory
+// TODO: add virtual to physical address translation call
 // params:
 // addr: 16 bit virtual address
 // returns: byte
