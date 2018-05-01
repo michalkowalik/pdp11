@@ -349,8 +349,10 @@ func (c *CPU) rtiOp(instruction int16) error {
 	return nil
 }
 
-// rtt - return from interrupt - same as rti, with distinction of inhibits a trace trap
+// rtt - return from interrupt - same as rti, with distinction of inhibiting a trace trap
 func (c *CPU) rttOp(instruction int16) error {
+	c.rtiOp(instruction)
+	c.trapMask = uint16(c.mmunit.Psw) & 0x10
 	return nil
 }
 

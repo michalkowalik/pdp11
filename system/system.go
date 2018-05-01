@@ -6,6 +6,7 @@ import (
 	"pdp/console"
 	"pdp/mmu"
 	"pdp/pdpcpu"
+	"pdp/unibus"
 
 	"github.com/jroimartin/gocui"
 )
@@ -17,8 +18,8 @@ type System struct {
 
 	mmuEnabled bool
 
-	// Unibus map registers
-	UnibusMap [32]int16
+	// Unibus
+	unibus *unibus.Unibus
 
 	// console and status output:
 	console     *console.Console
