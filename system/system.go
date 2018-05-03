@@ -2,7 +2,6 @@ package system
 
 import (
 	"fmt"
-
 	"pdp/console"
 	"pdp/mmu"
 	"pdp/pdpcpu"
@@ -38,20 +37,25 @@ func InitializeSystem(console *console.Console, consoleView, regView *gocui.View
 	sys.consoleView = consoleView
 	sys.regView = regView
 
-	// start emulation with disabled mmu:
-	sys.mmuEnabled = false
+	// start emulation with enabled mmu:
+	sys.mmuEnabled = true
 
 	// point mmu to memory:
 	mmunit = mmu.MMU{}
 	mmunit.Memory = &sys.Memory
 
-	console.WriteConsole("Initializing PDP11 CPU...\n")
+	console.WriteConsole("Initializing PDP11 CPU.\n")
 	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
 	return sys
 }
 
-// Noop is a dummy function just to keep go compiler happy for a while
-func (sys *System) Noop() {
-	fmt.Fprintf(sys.consoleView, ".. Noop ..\n")
+// emulate calls CPU execute as long as cpu is in run state:
+func (sys *System) emulate() {
+	for sys.CPU.State == pdpcpu.RUN {
+		sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
+		sys.CPU.Execute()
+	}
+	sys.console.WriteConsole(
+		fmt.Sprintf("CPU status: %v\n ", sys.CPU.State))
 }

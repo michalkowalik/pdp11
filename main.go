@@ -68,7 +68,7 @@ func startPdp(g *gocui.Gui) error {
 	// update registers:
 	updateRegisters(pdp, g)
 
-	pdp.Noop()
+	pdp.Boot()
 
 	// default return value -> no errors encoutered
 	return nil
