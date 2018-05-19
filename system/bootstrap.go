@@ -163,5 +163,6 @@ func (sys *System) Boot() {
 	if sys.CPU.State != pdpcpu.RUN {
 		sys.CPU.State = pdpcpu.RUN
 	}
-	sys.emulate()
+	// sys.emulate()
+	sys.loop()
 }

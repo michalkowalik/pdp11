@@ -44,6 +44,9 @@ func InitializeSystem(console *console.Console, consoleView, regView *gocui.View
 	mmunit = mmu.MMU{}
 	mmunit.Memory = &sys.Memory
 
+	// unibus
+	sys.unibus = unibus.New()
+
 	console.WriteConsole("Initializing PDP11 CPU.\n")
 	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
@@ -51,6 +54,7 @@ func InitializeSystem(console *console.Console, consoleView, regView *gocui.View
 }
 
 // emulate calls CPU execute as long as cpu is in run state:
+// TODO: Probably obsolete. Consider removal
 func (sys *System) emulate() {
 	for sys.CPU.State == pdpcpu.RUN {
 		sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
@@ -58,4 +62,21 @@ func (sys *System) emulate() {
 	}
 	sys.console.WriteConsole(
 		fmt.Sprintf("CPU status: %v\n ", sys.CPU.State))
+}
+
+// loop keeps the emulation running.
+// checks the interrupt queue and lets CPU run
+func (sys *System) loop() {
+	for {
+		// check interrupts
+
+		// run cpu instruction
+		sys.CPU.Execute()
+		if sys.CPU.State == pdpcpu.WAIT {
+			sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
+			break
+		}
+		sys.console.WriteConsole("still in for loop")
+	}
+	sys.console.WriteConsole("out of for loop")
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"pdp/mmu"
 	"pdp/psw"
+	"pdp/unibus"
 
 	"github.com/jroimartin/gocui"
 )
@@ -55,6 +56,9 @@ type CPU struct {
 
 	// trap mask
 	trapMask uint16
+
+	// InterruptQueue queue to keep incoming interrupts before processing them
+	InterruptQueue []unibus.Interrupt
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it
