@@ -66,6 +66,10 @@ func (sys *System) emulate() {
 
 // loop keeps the emulation running.
 // checks the interrupt queue and lets CPU run
+//
+// * why does sleep make the memory to explode and blocks everything?
+// * how do I actually handle the wait state in a secure manner?
+
 func (sys *System) loop() {
 	for {
 		// check interrupts
@@ -76,7 +80,6 @@ func (sys *System) loop() {
 			sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
 			break
 		}
-		sys.console.WriteConsole("still in for loop")
 	}
 	sys.console.WriteConsole("out of for loop")
 }

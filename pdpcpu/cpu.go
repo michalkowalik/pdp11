@@ -57,6 +57,9 @@ type CPU struct {
 	// trap mask
 	trapMask uint16
 
+	// PIR (Programmable Interrupt Register)
+	PIR uint16
+
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	InterruptQueue []unibus.Interrupt
 
