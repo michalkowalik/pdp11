@@ -76,7 +76,6 @@ func startPdp(g *gocui.Gui) error {
 
 // update registers display
 // has to be run in go routine -> gocui allows updating the view only through Execute function
-// TODO: make sure it can stay like that!
 func updateRegisters(pdp *system.System, g *gocui.Gui) {
 	ticker := time.NewTicker(time.Second * 1)
 
