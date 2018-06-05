@@ -19,12 +19,23 @@ type Unibus struct {
 
 	// Channel for interrupt communication
 	Interrupts chan Interrupt
+
+	// Unibus memory map. rough and uncomplete for now.
+	// the variadic parameters are required due to some
+	// of the IOPage function requireding 4 parameters
+	// TODO: 4'th parameter being...
+	memoryMap map[uint32](func(bool, ...uint32) error)
 }
 
 // New initializes and returns the Unibus variable
 func New() *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan Interrupt)
+
+	// initialize memory map:
+	unibus.memoryMap = make(map[uint32](func(bool, ...uint32) error))
+	unibus.memoryMap[017772000] = unibus.accessVT100
+
 	return &unibus
 }
 
@@ -37,6 +48,9 @@ func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 // access IO Page - write or read.
 // TODO: implementation.
 func (u *Unibus) accessIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
+	if val, ok := u.memoryMap[physicalAddres]; ok {
+		val(byteFlag, physicalAddres, uint32(data))
+	}
 	return nil
 }
 
