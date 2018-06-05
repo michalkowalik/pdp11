@@ -357,8 +357,12 @@ func (c *CPU) rttOp(instruction int16) error {
 }
 
 // wait for interrupt
+// check for interrupts here!!
 func (c *CPU) waitOp(instruction int16) error {
 	c.State = WAIT
+
+	// update display:
+
 	return nil
 }
 

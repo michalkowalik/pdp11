@@ -72,14 +72,31 @@ func (sys *System) emulate() {
 
 func (sys *System) loop() {
 	for {
-		// check interrupts
+		for step := 0; step < 4000; step++ {
+			// check interrupts
+			sys.processInterruptQueue()
 
-		// run cpu instruction
-		sys.CPU.Execute()
+			// check traps
+
+			// run cpu instruction
+			sys.CPU.Execute()
+		}
+		sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
 		if sys.CPU.State == pdpcpu.WAIT {
-			sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
+			sys.console.WriteConsole("CPU in WAIT state \n")
 			break
 		}
 	}
 	sys.console.WriteConsole("out of for loop")
+}
+
+// check for incoming interrupt, insert it into CPU interrupt queue.
+// multiplexing with `select` to avoid blocking the programme.
+func (sys *System) processInterruptQueue() {
+	select {
+	case interrupt := <-sys.unibus.Interrupts:
+		sys.CPU.InterruptQueue = append(sys.CPU.InterruptQueue, interrupt)
+		return
+	default:
+	}
 }
