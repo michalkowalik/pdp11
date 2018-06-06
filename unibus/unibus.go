@@ -1,5 +1,7 @@
 package unibus
 
+import "pdp/disk"
+
 // Interrupt type - used to sygnalize incoming interrupt
 // perhaps to be added:
 // - delay
@@ -27,10 +29,22 @@ type Unibus struct {
 	memoryMap map[uint32](func(bool, ...uint32) error)
 }
 
+// attached devices:
+var (
+	// 1. terminal:
+	termEmulator *VT100
+
+	// 2. rk01 disk
+	rk01 *disk.RK
+)
+
 // New initializes and returns the Unibus variable
-func New() *Unibus {
+func New(vt100 *VT100) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan Interrupt)
+
+	// initialize attached devices:
+	termEmulator = vt100
 
 	// initialize memory map:
 	unibus.memoryMap = make(map[uint32](func(bool, ...uint32) error))

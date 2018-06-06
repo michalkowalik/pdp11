@@ -41,23 +41,23 @@ func startPdp(g *gocui.Gui) error {
 	}
 	statusView.Clear()
 
-	consoleView, err := g.View("console")
+	terminalView, err := g.View("terminal")
 	if err != nil {
 		return err
 	}
-	consoleView.Clear()
+	terminalView.Clear()
 
 	regView, err := g.View("registers")
 	if err != nil {
 		return err
 	}
-	consoleView.Clear()
+	terminalView.Clear()
 
 	console := console.New(g)
 	console.WriteConsole("Starting PDP-11/70 emulator.")
 
 	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
-	pdp := system.InitializeSystem(console, consoleView, regView)
+	pdp := system.InitializeSystem(console, terminalView, regView)
 
 	if _, err := g.SetCurrentView("status"); err != nil {
 		log.Panic(err)
@@ -102,11 +102,11 @@ func updateRegisters(pdp *system.System, g *gocui.Gui) {
 func layout(g *gocui.Gui) error {
 	maxX, maxY := g.Size()
 	// up -> console
-	if v, err := g.SetView("console", 0, 0, maxX-1, maxY-18); err != nil {
+	if v, err := g.SetView("terminal", 0, 0, maxX-1, maxY-18); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "Console"
+		v.Title = "Terminal"
 	}
 
 	// middle -> register values
@@ -121,7 +121,7 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "Status"
+		v.Title = "System Control Console"
 		v.Editable = true
 		v.Autoscroll = true
 	}

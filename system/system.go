@@ -21,9 +21,9 @@ type System struct {
 	unibus *unibus.Unibus
 
 	// console and status output:
-	console     *console.Console
-	consoleView *gocui.View
-	regView     *gocui.View
+	console      *console.Console
+	terminalView *gocui.View
+	regView      *gocui.View
 }
 
 // <- make it a part of system type?
@@ -31,10 +31,10 @@ type System struct {
 var mmunit mmu.MMU
 
 // InitializeSystem initializes the emulated PDP-11/44 hardware
-func InitializeSystem(console *console.Console, consoleView, regView *gocui.View) *System {
+func InitializeSystem(console *console.Console, terminalView, regView *gocui.View) *System {
 	sys := new(System)
 	sys.console = console
-	sys.consoleView = consoleView
+	sys.terminalView = terminalView
 	sys.regView = regView
 
 	// start emulation with enabled mmu:
@@ -44,8 +44,11 @@ func InitializeSystem(console *console.Console, consoleView, regView *gocui.View
 	mmunit = mmu.MMU{}
 	mmunit.Memory = &sys.Memory
 
+	// terminal emulator:
+	vt100 := unibus.NewTerm(terminalView)
+
 	// unibus
-	sys.unibus = unibus.New()
+	sys.unibus = unibus.New(vt100)
 
 	console.WriteConsole("Initializing PDP11 CPU.\n")
 	sys.CPU = pdpcpu.New(&mmunit)

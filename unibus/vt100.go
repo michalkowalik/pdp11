@@ -1,5 +1,9 @@
 package unibus
 
+import (
+	"github.com/jroimartin/gocui"
+)
+
 // Video terminal emulation. the simpler, the better.
 // I'm happy to just see anything on the screen so far.
 // not sure if original VT100 could support anything but 7 bit ASCII,
@@ -10,6 +14,11 @@ package unibus
 
 // VT100 terminal definition
 type VT100 struct {
+	// display Program counter
+	DPC uint32
+
+	// gocui view:
+	termView *gocui.View
 
 	// horizontal and vertical position of the cursor
 	xRegister uint16
@@ -17,6 +26,13 @@ type VT100 struct {
 
 	// set to true if debug information required
 	debug bool
+}
+
+// NewTerm returns pointer to the instance of terminal emulator struct
+func NewTerm(termView *gocui.View) *VT100 {
+	vt100 := VT100{}
+	vt100.termView = termView
+	return &vt100
 }
 
 // termporary, probably broken. should be a part of VT100:
