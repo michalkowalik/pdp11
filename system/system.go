@@ -44,11 +44,8 @@ func InitializeSystem(console *console.Console, terminalView, regView *gocui.Vie
 	mmunit = mmu.MMU{}
 	mmunit.Memory = &sys.Memory
 
-	// terminal emulator:
-	vt100 := unibus.NewTerm(terminalView)
-
 	// unibus
-	sys.unibus = unibus.New(vt100)
+	sys.unibus = unibus.New(terminalView)
 
 	console.WriteConsole("Initializing PDP11 CPU.\n")
 	sys.CPU = pdpcpu.New(&mmunit)

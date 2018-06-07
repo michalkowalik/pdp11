@@ -27,21 +27,28 @@ import (
 //nonr leng read trap unus unus ena mnt cmp  -mode- i/d  --page--   enable
 
 // memory related constans (by far not all needed -- figuring out as while writing)
+const (
+	// ByteMode -> Read addresses by byte, not by word (?)
+	ByteMode = 1
 
-// ByteMode -> Read addresses by byte, not by word (?)
-const ByteMode = 1
+	// ReadMode -> Read from main memory
+	ReadMode = 2
 
-// ReadMode -> Read from main memory
-const ReadMode = 2
+	// WriteMode -> Write from main memory
+	WriteMode = 4
 
-// WriteMode -> Write from main memory
-const WriteMode = 4
+	// ModifyWord ->  Read and write word in memory
+	ModifyWord = ReadMode | WriteMode
 
-// ModifyWord ->  Read and write word in memory
-const ModifyWord = ReadMode | WriteMode
+	// ModifyByte -> Read and write byte in memory
+	ModifyByte = ReadMode | WriteMode | ByteMode
 
-// ModifyByte -> Read and write byte in memory
-const ModifyByte = ReadMode | WriteMode | ByteMode
+	//IO base UNIBUS adresses:
+	IObaseVirtual = 0160000
+	IObase18bit   = 0760000
+	IObaseUnibus  = 017000000
+	IObase22bit   = 017760000
+)
 
 // MMU related functionality - translating virtual to physical addresses.
 type MMU struct {

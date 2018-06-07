@@ -1,6 +1,10 @@
 package unibus
 
-import "pdp/disk"
+import (
+	"pdp/disk"
+
+	"github.com/jroimartin/gocui"
+)
 
 // Interrupt type - used to sygnalize incoming interrupt
 // perhaps to be added:
@@ -26,7 +30,7 @@ type Unibus struct {
 	// the variadic parameters are required due to some
 	// of the IOPage function requireding 4 parameters
 	// TODO: 4'th parameter being...
-	memoryMap map[uint32](func(bool, ...uint32) error)
+	memoryMap map[uint32](func(bool, ...uint32) (uint16, error))
 }
 
 // attached devices:
@@ -39,15 +43,15 @@ var (
 )
 
 // New initializes and returns the Unibus variable
-func New(vt100 *VT100) *Unibus {
+func New(termView *gocui.View) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan Interrupt)
 
 	// initialize attached devices:
-	termEmulator = vt100
+	termEmulator = NewTerm(termView)
 
 	// initialize memory map:
-	unibus.memoryMap = make(map[uint32](func(bool, ...uint32) error))
+	unibus.memoryMap = make(map[uint32](func(bool, ...uint32) (uint16, error)))
 	unibus.memoryMap[017772000] = unibus.accessVT100
 
 	return &unibus
@@ -66,6 +70,17 @@ func (u *Unibus) accessIOPage(physicalAddres uint32, data uint16, byteFlag bool)
 		val(byteFlag, physicalAddres, uint32(data))
 	}
 	return nil
+}
+
+// TODO: -> separate accessIOPage into read and write functions:
+
+func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
+	if val, ok := u.memoryMap[physicalAddres]; ok {
+		// not sure about that 0 -> perhaps that should be separeted too!
+		return val(byteFlag, physicalAddres, 0)
+	}
+	return 0, nil
+
 }
 
 // SendInterrupt sends a new interrupts to the receiver

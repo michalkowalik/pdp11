@@ -11,6 +11,12 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
+/**
+BIGGEST TODO:
+ -- do I need to introduce some kind of multiplexer for all goroutines communicating
+    with channels?
+*/
+
 func main() {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
@@ -106,7 +112,7 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "Terminal"
+		v.Title = "|Terminal|"
 	}
 
 	// middle -> register values
@@ -114,14 +120,14 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "Registers"
+		v.Title = "|Registers|"
 	}
 	// down -> status
 	if v, err := g.SetView("status", 0, maxY-13, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "System Control Console"
+		v.Title = "|System Control Console|"
 		v.Editable = true
 		v.Autoscroll = true
 	}

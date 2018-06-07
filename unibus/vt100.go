@@ -37,6 +37,7 @@ func NewTerm(termView *gocui.View) *VT100 {
 
 // termporary, probably broken. should be a part of VT100:
 // data consist of 3 elements: address, data, byte flag.
-func (u *Unibus) accessVT100(byteFlag bool, data ...uint32) error {
-	return nil
+// upate: it can actually stay here.
+func (u *Unibus) accessVT100(byteFlag bool, data ...uint32) (uint16, error) {
+	return 0, nil
 }
