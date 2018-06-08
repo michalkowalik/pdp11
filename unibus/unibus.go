@@ -74,7 +74,7 @@ func (u *Unibus) accessIOPage(physicalAddres uint32, data uint16, byteFlag bool)
 func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
 	switch physicalAddres {
 	case VT100Addr:
-		return u.accessVT100(byteFlag, physicalAddres)
+		return u.readVT100(byteFlag, physicalAddres)
 	default:
 		return 0, errors.New("Not a UNIBUS Address -> halt / trap?")
 	}
@@ -83,7 +83,7 @@ func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error
 func (u *Unibus) writeIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
 	switch physicalAddres {
 	case VT100Addr:
-		return u.accessVT100(bool, physicalAddres, data)
+		return u.writeVT100(byteFlag, physicalAddres, data)
 	default:
 		return errors.New("Not a unibus address -> trap / halt perhaps?")
 	}

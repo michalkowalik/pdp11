@@ -38,6 +38,11 @@ func NewTerm(termView *gocui.View) *VT100 {
 // termporary, probably broken. should be a part of VT100:
 // data consist of 3 elements: address, data, byte flag.
 // upate: it can actually stay here.
-func (u *Unibus) accessVT100(byteFlag bool, data ...uint32) (uint16, error) {
+func (u *Unibus) readVT100(byteFlag bool, physicalAddress uint32) (uint16, error) {
 	return 0, nil
+}
+
+// write to the terminal memory
+func (u *Unibus) writeVT100(byteFlag bool, physicalAddress uint32, data uint16) error {
+	return nil
 }
