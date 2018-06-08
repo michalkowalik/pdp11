@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"errors"
 	"pdp/disk"
 
 	"github.com/jroimartin/gocui"
@@ -17,6 +18,11 @@ type Interrupt struct {
 	cleanFlag bool
 }
 
+// const values for memory addresses for attached devices
+const (
+	VT100Addr = 017772000
+)
+
 // Unibus definition
 type Unibus struct {
 
@@ -25,12 +31,6 @@ type Unibus struct {
 
 	// Channel for interrupt communication
 	Interrupts chan Interrupt
-
-	// Unibus memory map. rough and uncomplete for now.
-	// the variadic parameters are required due to some
-	// of the IOPage function requireding 4 parameters
-	// TODO: 4'th parameter being...
-	memoryMap map[uint32](func(bool, ...uint32) (uint16, error))
 }
 
 // attached devices:
@@ -49,11 +49,6 @@ func New(termView *gocui.View) *Unibus {
 
 	// initialize attached devices:
 	termEmulator = NewTerm(termView)
-
-	// initialize memory map:
-	unibus.memoryMap = make(map[uint32](func(bool, ...uint32) (uint16, error)))
-	unibus.memoryMap[017772000] = unibus.accessVT100
-
 	return &unibus
 }
 
@@ -65,22 +60,33 @@ func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 
 // access IO Page - write or read.
 // TODO: implementation.
+/*
 func (u *Unibus) accessIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
 	if val, ok := u.memoryMap[physicalAddres]; ok {
 		val(byteFlag, physicalAddres, uint32(data))
 	}
 	return nil
 }
+*/
 
 // TODO: -> separate accessIOPage into read and write functions:
 
 func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
-	if val, ok := u.memoryMap[physicalAddres]; ok {
-		// not sure about that 0 -> perhaps that should be separeted too!
-		return val(byteFlag, physicalAddres, 0)
+	switch physicalAddres {
+	case VT100Addr:
+		return u.accessVT100(byteFlag, physicalAddres)
+	default:
+		return 0, errors.New("Not a UNIBUS Address -> halt / trap?")
 	}
-	return 0, nil
+}
 
+func (u *Unibus) writeIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
+	switch physicalAddres {
+	case VT100Addr:
+		return u.accessVT100(bool, physicalAddres, data)
+	default:
+		return errors.New("Not a unibus address -> trap / halt perhaps?")
+	}
 }
 
 // SendInterrupt sends a new interrupts to the receiver
