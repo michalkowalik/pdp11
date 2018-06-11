@@ -53,28 +53,15 @@ func New(termView *gocui.View) *Unibus {
 }
 
 // map 18 bit unibus address to 22 bit physical via the unibus map (if active)
-//  TODO: implementation missing
+// TODO: implementation missing
 func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 	return 0
 }
 
-// access IO Page - write or read.
-// TODO: implementation.
-/*
-func (u *Unibus) accessIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
-	if val, ok := u.memoryMap[physicalAddres]; ok {
-		val(byteFlag, physicalAddres, uint32(data))
-	}
-	return nil
-}
-*/
-
-// TODO: -> separate accessIOPage into read and write functions:
-
 func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
 	switch physicalAddres {
 	case VT100Addr:
-		return u.readVT100(byteFlag, physicalAddres)
+		return termEmulator.ReadVT100(byteFlag, physicalAddres)
 	default:
 		return 0, errors.New("Not a UNIBUS Address -> halt / trap?")
 	}
@@ -83,7 +70,7 @@ func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error
 func (u *Unibus) writeIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
 	switch physicalAddres {
 	case VT100Addr:
-		return u.writeVT100(byteFlag, physicalAddres, data)
+		return termEmulator.WriteVT100(byteFlag, physicalAddres, data)
 	default:
 		return errors.New("Not a unibus address -> trap / halt perhaps?")
 	}

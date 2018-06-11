@@ -15,7 +15,22 @@ import (
 // VT100 terminal definition
 type VT100 struct {
 	// display Program counter
-	DPC uint32
+	// 16 bit is a bit of a guess, as I can't really find the info
+	// what is the actual size of that counter
+	DPC uint16
+
+	// Display Status register
+	// 15 -> stop
+	// 14, 13, 12, 11 -> mode
+	// 10, 9, 8 -> intensity
+	// 7 -> pen
+	// 6 -> shift
+	// 5 -> edge
+	// 4 -> italics
+	// 3 -> blink
+	// 2 -> spare
+	// 1, 0 -> line
+	DSR uint16
 
 	// gocui view:
 	termView *gocui.View
@@ -35,14 +50,19 @@ func NewTerm(termView *gocui.View) *VT100 {
 	return &vt100
 }
 
-// termporary, probably broken. should be a part of VT100:
+// ReadVT100 : read from VT100 memory address.
 // data consist of 3 elements: address, data, byte flag.
 // upate: it can actually stay here.
-func (u *Unibus) readVT100(byteFlag bool, physicalAddress uint32) (uint16, error) {
+func (vt *VT100) ReadVT100(byteFlag bool, physicalAddress uint32) (uint16, error) {
 	return 0, nil
 }
 
-// write to the terminal memory
-func (u *Unibus) writeVT100(byteFlag bool, physicalAddress uint32, data uint16) error {
+// WriteVT100 : write to the terminal memory
+func (vt *VT100) WriteVT100(byteFlag bool, physicalAddress uint32, data uint16) error {
+	return nil
+}
+
+// execute command stored in Unibus address for VT100
+func (vt *VT100) execute() error {
 	return nil
 }
