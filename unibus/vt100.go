@@ -58,8 +58,22 @@ func (vt *VT100) ReadVT100(byteFlag bool, physicalAddress uint32) (uint16, error
 }
 
 // WriteVT100 : write to the terminal memory
+// last 3 bits in the memory specify the action to execute:
 func (vt *VT100) WriteVT100(byteFlag bool, physicalAddress uint32, data uint16) error {
-	return nil
+	switch physicalAddress & 06 {
+	// DPC
+	case 0:
+		return nil
+
+	// DSR
+	case 2:
+		return nil
+
+	// Light pen used by VT11. not really interesting, happy to ignore
+	default:
+		// TODO: trap needed here.
+		return nil
+	}
 }
 
 // execute command stored in Unibus address for VT100
