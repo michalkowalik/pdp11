@@ -1,6 +1,10 @@
 package teletype
 
-import "github.com/jroimartin/gocui"
+import (
+	"fmt"
+
+	"github.com/jroimartin/gocui"
+)
 
 // Teletype type  - simplest terminal emulator possible.
 type Teletype struct {
@@ -16,7 +20,7 @@ type Teletype struct {
 	// 11: RCVR BUSY, 7: RCRV DONE, 6: RCVR INT ENB, 0: RDR ENB
 	TKS uint16
 
-	// TPS : Punch status register
+	// TPS : Punch status register (addr. xxxx564)
 	// 7: XMT RDY, 6: XMIT INT ENB, 2: MAINT
 	TPS uint16
 
@@ -48,6 +52,7 @@ func New(termView *gocui.View) *Teletype {
 }
 
 // Run : Start the teletype
+// initialize the go routine to read from the incoming channel.
 func (t *Teletype) Run() error {
 	return nil
 }
@@ -58,6 +63,35 @@ func (t *Teletype) ReadTerm(address uint32) (uint16, error) {
 }
 
 // WriteTerm : write to the terminal address:
+// Warning: Unibus needs to provide a map between the physical 22 bit
+// addresses and the 18 bit, DEC defined addresses for the devices.
 func (t *Teletype) WriteTerm(address uint32, data uint16) error {
+	switch address & 0777 {
+
+	// keyboard control & status
+	case 0560:
+		break
+
+	// printer controal & status
+	case 0564:
+		break
+
+	// output
+	case 0566:
+		data = data & 0xFF
+		if t.TPS&0x80 == 0 {
+			break
+		}
+		if data == 13 {
+			break
+		}
+		fmt.Fprint(t.termView, string(data&0x7F))
+		t.TPS &= 0xFF7F
+		// need timeouts here!
+
+		// any other address -> error
+	default:
+		return fmt.Errorf("Write to invalid address %v", address)
+	}
 	return nil
 }
