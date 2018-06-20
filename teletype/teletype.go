@@ -8,7 +8,7 @@ import (
 
 // Instruction - Incomming instruction type
 type Instruction struct {
-	Address uint16
+	Address uint32
 	Data    uint16
 }
 
@@ -63,6 +63,16 @@ func New(termView *gocui.View) *Teletype {
 // Run : Start the teletype
 // initialize the go routine to read from the incoming channel.
 func (t *Teletype) Run() error {
+	go func() {
+		for {
+			select {
+			case instruction := <-t.Incoming:
+				t.WriteTerm(instruction.Address, instruction.Data)
+				//return
+			default:
+			}
+		}
+	}()
 	return nil
 }
 
