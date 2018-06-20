@@ -6,6 +6,12 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
+// Instruction - Incomming instruction type
+type Instruction struct {
+	Address uint16
+	Data    uint16
+}
+
 // Teletype type  - simplest terminal emulator possible.
 type Teletype struct {
 	// use gocui view, not a raw terminal
@@ -33,7 +39,7 @@ type Teletype struct {
 	// trigger interrupt when sending a char
 
 	// Incoming channel
-	Incoming chan uint16
+	Incoming chan Instruction
 
 	// Outgoing channel
 	Outgoing chan uint16
@@ -45,7 +51,10 @@ func New(termView *gocui.View) *Teletype {
 	tele.termView = termView
 
 	// initialize channels
-	tele.Incoming = make(chan uint16, 8)
+	tele.Incoming = make(chan Instruction, 8)
+
+	// outgoing channel is boud to trigger the interrupt -
+	// the type needs to be changed probably as well.
 	tele.Outgoing = make(chan uint16, 8)
 
 	return &tele
