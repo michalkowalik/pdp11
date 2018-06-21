@@ -7,9 +7,11 @@ import (
 )
 
 // Instruction - Incomming instruction type
+// if Read is set to false -> write instruction
 type Instruction struct {
 	Address uint32
 	Data    uint16
+	Read    bool
 }
 
 // Teletype type  - simplest terminal emulator possible.
@@ -18,8 +20,7 @@ type Teletype struct {
 	termView *gocui.View
 
 	// not really sure if it is a good choice for the input type
-	// check with the gocui
-	keybuffer rune
+	keybuffer uint16
 
 	// TKS : Reader status Register (addr. xxxx560)
 	// bits in register:
@@ -57,18 +58,31 @@ func New(termView *gocui.View) *Teletype {
 	// the type needs to be changed probably as well.
 	tele.Outgoing = make(chan uint16, 8)
 
+	fmt.Fprintf(termView, "-Teletype Initialized-\n")
 	return &tele
 }
 
 // Run : Start the teletype
 // initialize the go routine to read from the incoming channel.
 func (t *Teletype) Run() error {
-	go func() {
+	t.TKS = 0
+	t.TPS = 1 << 7
+	go func() error {
 		for {
 			select {
 			case instruction := <-t.Incoming:
-				t.WriteTerm(instruction.Address, instruction.Data)
-				//return
+				if instruction.Read {
+					data, err := t.ReadTerm(instruction.Address)
+					if err != nil {
+						return err
+					}
+					t.Outgoing <- data
+				} else {
+					err := t.WriteTerm(instruction.Address, instruction.Data)
+					if err != nil {
+						return err
+					}
+				}
 			default:
 			}
 		}
@@ -76,9 +90,13 @@ func (t *Teletype) Run() error {
 	return nil
 }
 
-// ReadTerm : read from terminal memory at address address
-func (t *Teletype) ReadTerm(address uint32) (uint16, error) {
-	return 0, nil
+//getChar - return char from keybuffer set registers accordingly
+func (t *Teletype) getChar() uint16 {
+	if t.TKS&0x80 != 0 {
+		t.TKS &= 0xFF7E
+		return t.keybuffer
+	}
+	return 0
 }
 
 // WriteTerm : write to the terminal address:
@@ -89,10 +107,20 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 
 	// keyboard control & status
 	case 0560:
+		if data&(1<<6) != 0 {
+			t.TKS |= 1 << 6
+		} else {
+			t.TKS &= ^(uint16(1 << 6))
+		}
 		break
 
-	// printer controal & status
+	// printer control & status
 	case 0564:
+		if data&(1<<6) != 0 {
+			t.TPS |= 1 << 6
+		} else {
+			t.TPS &= ^(uint16(1 << 6))
+		}
 		break
 
 	// output
@@ -106,11 +134,29 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		}
 		fmt.Fprint(t.termView, string(data&0x7F))
 		t.TPS &= 0xFF7F
+
 		// need timeouts here!
+		break
 
 		// any other address -> error
 	default:
-		return fmt.Errorf("Write to invalid address %v", address)
+		return fmt.Errorf("Write to invalid address %o", address)
 	}
 	return nil
+}
+
+// ReadTerm : read from terminal memory at address address
+func (t *Teletype) ReadTerm(address uint32) (uint16, error) {
+	switch address & 0777 {
+	case 0560:
+		return t.TKS, nil
+	case 0562:
+		return t.getChar(), nil
+	case 0564:
+		return t.TPS, nil
+	case 0566:
+		return 0, nil
+	default:
+		return 0, fmt.Errorf("Read from invalid address: %o", address)
+	}
 }

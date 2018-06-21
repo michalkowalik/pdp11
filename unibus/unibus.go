@@ -59,17 +59,26 @@ func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 	return 0
 }
 
-// WriteHello temp function, just to see if it works at all:
+// WriteHello : temp function, just to see if it works at all:
 func (u *Unibus) WriteHello() {
 	termEmulator.Run()
-	termEmulator.Incoming <- teletype.Instruction{0566, 0110}
+
+	termEmulator.TPS = 0x80
+	termEmulator.Incoming <- teletype.Instruction{
+		Address: 0564,
+		Data:    uint16(1 << 6),
+		Read:    false}
+	termEmulator.Incoming <- teletype.Instruction{
+		Address: 0566,
+		Data:    0110,
+		Read:    false}
 }
 
-/*
 func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
 	switch physicalAddres {
 	case VT100Addr:
-		return termEmulator.ReadVT100(byteFlag, physicalAddres)
+		// return termEmulator.ReadVT100(byteFlag, physicalAddres)
+		return 0, nil
 	default:
 		return 0, errors.New("Not a UNIBUS Address -> halt / trap?")
 	}
@@ -78,12 +87,12 @@ func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error
 func (u *Unibus) writeIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
 	switch physicalAddres {
 	case VT100Addr:
-		return termEmulator.WriteVT100(byteFlag, physicalAddres, data)
+		// return termEmulator.WriteVT100(byteFlag, physicalAddres, data)
+		return nil
 	default:
 		return errors.New("Not a unibus address -> trap / halt perhaps?")
 	}
 }
-*/
 
 // SendInterrupt sends a new interrupts to the receiver
 // TODO: implementation!
