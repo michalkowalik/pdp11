@@ -25,15 +25,41 @@ func main() {
 	defer g.Close()
 
 	g.SetManagerFunc(layout)
-
-	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
-		log.Panicln(err)
-	}
+	setKeyBindings(g)
 
 	// start emulation
 	g.Update(startPdp)
-
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+		log.Panicln(err)
+	}
+}
+
+func setKeyBindings(g *gocui.Gui) {
+	var err error
+	if err = g.SetKeybinding("", gocui.KeyF9, gocui.ModAlt, quit); err != nil {
+		log.Panicln(err)
+	}
+
+	//
+	if err = g.SetKeybinding(
+		"",
+		gocui.KeyF7,
+		gocui.ModNone,
+		func(g *gocui.Gui, _ *gocui.View) error {
+			_, err := g.SetCurrentView("terminal")
+			return err
+		}); err != nil {
+		log.Panicln(err)
+	}
+
+	if err = g.SetKeybinding(
+		"",
+		gocui.KeyF8,
+		gocui.ModNone,
+		func(g *gocui.Gui, _ *gocui.View) error {
+			_, err := g.SetCurrentView("status")
+			return err
+		}); err != nil {
 		log.Panicln(err)
 	}
 }
