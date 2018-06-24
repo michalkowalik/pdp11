@@ -51,6 +51,7 @@ func New(g *gocui.Gui) *Console {
 }
 
 // initConsole initializes the emulator console
+// TODO: Do I want a select mutex here?
 func (c *Console) initConsole() {
 	go func() {
 		for {

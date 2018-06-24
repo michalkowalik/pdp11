@@ -50,6 +50,7 @@ func New(termView *gocui.View) *Unibus {
 
 	// initialize attached devices:
 	termEmulator = teletype.New(termView)
+	termEmulator.Run()
 	return &unibus
 }
 
@@ -61,8 +62,6 @@ func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 
 // WriteHello : temp function, just to see if it works at all:
 func (u *Unibus) WriteHello() {
-	termEmulator.Run()
-
 	termEmulator.TPS = 0x80
 	termEmulator.Incoming <- teletype.Instruction{
 		Address: 0564,
@@ -78,7 +77,7 @@ func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error
 	switch physicalAddres {
 	case VT100Addr:
 		// return termEmulator.ReadVT100(byteFlag, physicalAddres)
-		return 0, nil
+		return termEmulator.ReadTerm(physicalAddres)
 	default:
 		return 0, errors.New("Not a UNIBUS Address -> halt / trap?")
 	}
@@ -87,7 +86,11 @@ func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error
 func (u *Unibus) writeIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
 	switch physicalAddres {
 	case VT100Addr:
-		// return termEmulator.WriteVT100(byteFlag, physicalAddres, data)
+		//return termEmulator.WriteTerm(physicalAddres, data)
+		termEmulator.Incoming <- teletype.Instruction{
+			Address: physicalAddres,
+			Data:    data,
+			Read:    false}
 		return nil
 	default:
 		return errors.New("Not a unibus address -> trap / halt perhaps?")

@@ -44,6 +44,9 @@ type Teletype struct {
 
 	// Outgoing channel
 	Outgoing chan uint16
+
+	// keystroke channel
+	keystrokes chan byte
 }
 
 // New returns new teletype object
@@ -54,9 +57,11 @@ func New(termView *gocui.View) *Teletype {
 	// initialize channels
 	tele.Incoming = make(chan Instruction, 8)
 
-	// outgoing channel is boud to trigger the interrupt -
+	// outgoing channel is bound to trigger the interrupt -
 	// the type needs to be changed probably as well.
 	tele.Outgoing = make(chan uint16, 8)
+
+	tele.keystrokes = make(chan byte, 5)
 
 	fmt.Fprintf(termView, "-Teletype Initialized-\n")
 	return &tele
@@ -83,11 +88,32 @@ func (t *Teletype) Run() error {
 						return err
 					}
 				}
+			case keystroke := <-t.keystrokes:
+				// for now, let's just pretend and add a simple echo:
+				fmt.Fprint(t.termView, string(keystroke&0x7F))
 			default:
 			}
 		}
 	}()
 	return nil
+}
+
+// start a goroutine, that will in a (hopefully) not-blocking way
+// wait and intercept keystrokes in the terminal view:
+func (t *Teletype) interceptKeystrokes() {
+	go func() error {
+		p := make([]byte, 5)
+		for {
+			n, err := t.termView.Read(p)
+			if err != nil {
+				return err
+			}
+			for n > 0 {
+				t.keystrokes <- p[0]
+				n--
+			}
+		}
+	}()
 }
 
 //getChar - return char from keybuffer set registers accordingly

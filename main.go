@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"pdp/console"
 	"pdp/system"
 	"time"
@@ -122,7 +121,9 @@ func updateRegisters(pdp *system.System, g *gocui.Gui) {
 				}
 				v.Clear()
 				pdp.CPU.DumpRegisters(v)
-				fmt.Fprintf(v, " <t : 0x%x>", i)
+
+				// go -race says it produces race contidion?
+				// fmt.Fprintf(v, " <t : 0x%x>", i)
 				return nil
 			})
 			i++
@@ -138,7 +139,7 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "|Terminal|"
+		v.Title = "|Terminal| [F7]"
 	}
 
 	// middle -> register values
@@ -153,7 +154,7 @@ func layout(g *gocui.Gui) error {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		v.Title = "|System Control Console|"
+		v.Title = "|System Control Console| [F8]"
 		v.Editable = true
 		v.Autoscroll = true
 	}
