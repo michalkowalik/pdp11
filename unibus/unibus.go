@@ -44,12 +44,12 @@ var (
 )
 
 // New initializes and returns the Unibus variable
-func New(termView *gocui.View) *Unibus {
+func New(gui *gocui.Gui) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan Interrupt)
 
 	// initialize attached devices:
-	termEmulator = teletype.New(termView)
+	termEmulator = teletype.New(gui)
 	termEmulator.Run()
 	return &unibus
 }
@@ -76,7 +76,6 @@ func (u *Unibus) WriteHello() {
 func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
 	switch physicalAddres {
 	case VT100Addr:
-		// return termEmulator.ReadVT100(byteFlag, physicalAddres)
 		return termEmulator.ReadTerm(physicalAddres)
 	default:
 		return 0, errors.New("Not a UNIBUS Address -> halt / trap?")
@@ -86,7 +85,6 @@ func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error
 func (u *Unibus) writeIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
 	switch physicalAddres {
 	case VT100Addr:
-		//return termEmulator.WriteTerm(physicalAddres, data)
 		termEmulator.Incoming <- teletype.Instruction{
 			Address: physicalAddres,
 			Data:    data,

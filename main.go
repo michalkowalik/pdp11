@@ -88,7 +88,7 @@ func startPdp(g *gocui.Gui) error {
 	console.WriteConsole("Starting PDP-11/70 emulator.")
 
 	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
-	pdp := system.InitializeSystem(console, terminalView, regView)
+	pdp := system.InitializeSystem(console, terminalView, regView, g)
 
 	if _, err := g.SetCurrentView("status"); err != nil {
 		log.Panic(err)

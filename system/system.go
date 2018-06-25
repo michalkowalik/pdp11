@@ -31,7 +31,8 @@ type System struct {
 var mmunit mmu.MMU
 
 // InitializeSystem initializes the emulated PDP-11/44 hardware
-func InitializeSystem(console *console.Console, terminalView, regView *gocui.View) *System {
+func InitializeSystem(
+	console *console.Console, terminalView, regView *gocui.View, gui *gocui.Gui) *System {
 	sys := new(System)
 	sys.console = console
 	sys.terminalView = terminalView
@@ -45,7 +46,7 @@ func InitializeSystem(console *console.Console, terminalView, regView *gocui.Vie
 	mmunit.Memory = &sys.Memory
 
 	// unibus
-	sys.unibus = unibus.New(terminalView)
+	sys.unibus = unibus.New(gui)
 	sys.unibus.WriteHello()
 
 	console.WriteConsole("Initializing PDP11 CPU.\n")

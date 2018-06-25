@@ -18,6 +18,7 @@ type Instruction struct {
 type Teletype struct {
 	// use gocui view, not a raw terminal
 	termView *gocui.View
+	gui      *gocui.Gui
 
 	// not really sure if it is a good choice for the input type
 	keybuffer uint16
@@ -47,12 +48,17 @@ type Teletype struct {
 
 	// keystroke channel
 	keystrokes chan byte
+
+	// terminal out channel -> required, as due to way gocui refreshes the
+	// view, it needs to happen in the separate goroutine
+	consoleOut chan string
 }
 
 // New returns new teletype object
-func New(termView *gocui.View) *Teletype {
+func New(gui *gocui.Gui) *Teletype {
 	tele := Teletype{}
-	tele.termView = termView
+	tele.gui = gui
+	tele.termView, _ = gui.View("terminal")
 
 	// initialize channels
 	tele.Incoming = make(chan Instruction, 8)
@@ -60,10 +66,9 @@ func New(termView *gocui.View) *Teletype {
 	// outgoing channel is bound to trigger the interrupt -
 	// the type needs to be changed probably as well.
 	tele.Outgoing = make(chan uint16, 8)
-
 	tele.keystrokes = make(chan byte, 5)
+	tele.consoleOut = make(chan string)
 
-	fmt.Fprintf(termView, "-Teletype Initialized-\n")
 	return &tele
 }
 
@@ -72,6 +77,7 @@ func New(termView *gocui.View) *Teletype {
 func (t *Teletype) Run() error {
 	t.TKS = 0
 	t.TPS = 1 << 7
+
 	go func() error {
 		for {
 			select {
@@ -88,13 +94,25 @@ func (t *Teletype) Run() error {
 						return err
 					}
 				}
+			case s := <-t.consoleOut:
+				t.gui.Update(func(g *gocui.Gui) error {
+					termView, err := g.View("terminal")
+					if err != nil {
+						return err
+					}
+					fmt.Fprintf(termView, "%s", s)
+					return nil
+				})
 			case keystroke := <-t.keystrokes:
 				// for now, let's just pretend and add a simple echo:
-				fmt.Fprint(t.termView, string(keystroke&0x7F))
+				t.consoleOut <- string(keystroke & 0x7F)
 			default:
 			}
 		}
 	}()
+
+	t.consoleOut <- "-Teletype Initialized-\n"
+
 	return nil
 }
 
@@ -108,8 +126,9 @@ func (t *Teletype) interceptKeystrokes() {
 			if err != nil {
 				return err
 			}
+			c := n
 			for n > 0 {
-				t.keystrokes <- p[0]
+				t.keystrokes <- p[c-n]
 				n--
 			}
 		}
@@ -158,7 +177,7 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		if data == 13 {
 			break
 		}
-		fmt.Fprint(t.termView, string(data&0x7F))
+		t.consoleOut <- string(data & 0x7F)
 		t.TPS &= 0xFF7F
 
 		// need timeouts here!
