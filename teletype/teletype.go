@@ -47,6 +47,7 @@ type Teletype struct {
 	Outgoing chan uint16
 
 	// keystroke channel
+	// keystrokes chan byte
 	keystrokes chan byte
 
 	// terminal out channel -> required, as due to way gocui refreshes the
@@ -66,7 +67,7 @@ func New(gui *gocui.Gui) *Teletype {
 	// outgoing channel is bound to trigger the interrupt -
 	// the type needs to be changed probably as well.
 	tele.Outgoing = make(chan uint16, 8)
-	tele.keystrokes = make(chan byte, 5)
+	tele.keystrokes = make(chan byte)
 	tele.consoleOut = make(chan string)
 
 	return &tele
@@ -105,34 +106,29 @@ func (t *Teletype) Run() error {
 				})
 			case keystroke := <-t.keystrokes:
 				// for now, let's just pretend and add a simple echo:
+				t.consoleOut <- "uhu!!"
 				t.consoleOut <- string(keystroke & 0x7F)
 			default:
 			}
 		}
 	}()
 
-	t.consoleOut <- "-Teletype Initialized-\n"
+	t.termView.Editor = gocui.EditorFunc(
+		func(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+			t.keystrokes <- byte(ch)
+		})
 
+	t.consoleOut <- "-Teletype Initialized-\n"
+	t.consoleOut <- fmt.Sprintf("%v\n", t.termView.Editor)
 	return nil
 }
 
-// start a goroutine, that will in a (hopefully) not-blocking way
-// wait and intercept keystrokes in the terminal view:
-func (t *Teletype) interceptKeystrokes() {
-	go func() error {
-		p := make([]byte, 5)
-		for {
-			n, err := t.termView.Read(p)
-			if err != nil {
-				return err
-			}
-			c := n
-			for n > 0 {
-				t.keystrokes <- p[c-n]
-				n--
-			}
-		}
-	}()
+// An editor function to intercept the keystrokes
+// TODO: does it belong to this module?
+func interceptKeysEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	// I need to send the keystroke to the channel here!!
+	v.EditWrite(ch)
+	// keystrokes <- byte("A"[0])
 }
 
 //getChar - return char from keybuffer set registers accordingly

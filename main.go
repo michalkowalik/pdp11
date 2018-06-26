@@ -140,6 +140,8 @@ func layout(g *gocui.Gui) error {
 			return err
 		}
 		v.Title = "|Terminal| [F7]"
+		v.Editable = true
+		v.Autoscroll = true
 	}
 
 	// middle -> register values
