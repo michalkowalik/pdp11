@@ -2,6 +2,7 @@ package teletype
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/jroimartin/gocui"
 )
@@ -48,7 +49,7 @@ type Teletype struct {
 
 	// keystroke channel
 	// keystrokes chan byte
-	keystrokes chan byte
+	keystrokes chan rune
 
 	// terminal out channel -> required, as due to way gocui refreshes the
 	// view, it needs to happen in the separate goroutine
@@ -57,9 +58,13 @@ type Teletype struct {
 
 // New returns new teletype object
 func New(gui *gocui.Gui) *Teletype {
+	var err error
 	tele := Teletype{}
 	tele.gui = gui
-	tele.termView, _ = gui.View("terminal")
+	tele.termView, err = gui.View("terminal")
+	if err != nil {
+		log.Panicln(err)
+	}
 
 	// initialize channels
 	tele.Incoming = make(chan Instruction, 8)
@@ -67,10 +72,26 @@ func New(gui *gocui.Gui) *Teletype {
 	// outgoing channel is bound to trigger the interrupt -
 	// the type needs to be changed probably as well.
 	tele.Outgoing = make(chan uint16, 8)
-	tele.keystrokes = make(chan byte)
+	tele.keystrokes = make(chan rune)
 	tele.consoleOut = make(chan string)
-
+	tele.termView.Editor = gocui.EditorFunc(
+		func(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+			tele.keystrokes <- ch
+		})
+	tele.initOutput()
 	return &tele
+}
+
+func (t *Teletype) initOutput() {
+	go func() {
+		for {
+			s := <-t.consoleOut
+			t.gui.Update(func(g *gocui.Gui) error {
+				fmt.Fprintf(t.termView, "%s", s)
+				return nil
+			})
+		}
+	}()
 }
 
 // Run : Start the teletype
@@ -95,31 +116,15 @@ func (t *Teletype) Run() error {
 						return err
 					}
 				}
-			case s := <-t.consoleOut:
-				t.gui.Update(func(g *gocui.Gui) error {
-					termView, err := g.View("terminal")
-					if err != nil {
-						return err
-					}
-					fmt.Fprintf(termView, "%s", s)
-					return nil
-				})
 			case keystroke := <-t.keystrokes:
 				// for now, let's just pretend and add a simple echo:
-				t.consoleOut <- "uhu!!"
-				t.consoleOut <- string(keystroke & 0x7F)
+				t.consoleOut <- string(keystroke)
 			default:
 			}
 		}
 	}()
 
-	t.termView.Editor = gocui.EditorFunc(
-		func(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
-			t.keystrokes <- byte(ch)
-		})
-
 	t.consoleOut <- "-Teletype Initialized-\n"
-	t.consoleOut <- fmt.Sprintf("%v\n", t.termView.Editor)
 	return nil
 }
 
