@@ -69,7 +69,7 @@ func (u *Unibus) WriteHello() {
 		Read:    false}
 	termEmulator.Incoming <- teletype.Instruction{
 		Address: 0566,
-		Data:    0110,
+		Data:    0111,
 		Read:    false}
 }
 

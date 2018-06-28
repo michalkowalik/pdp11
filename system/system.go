@@ -48,6 +48,7 @@ func InitializeSystem(
 	// unibus
 	sys.unibus = unibus.New(gui)
 	sys.unibus.WriteHello()
+	sys.unibus.WriteHello()
 
 	console.WriteConsole("Initializing PDP11 CPU.\n")
 	sys.CPU = pdpcpu.New(&mmunit)

@@ -119,7 +119,6 @@ func (t *Teletype) Run() error {
 			case keystroke := <-t.keystrokes:
 				// for now, let's just pretend and add a simple echo:
 				t.consoleOut <- string(keystroke)
-			default:
 			}
 		}
 	}()
