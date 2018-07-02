@@ -67,7 +67,7 @@ func New(gui *gocui.Gui) *Teletype {
 	}
 
 	// initialize channels
-	tele.Incoming = make(chan Instruction, 8)
+	tele.Incoming = make(chan Instruction)
 
 	// outgoing channel is bound to trigger the interrupt -
 	// the type needs to be changed probably as well.

@@ -63,14 +63,24 @@ func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 // WriteHello : temp function, just to see if it works at all:
 func (u *Unibus) WriteHello() {
 	termEmulator.TPS = 0x80
-	termEmulator.Incoming <- teletype.Instruction{
-		Address: 0564,
-		Data:    uint16(1 << 6),
-		Read:    false}
-	termEmulator.Incoming <- teletype.Instruction{
-		Address: 0566,
-		Data:    0111,
-		Read:    false}
+	instructions := []teletype.Instruction{
+		teletype.Instruction{
+			Address: 0564,
+			Data:    uint16(1 << 6),
+			Read:    false},
+		teletype.Instruction{
+			Address: 0566,
+			Data:    0111,
+			Read:    false},
+		teletype.Instruction{
+			Address: 0566,
+			Data:    0110,
+			Read:    false},
+	}
+
+	for _, i := range instructions {
+		termEmulator.Incoming <- i
+	}
 }
 
 func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
