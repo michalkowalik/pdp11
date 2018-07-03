@@ -3,6 +3,7 @@ package teletype
 import (
 	"fmt"
 	"log"
+	"pdp/console"
 
 	"github.com/jroimartin/gocui"
 )
@@ -54,10 +55,12 @@ type Teletype struct {
 	// terminal out channel -> required, as due to way gocui refreshes the
 	// view, it needs to happen in the separate goroutine
 	consoleOut chan string
+
+	controlConsole *console.Console
 }
 
 // New returns new teletype object
-func New(gui *gocui.Gui) *Teletype {
+func New(gui *gocui.Gui, controlConsole *console.Console) *Teletype {
 	var err error
 	tele := Teletype{}
 	tele.gui = gui
@@ -65,6 +68,7 @@ func New(gui *gocui.Gui) *Teletype {
 	if err != nil {
 		log.Panicln(err)
 	}
+	tele.controlConsole = controlConsole
 
 	// initialize channels
 	tele.Incoming = make(chan Instruction)
@@ -171,16 +175,26 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 	// output
 	case 0566:
 		data = data & 0xFF
+		t.controlConsole.WriteConsole(
+			fmt.Sprintf("outputting data: %d \n", data))
 		if t.TPS&0x80 == 0 {
+			t.controlConsole.WriteConsole(
+				fmt.Sprintf("breaking! data: %d, tps: %x\n", data, t.TPS))
 			break
 		}
 		if data == 13 {
 			break
 		}
+		t.controlConsole.WriteConsole(
+			fmt.Sprintf("really outputting data: %d\n", data))
 		t.consoleOut <- string(data & 0x7F)
 		t.TPS &= 0xFF7F
 
-		// need timeouts here!
+		// TODO: need timeouts here!
+		// but in the meantime, set 8th bit to mark transmission complete:
+		t.TPS = t.TPS | 0x80
+
+		// TODO: and don't forget to send interrupt!
 		break
 
 		// any other address -> error

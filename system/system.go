@@ -46,7 +46,7 @@ func InitializeSystem(
 	mmunit.Memory = &sys.Memory
 
 	// unibus
-	sys.unibus = unibus.New(gui)
+	sys.unibus = unibus.New(gui, console)
 	sys.unibus.WriteHello()
 	sys.unibus.WriteHello()
 

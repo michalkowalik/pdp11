@@ -2,6 +2,7 @@ package unibus
 
 import (
 	"errors"
+	"pdp/console"
 	"pdp/disk"
 	"pdp/teletype"
 
@@ -32,6 +33,9 @@ type Unibus struct {
 
 	// Channel for interrupt communication
 	Interrupts chan Interrupt
+
+	// console
+	controlConsole *console.Console
 }
 
 // attached devices:
@@ -44,12 +48,13 @@ var (
 )
 
 // New initializes and returns the Unibus variable
-func New(gui *gocui.Gui) *Unibus {
+func New(gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan Interrupt)
+	unibus.controlConsole = controlConsole
 
 	// initialize attached devices:
-	termEmulator = teletype.New(gui)
+	termEmulator = teletype.New(gui, controlConsole)
 	termEmulator.Run()
 	return &unibus
 }
