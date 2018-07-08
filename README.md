@@ -3,7 +3,7 @@
 ### What is this repository for? ###
 
 * PDP11/70 emulator written in go
-* Version pre-alpha, very, very, very early.
+* Nothing works yet, really
 
 ### quick summary ###
 
@@ -17,6 +17,11 @@
   - mount / unmount drives
   - ?
 
+### What works already ###
+Nothing really. 
+CPU implementation is completed and more or less tested.
+Teletype implementation is almost done.
+Machine can boot, but that's all.
 
 ### How do I get set up? ###
 
@@ -25,7 +30,7 @@
 
 ### Contribution guidelines ###
 
-* feel free to ping me if you find the code or the "project" interesting.
+* feel free to ping me if you find the thing interesting
 
 ### Who do I talk to? ###
 
