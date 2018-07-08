@@ -4,21 +4,11 @@ import (
 	"errors"
 	"pdp/console"
 	"pdp/disk"
+	"pdp/interrupts"
 	"pdp/teletype"
 
 	"github.com/jroimartin/gocui"
 )
-
-// Interrupt type - used to sygnalize incoming interrupt
-// perhaps to be added:
-// - delay
-// - callback
-// - callarg
-type Interrupt struct {
-	Priority  uint16
-	vector    uint16
-	cleanFlag bool
-}
 
 // const values for memory addresses for attached devices
 const (
@@ -32,7 +22,7 @@ type Unibus struct {
 	UnibusMap [32]int16
 
 	// Channel for interrupt communication
-	Interrupts chan Interrupt
+	Interrupts chan interrupts.Interrupt
 
 	// console
 	controlConsole *console.Console
@@ -50,11 +40,11 @@ var (
 // New initializes and returns the Unibus variable
 func New(gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
-	unibus.Interrupts = make(chan Interrupt)
+	unibus.Interrupts = make(chan interrupts.Interrupt)
 	unibus.controlConsole = controlConsole
 
 	// initialize attached devices:
-	termEmulator = teletype.New(gui, controlConsole)
+	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
 	return &unibus
 }

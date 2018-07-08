@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"pdp/console"
+	"pdp/interrupts"
 
 	"github.com/jroimartin/gocui"
 )
@@ -60,7 +61,10 @@ type Teletype struct {
 }
 
 // New returns new teletype object
-func New(gui *gocui.Gui, controlConsole *console.Console) *Teletype {
+func New(
+	gui *gocui.Gui,
+	controlConsole *console.Console,
+	interrupts chan interrupts.Interrupt) *Teletype {
 	var err error
 	tele := Teletype{}
 	tele.gui = gui
