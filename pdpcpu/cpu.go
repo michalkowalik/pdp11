@@ -3,9 +3,9 @@ package pdpcpu
 import (
 	"bytes"
 	"fmt"
+	"pdp/interrupts"
 	"pdp/mmu"
 	"pdp/psw"
-	"pdp/unibus"
 
 	"github.com/jroimartin/gocui"
 )
@@ -61,7 +61,7 @@ type CPU struct {
 	PIR uint16
 
 	// InterruptQueue queue to keep incoming interrupts before processing them
-	InterruptQueue []unibus.Interrupt
+	InterruptQueue []interrupts.Interrupt
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it

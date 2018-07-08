@@ -103,9 +103,9 @@ func (u *Unibus) writeIOPage(physicalAddres uint32, data uint16, byteFlag bool) 
 // SendInterrupt sends a new interrupts to the receiver
 // TODO: implementation!
 func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
-	i := Interrupt{
+	i := interrupts.Interrupt{
 		Priority: priority,
-		vector:   vector}
+		Vector:   vector}
 
 	// send interrupt:
 	go func() { u.Interrupts <- i }()

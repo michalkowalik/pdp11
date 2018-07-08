@@ -11,6 +11,6 @@ package interrupts
 // - callarg
 type Interrupt struct {
 	Priority  uint16
-	vector    uint16
-	cleanFlag bool
+	Vector    uint16
+	CleanFlag bool
 }
