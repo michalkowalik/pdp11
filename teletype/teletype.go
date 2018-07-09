@@ -58,6 +58,8 @@ type Teletype struct {
 	consoleOut chan string
 
 	controlConsole *console.Console
+
+	interrupts chan interrupts.Interrupt
 }
 
 // New returns new teletype object
@@ -73,6 +75,7 @@ func New(
 		log.Panicln(err)
 	}
 	tele.controlConsole = controlConsole
+	tele.interrupts = interrupts
 
 	// initialize channels
 	tele.Incoming = make(chan Instruction)
@@ -177,6 +180,10 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		break
 
 	// output
+	// side note:
+	// The original implementation introduces 1ms timeouts before setting the register value
+	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
+	// so I'm skipping that part.
 	case 0566:
 		data = data & 0xFF
 		t.controlConsole.WriteConsole(
@@ -193,12 +200,13 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 			fmt.Sprintf("really outputting data: %d\n", data))
 		t.consoleOut <- string(data & 0x7F)
 		t.TPS &= 0xFF7F
-
-		// TODO: need timeouts here!
-		// but in the meantime, set 8th bit to mark transmission complete:
 		t.TPS = t.TPS | 0x80
-
-		// TODO: and don't forget to send interrupt!
+		if t.TPS&(1<<6) != 0 {
+			// send interrupt
+			t.interrupts <- interrupts.Interrupt{
+				Priority: 4,
+				Vector:   interrupts.IntTTYout}
+		}
 		break
 
 		// any other address -> error

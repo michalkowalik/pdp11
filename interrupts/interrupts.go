@@ -14,3 +14,8 @@ type Interrupt struct {
 	Vector    uint16
 	CleanFlag bool
 }
+
+// interrupt vectors:
+
+// IntTTYout : sent when character is being printed on the teletype
+const IntTTYout = 0064
