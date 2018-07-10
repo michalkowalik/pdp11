@@ -2,6 +2,7 @@ package unibus
 
 import (
 	"errors"
+	"fmt"
 	"pdp/console"
 	"pdp/disk"
 	"pdp/interrupts"
@@ -46,7 +47,19 @@ func New(gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	// initialize attached devices:
 	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
+	unibus.processInterruptQueue()
 	return &unibus
+}
+
+// temporary solution - dummy interrupt processing function
+func (u *Unibus) processInterruptQueue() {
+	go func() error {
+		for {
+			interrupt := <-u.Interrupts
+			u.controlConsole.WriteConsole(
+				fmt.Sprintf("Incomming interrupt on vector %d\n", interrupt.Vector))
+		}
+	}()
 }
 
 // map 18 bit unibus address to 22 bit physical via the unibus map (if active)
@@ -57,24 +70,17 @@ func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 
 // WriteHello : temp function, just to see if it works at all:
 func (u *Unibus) WriteHello() {
-	termEmulator.TPS = 0x80
-	instructions := []teletype.Instruction{
-		teletype.Instruction{
-			Address: 0564,
-			Data:    uint16(1 << 6),
-			Read:    false},
-		teletype.Instruction{
-			Address: 0566,
-			Data:    0111,
-			Read:    false},
-		teletype.Instruction{
-			Address: 0566,
-			Data:    0110,
-			Read:    false},
-	}
+	termEmulator.Incoming <- teletype.Instruction{
+		Address: 0564,
+		Data:    uint16(1 << 6),
+		Read:    false}
 
-	for _, i := range instructions {
-		termEmulator.Incoming <- i
+	helloStr := "0123456789| "
+	for _, c := range helloStr {
+		termEmulator.Incoming <- teletype.Instruction{
+			Address: 0566,
+			Data:    uint16(c),
+			Read:    false}
 	}
 }
 

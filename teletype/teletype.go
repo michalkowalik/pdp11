@@ -138,14 +138,6 @@ func (t *Teletype) Run() error {
 	return nil
 }
 
-// An editor function to intercept the keystrokes
-// TODO: does it belong to this module?
-func interceptKeysEditor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
-	// I need to send the keystroke to the channel here!!
-	v.EditWrite(ch)
-	// keystrokes <- byte("A"[0])
-}
-
 //getChar - return char from keybuffer set registers accordingly
 func (t *Teletype) getChar() uint16 {
 	if t.TKS&0x80 != 0 {
@@ -186,8 +178,6 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 	// so I'm skipping that part.
 	case 0566:
 		data = data & 0xFF
-		t.controlConsole.WriteConsole(
-			fmt.Sprintf("outputting data: %d \n", data))
 		if t.TPS&0x80 == 0 {
 			t.controlConsole.WriteConsole(
 				fmt.Sprintf("breaking! data: %d, tps: %x\n", data, t.TPS))
@@ -196,17 +186,17 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		if data == 13 {
 			break
 		}
-		t.controlConsole.WriteConsole(
-			fmt.Sprintf("really outputting data: %d\n", data))
 		t.consoleOut <- string(data & 0x7F)
 		t.TPS &= 0xFF7F
 		t.TPS = t.TPS | 0x80
-		if t.TPS&(1<<6) != 0 {
-			// send interrupt
-			t.interrupts <- interrupts.Interrupt{
-				Priority: 4,
-				Vector:   interrupts.IntTTYout}
-		}
+		/*
+			if t.TPS&(1<<6) != 0 {
+				// send interrupt
+				t.interrupts <- interrupts.Interrupt{
+					Priority: 4,
+					Vector:   interrupts.TTYout}
+			}
+		*/
 		break
 
 		// any other address -> error

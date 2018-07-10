@@ -17,5 +17,8 @@ type Interrupt struct {
 
 // interrupt vectors:
 
-// IntTTYout : sent when character is being printed on the teletype
-const IntTTYout = 0064
+// TTYout : sent when character is being printed on the teletype
+const TTYout = 0064
+
+// TTYin : sent when a key is punched on a teletype keyboard
+const TTYin = 0060
