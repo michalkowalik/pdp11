@@ -70,12 +70,7 @@ func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 
 // WriteHello : temp function, just to see if it works at all:
 func (u *Unibus) WriteHello() {
-	termEmulator.Incoming <- teletype.Instruction{
-		Address: 0564,
-		Data:    uint16(1 << 6),
-		Read:    false}
-
-	helloStr := "0123456789| "
+	helloStr := "0_1.2_3.4_5.6_7.8_9.A_B.C_D.E_F\n"
 	for _, c := range helloStr {
 		termEmulator.Incoming <- teletype.Instruction{
 			Address: 0566,

@@ -3,6 +3,7 @@ package teletype
 import (
 	"fmt"
 	"log"
+	"os"
 	"pdp/console"
 	"pdp/interrupts"
 
@@ -60,7 +61,13 @@ type Teletype struct {
 	controlConsole *console.Console
 
 	interrupts chan interrupts.Interrupt
+
+	// trying to synchronize the output...
+	done chan bool
 }
+
+var logFile, _ = os.Create("teletype.log")
+var logger = log.New(logFile, "", 0)
 
 // New returns new teletype object
 func New(
@@ -82,9 +89,10 @@ func New(
 
 	// outgoing channel is bound to trigger the interrupt -
 	// the type needs to be changed probably as well.
-	tele.Outgoing = make(chan uint16, 8)
+	tele.Outgoing = make(chan uint16)
 	tele.keystrokes = make(chan rune)
 	tele.consoleOut = make(chan string)
+	tele.done = make(chan bool)
 	tele.termView.Editor = gocui.EditorFunc(
 		func(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
 			tele.keystrokes <- ch
@@ -97,10 +105,12 @@ func (t *Teletype) initOutput() {
 	go func() {
 		for {
 			s := <-t.consoleOut
+			logger.Printf("initOutput(): recived data: '%v'\n", s)
 			t.gui.Update(func(g *gocui.Gui) error {
 				fmt.Fprintf(t.termView, "%s", s)
 				return nil
 			})
+			t.done <- true
 		}
 	}()
 }
@@ -113,28 +123,34 @@ func (t *Teletype) Run() error {
 
 	go func() error {
 		for {
-			select {
-			case instruction := <-t.Incoming:
-				if instruction.Read {
-					data, err := t.ReadTerm(instruction.Address)
-					if err != nil {
-						return err
-					}
-					t.Outgoing <- data
-				} else {
-					err := t.WriteTerm(instruction.Address, instruction.Data)
-					if err != nil {
-						return err
-					}
+			instruction := <-t.Incoming
+			logger.Printf(
+				"* Run(): Received teletype instruction: %v\n", instruction)
+			if instruction.Read {
+				data, err := t.ReadTerm(instruction.Address)
+				if err != nil {
+					return err
 				}
-			case keystroke := <-t.keystrokes:
-				// for now, let's just pretend and add a simple echo:
-				t.consoleOut <- string(keystroke)
+				t.Outgoing <- data
+			} else {
+				err := t.WriteTerm(instruction.Address, instruction.Data)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}()
 
+	go func() error {
+		for {
+			keystroke := <-t.keystrokes
+			// for now, let's just pretend and add a simple echo:
+			t.consoleOut <- string(keystroke)
+			<-t.done
+		}
+	}()
 	t.consoleOut <- "-Teletype Initialized-\n"
+	<-t.done
 	return nil
 }
 
@@ -171,7 +187,7 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		}
 		break
 
-	// output
+		// output
 	// side note:
 	// The original implementation introduces 1ms timeouts before setting the register value
 	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
@@ -186,17 +202,20 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		if data == 13 {
 			break
 		}
+		logger.Printf("WriteTerm(): Sending data to consoleOut: '%v'\n", data)
 		t.consoleOut <- string(data & 0x7F)
+
+		logger.Printf("WriteTerm(): waiting for done..\n")
+		<-t.done
+
 		t.TPS &= 0xFF7F
 		t.TPS = t.TPS | 0x80
-		/*
-			if t.TPS&(1<<6) != 0 {
-				// send interrupt
-				t.interrupts <- interrupts.Interrupt{
-					Priority: 4,
-					Vector:   interrupts.TTYout}
-			}
-		*/
+		if t.TPS&(1<<6) != 0 {
+			// send interrupt
+			t.interrupts <- interrupts.Interrupt{
+				Priority: 4,
+				Vector:   interrupts.TTYout}
+		}
 		break
 
 		// any other address -> error
