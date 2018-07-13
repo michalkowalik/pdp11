@@ -6,6 +6,7 @@ import (
 	"os"
 	"pdp/console"
 	"pdp/interrupts"
+	"time"
 
 	"github.com/jroimartin/gocui"
 )
@@ -110,6 +111,7 @@ func (t *Teletype) initOutput() {
 				fmt.Fprintf(t.termView, "%s", s)
 				return nil
 			})
+			time.Sleep(1 * time.Millisecond)
 			t.done <- true
 		}
 	}()
