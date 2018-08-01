@@ -102,11 +102,15 @@ func New(
 	return &tele
 }
 
+// initOutput starts a goroutine reading from the consoleOut channel
+// and calling the gocui.gui.Update to modify the view.
+// t.done channel is used to force synchronization.
+// 1ms sleep is required to give the gocui enough time to print the character.
+// consult gocui documentation for further details.
 func (t *Teletype) initOutput() {
 	go func() {
 		for {
 			s := <-t.consoleOut
-			logger.Printf("initOutput(): recived data: '%v'\n", s)
 			t.gui.Update(func(g *gocui.Gui) error {
 				fmt.Fprintf(t.termView, "%s", s)
 				return nil
@@ -126,8 +130,6 @@ func (t *Teletype) Run() error {
 	go func() error {
 		for {
 			instruction := <-t.Incoming
-			logger.Printf(
-				"* Run(): Received teletype instruction: %v\n", instruction)
 			if instruction.Read {
 				data, err := t.ReadTerm(instruction.Address)
 				if err != nil {
@@ -204,10 +206,7 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		if data == 13 {
 			break
 		}
-		logger.Printf("WriteTerm(): Sending data to consoleOut: '%v'\n", data)
 		t.consoleOut <- string(data & 0x7F)
-
-		logger.Printf("WriteTerm(): waiting for done..\n")
 		<-t.done
 
 		t.TPS &= 0xFF7F
