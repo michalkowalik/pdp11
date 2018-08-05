@@ -12,6 +12,8 @@ import (
 
 // System definition.
 type System struct {
+
+	// obsolete - the memory defined in MMU should be used.
 	Memory [4 * 1024 * 1024]byte
 	CPU    *pdpcpu.CPU
 

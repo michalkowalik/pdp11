@@ -79,7 +79,8 @@ func (u *Unibus) WriteHello() {
 	}
 }
 
-func (u *Unibus) readIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
+// ReadIOPage reads from unibus devices.
+func (u *Unibus) ReadIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
 	switch physicalAddres {
 	case VT100Addr:
 		return termEmulator.ReadTerm(physicalAddres)
@@ -110,6 +111,11 @@ func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 
 	// send interrupt:
 	go func() { u.Interrupts <- i }()
+}
+
+// SendTrap sends a Trap to CPU the same way the interrupt is sent.
+func (u *Unibus) SendTrap(vector uint16) {
+	// nothing to see here yet!
 }
 
 // InsertData updates a word with new byte or word data allowing

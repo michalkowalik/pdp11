@@ -18,7 +18,7 @@ const (
 	// ReadMode -> Read from main memory
 	ReadMode = 2
 
-	// WriteMode -> Write from main memory
+	// WriteMode -> Write to main memory
 	WriteMode = 4
 
 	// ModifyWord ->  Read and write word in memory
@@ -38,7 +38,7 @@ type CPU struct {
 	Registers                   [8]uint16
 	statusFlags                 byte // not needed?
 	floatingPointStatusRegister byte
-	statusRegister              uint16
+	statusRegister              uint16 // Which status Register??
 	State                       int
 
 	// memory access is required:
