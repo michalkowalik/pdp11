@@ -1,6 +1,7 @@
 package mmu
 
 import (
+	"errors"
 	"pdp/interrupts"
 	"pdp/psw"
 	"pdp/unibus"
@@ -65,27 +66,26 @@ func (m *MMU18Bit) mapVirtualToPhysical(
 }
 
 // ReadMemoryWord reads a word from virtual address addr
-func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
+func (m *MMU18Bit) ReadMemoryWord(addr uint16) (uint16, error) {
 	physicalAddress := m.mapVirtualToPhysical(addr)
 	if (physicalAddress & 1) == 1 {
-		m.unibus.SendTrap(interrupts.INTBus)
-		return 0
+		return 0, m.unibus.Error(errors.New("Reading from odd address"), interrupts.INTBus)
 	}
 	if physicalAddress < MaxMemory {
-		return m.Memory[physicalAddress>>1]
+		return m.Memory[physicalAddress>>1], nil
 	}
 	if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
 		data, err := m.unibus.ReadIOPage(physicalAddress, false)
 		if err != nil {
 			m.unibus.SendTrap(interrupts.INTFault)
-			return 0
+			return 0, m.unibus.Error(err, interrupts.INTFault)
 		}
-		return data
+		return data, nil
 	}
 
 	// if everything else fails:
 	m.unibus.SendTrap(interrupts.INTBus)
-	return 0
+	return 0, m.unibus.Error(errors.New("read from invalid address"), interrupts.INTBus)
 }
 
 // ReadMemoryByte reads a byte from virtual address addr

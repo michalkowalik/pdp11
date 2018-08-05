@@ -42,7 +42,7 @@ func TestMMU18Bit_ReadMemoryWord(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.m.ReadMemoryWord(tt.args.addr); got != tt.want {
+			if got, _ := tt.m.ReadMemoryWord(tt.args.addr); got != tt.want {
 				t.Errorf("MMU18Bit.ReadMemoryWord() = %v, want %v", got, tt.want)
 			}
 		})
