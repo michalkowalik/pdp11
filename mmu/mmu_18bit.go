@@ -40,7 +40,7 @@ type MMU18Bit struct {
 const MaxMemory = 0760000
 
 // MaxTotalMemory - highest address available. Top  4k used by unibus
-const MaxTotalMemory = 0777777
+const MaxTotalMemory = 0777776
 
 // New returns the new MMU18Bit struct
 func New(psw *psw.PSW, unibus *unibus.Unibus) *MMU18Bit {
@@ -89,13 +89,42 @@ func (m *MMU18Bit) ReadMemoryWord(addr uint16) (uint16, error) {
 }
 
 // ReadMemoryByte reads a byte from virtual address addr
-func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
-	return 0
+func (m *MMU18Bit) ReadMemoryByte(addr uint16) (byte, error) {
+
+	// Zero the lowest byte, to avoid reading a word from odd address
+	val, err := m.ReadMemoryWord(addr & 0xFFFE)
+	if err != nil {
+		return 0, err
+	}
+	if addr&1 > 0 {
+		return byte(val >> 8), nil
+	}
+	return byte(val & 0xFF), nil
 }
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) error {
-	return nil
+	physicalAddress := m.mapVirtualToPhysical(addr)
+	if (physicalAddress & 1) == 1 {
+		return m.unibus.Error(errors.New("Write to odd address"), interrupts.INTBus)
+	}
+	if physicalAddress < MaxMemory {
+		m.Memory[physicalAddress>>1] = data
+		return nil
+	}
+	if physicalAddress == MaxMemory {
+		// update PSW
+		*m.psw = psw.PSW(data)
+		// TODO: - make sure the mode switch is not necessary
+
+		return nil
+	}
+	if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
+		m.unibus.WriteIOPage(physicalAddress, data, false)
+		return nil
+	}
+
+	return m.unibus.Error(errors.New("write to invalid address"), interrupts.INTBus)
 }
 
 // WriteMemoryByte writes a byte to the location pointed by virtual address addr

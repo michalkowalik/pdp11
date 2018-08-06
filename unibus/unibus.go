@@ -89,7 +89,8 @@ func (u *Unibus) ReadIOPage(physicalAddres uint32, byteFlag bool) (uint16, error
 	}
 }
 
-func (u *Unibus) writeIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
+// WriteIOPage writes to the unibus connected device
+func (u *Unibus) WriteIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
 	switch physicalAddres {
 	case VT100Addr:
 		termEmulator.Incoming <- teletype.Instruction{
