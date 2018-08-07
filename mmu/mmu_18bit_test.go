@@ -48,3 +48,25 @@ func TestMMU18Bit_ReadMemoryWord(t *testing.T) {
 		})
 	}
 }
+
+func TestMMU18Bit_WriteMemoryByte(t *testing.T) {
+	type args struct {
+		addr uint16
+		data byte
+	}
+	tests := []struct {
+		name    string
+		m       *MMU18Bit
+		args    args
+		wantErr bool
+	}{
+	// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.m.WriteMemoryByte(tt.args.addr, tt.args.data); (err != nil) != tt.wantErr {
+				t.Errorf("MMU18Bit.WriteMemoryByte() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

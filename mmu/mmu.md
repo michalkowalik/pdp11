@@ -60,3 +60,8 @@ To build a physical address:
 2) read PAF from APR
 3) `PAF` + `Block Number` from displacement field form the starting address of a 32 word block
 4) adding `DIB` forms final physical address.
+
+
+### 18 Bit implementation details
+#### 1) WriteMemoryWord
+* WriteMemoryWord does uptdate the PSW, but there's no need to update separately CPU Mode (user / kernel), as the mode is itself derived from PSW state

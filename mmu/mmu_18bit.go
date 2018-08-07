@@ -51,11 +51,11 @@ func New(psw *psw.PSW, unibus *unibus.Unibus) *MMU18Bit {
 }
 
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
-func (m *MMU18Bit) mapVirtualToPhysical(
-	virtualAddress uint16) uint32 {
+func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
+
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
-	if (m.psw.Get() >> 14) > 0 {
+	if m.psw.GetMode() > 0 {
 		currentUser += 8
 	}
 
@@ -115,8 +115,6 @@ func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) error {
 	if physicalAddress == MaxMemory {
 		// update PSW
 		*m.psw = psw.PSW(data)
-		// TODO: - make sure the mode switch is not necessary
-
 		return nil
 	}
 	if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
@@ -128,6 +126,13 @@ func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) error {
 }
 
 // WriteMemoryByte writes a byte to the location pointed by virtual address addr
-func (m *MMU18Bit) WriteMemoryByte(addr, data byte) error {
-	return nil
+func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) error {
+	physicalAddress := m.mapVirtualToPhysical(addr)
+	var wordData uint16
+	if addr&1 == 0 {
+		wordData = (m.Memory[physicalAddress>>1] & 0xFF00) | uint16(data)
+	} else {
+		wordData = (m.Memory[physicalAddress>>1] & 0xFF) | (uint16(data) << 8)
+	}
+	return m.WriteMemoryWord(addr, wordData)
 }

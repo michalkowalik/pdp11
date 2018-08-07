@@ -20,6 +20,11 @@ func (psw *PSW) Get() uint16 {
 	return uint16(*psw)
 }
 
+// GetMode returns 0 for user and 3 for kernel
+func (psw *PSW) GetMode() uint16 {
+	return uint16(*psw >> 14)
+}
+
 // C returns C flag:
 func (psw *PSW) C() bool {
 	return psw.getFlag(cFlag)
