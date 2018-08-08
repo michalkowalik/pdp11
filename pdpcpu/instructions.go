@@ -19,7 +19,7 @@ func (c *CPU) clrOp(instruction int16) error {
 		c.Registers[instruction&7] = 0
 	} else {
 		// TODO: access mode is hardcoded. needs to be changed or removed
-		v, _ := c.mmunit.GetVirtualByMode(&c.Registers, uint16(instruction&0x3f), 1)
+		v, _ := c.GetVirtualByMode(uint16(instruction&0x3f), 1)
 		c.mmunit.Memory[v] = 0
 		c.mmunit.Memory[v+1] = 0
 	}

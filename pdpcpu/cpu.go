@@ -2,6 +2,7 @@ package pdpcpu
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"pdp/interrupts"
 	"pdp/mmu"
@@ -268,8 +269,7 @@ func (c *CPU) readWord(op uint16) uint16 {
 		//value directly in register
 		return c.Registers[register]
 	}
-	// TODO: access mode is hardcoded to 1 !! <- needs to be changed or removed
-	virtual, err := c.mmunit.GetVirtualByMode(&c.Registers, op, 1)
+	virtual, err := c.GetVirtualByMode(op, mode)
 	if err != nil {
 		// TODO: Trigger a trap. something went awry!
 		return 0xffff
@@ -286,7 +286,7 @@ func (c *CPU) writeWord(op, value uint16) error {
 		c.Registers[register] = value
 		return nil
 	}
-	virtualAddr, err := c.mmunit.GetVirtualByMode(&c.Registers, op, 1)
+	virtualAddr, err := c.GetVirtualByMode(op, mode)
 	if err != nil {
 		return err
 	}
@@ -386,4 +386,58 @@ func (c *CPU) PopWord() uint16 {
 	c.Registers[6] = (c.Registers[6] + 2) & 0xffff
 
 	return result
+}
+
+// GetVirtualByMode returns virtual address extracted from the CPU instuction
+func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
+	var addressInc uint16
+	reg := instruction & 7
+	addressMode := (instruction >> 3) & 7
+	var virtAddress uint16
+
+	switch addressMode {
+	case 0:
+		return 0, errors.New("Wrong address mode - throw trap?")
+	case 1:
+		// register keeps the address:
+		virtAddress = c.Registers[reg]
+	case 2:
+		// register keeps the address. Increment the value by 2 (word!)
+		// TODO: value should be incremented by 1 if byte instruction used.
+		addressInc = 2
+		virtAddress = c.Registers[reg]
+		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
+	case 3:
+		// autoincrement deferred
+		// TODO: ADD special cases (R6 and R7)
+		addressInc = 2
+		virtAddress = c.Registers[reg]
+		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
+	case 4:
+		// autodecrement - step depends on which register is in use:
+		addressInc = 2
+		if (reg < 6) && (accessMode&ByteMode > 0) {
+			addressInc = 1
+		}
+		virtAddress = (c.Registers[reg] + addressInc) & 0xffff
+		c.Registers[reg] = (c.Registers[reg] - addressInc) & 0xffff
+	case 5:
+		// autodecrement deferred
+		virtAddress = (c.Registers[reg] - 2) & 0xffff
+	case 6:
+		// index mode -> read next word to get the basis for address, add value in Register
+		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
+		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
+
+		// increment program counter register
+		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
+	case 7:
+		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
+		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
+		virtAddress = c.mmunit.ReadMemoryWord(virtAddress)
+		// increment program counter register
+		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
+	}
+	// all-catcher return
+	return virtAddress, nil
 }

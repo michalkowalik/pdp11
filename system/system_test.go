@@ -25,7 +25,7 @@ func TestRegisterRead(t *testing.T) {
 
 var virtualAddressTests = []struct {
 	op             uint16
-	virtualAddress uint32
+	virtualAddress uint16
 	errorNil       bool
 }{
 	{0, 0, false},
@@ -58,7 +58,7 @@ func TestGetVirtualAddress(t *testing.T) {
 		sys.Memory[010] = 010
 		sys.Memory[020] = 040
 
-		virtualAddress, err := mmunit.GetVirtualByMode(&sys.CPU.Registers, test.op, 0)
+		virtualAddress, err := sys.CPU.GetVirtualByMode(test.op, 0)
 		if virtualAddress != test.virtualAddress {
 			t.Logf("Registers: %s\n", sys.CPU.PrintRegisters())
 			t.Error("Expected virtual address ", test.virtualAddress, " , got ", virtualAddress)
