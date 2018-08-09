@@ -12,7 +12,7 @@ import (
 type MMU18Bit struct {
 
 	// Memory : Physical memory
-	Memory *[128 * 1024]uint16
+	Memory [128 * 1024]uint16
 
 	// PAR : Page Address Registers
 	PAR [16]uint16
@@ -30,7 +30,7 @@ type MMU18Bit struct {
 	SR2 uint16
 
 	// it's convenient to have a pointer to processor status word available all the time
-	psw *psw.PSW
+	Psw *psw.PSW
 
 	// it's also convenient to keep a pointer to Unibus..
 	unibus *unibus.Unibus
@@ -45,7 +45,7 @@ const MaxTotalMemory = 0777776
 // New returns the new MMU18Bit struct
 func New(psw *psw.PSW, unibus *unibus.Unibus) *MMU18Bit {
 	mmu := MMU18Bit{}
-	mmu.psw = psw
+	mmu.Psw = psw
 	mmu.unibus = unibus
 	return &mmu
 }
@@ -55,7 +55,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
 
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
-	if m.psw.GetMode() > 0 {
+	if m.Psw.GetMode() > 0 {
 		currentUser += 8
 	}
 
@@ -114,7 +114,7 @@ func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) error {
 	}
 	if physicalAddress == MaxMemory {
 		// update PSW
-		*m.psw = psw.PSW(data)
+		*m.Psw = psw.PSW(data)
 		return nil
 	}
 	if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {

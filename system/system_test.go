@@ -9,8 +9,7 @@ import (
 
 func TestRegisterRead(t *testing.T) {
 	sys := new(System)
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
+	mmunit := mmu.MMU18Bit{}
 
 	sys.CPU = pdpcpu.New(&mmunit)
 
@@ -41,22 +40,21 @@ var virtualAddressTests = []struct {
 // check if an address in memory can be read
 func TestGetVirtualAddress(t *testing.T) {
 	sys := new(System)
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
+	mmunit := mmu.MMU18Bit{}
 	sys.CPU = pdpcpu.New(&mmunit)
 
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
-		sys.Memory[2] = 2
-		sys.Memory[1] = 1
-		sys.Memory[0] = 4
+		mmunit.Memory[2] = 2
+		mmunit.Memory[1] = 1
+		mmunit.Memory[0] = 4
 		sys.CPU.Registers[0] = 2
 
 		// setup memory and registers for index mode:
 		sys.CPU.Registers[7] = 010
 		sys.CPU.Registers[1] = 010
-		sys.Memory[010] = 010
-		sys.Memory[020] = 040
+		mmunit.Memory[010] = 010
+		mmunit.Memory[020] = 040
 
 		virtualAddress, err := sys.CPU.GetVirtualByMode(test.op, 0)
 		if virtualAddress != test.virtualAddress {
@@ -72,12 +70,11 @@ func TestGetVirtualAddress(t *testing.T) {
 // try running few lines of machine code
 func TestRunCode(t *testing.T) {
 	sys := new(System)
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
+	mmunit := mmu.MMU18Bit{}
 	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
 
-	sys.Memory[0xff] = 2
+	mmunit.Memory[0xff] = 2
 
 	code := []uint16{
 		012701, // 001000 mov 0xff R1
@@ -92,8 +89,11 @@ func TestRunCode(t *testing.T) {
 	// load sample code to memory
 	memPointer := 001000
 	for _, c := range code {
-		mmunit.Memory[memPointer] = byte(c & 0xff)
-		mmunit.Memory[memPointer+1] = byte(c >> 8)
+
+		// this should be actually bytes in word!
+
+		mmunit.Memory[memPointer] = uint16(c & 0xff)
+		mmunit.Memory[memPointer+1] = uint16(c >> 8)
 		memPointer += 2
 	}
 
@@ -118,8 +118,7 @@ func TestRunCode(t *testing.T) {
 // bne should break the loop
 func TestRunBranchCode(t *testing.T) {
 	sys := new(System)
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
+	mmunit := mmu.MMU18Bit{}
 	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
 
@@ -143,8 +142,10 @@ func TestRunBranchCode(t *testing.T) {
 	// load sample code to memory
 	memPointer := 001000
 	for _, c := range code {
-		mmunit.Memory[memPointer] = byte(c & 0xff)
-		mmunit.Memory[memPointer+1] = byte(c >> 8)
+
+		// this should be bytes in 1 word!
+		mmunit.Memory[memPointer] = uint16(c & 0xff)
+		mmunit.Memory[memPointer+1] = uint16(c >> 8)
 		memPointer += 2
 	}
 

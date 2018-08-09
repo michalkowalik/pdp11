@@ -10,7 +10,7 @@ import (
 
 const (
 	// BOOTBASE is a base bootstrap address
-	BOOTBASE = 0140000
+	BOOTBASE = 0140010
 )
 
 var bootcode = [...]uint16{

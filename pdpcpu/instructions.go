@@ -331,10 +331,10 @@ func (c *CPU) rtiOp(instruction int16) error {
 	dstAddr := c.Registers[6]
 
 	// read address kept in the address kept on stack
-	virtualAddress := c.mmunit.ReadMemoryWord(dstAddr)
+	virtualAddress, _ := c.mmunit.ReadMemoryWord(dstAddr)
 
 	dstAddr = (dstAddr + 2) & 0xffff
-	savePSW := c.mmunit.ReadMemoryWord(dstAddr)
+	savePSW, _ := c.mmunit.ReadMemoryWord(dstAddr)
 
 	// update stack pointer:
 	c.Registers[6] = (dstAddr + 2) & 0xffff
@@ -342,7 +342,8 @@ func (c *CPU) rtiOp(instruction int16) error {
 	// TODO: user / super restriction
 
 	c.Registers[7] = virtualAddress
-	c.mmunit.Psw = psw.PSW(savePSW)
+	tempPsw := psw.PSW(savePSW)
+	c.mmunit.Psw = &tempPsw
 
 	// turn off Trace trap
 	c.trapMask &= 0x10
@@ -352,7 +353,7 @@ func (c *CPU) rtiOp(instruction int16) error {
 // rtt - return from interrupt - same as rti, with distinction of inhibiting a trace trap
 func (c *CPU) rttOp(instruction int16) error {
 	c.rtiOp(instruction)
-	c.trapMask = uint16(c.mmunit.Psw) & 0x10
+	c.trapMask = uint16(*c.mmunit.Psw) & 0x10
 	return nil
 }
 

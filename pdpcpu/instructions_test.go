@@ -22,8 +22,7 @@ var memory [0x400000]byte // 64KB of memory is all everyone needs
 
 // TestMain to resucure -> initialize memory and CPU
 func TestMain(m *testing.M) {
-	mmu := &mmu.MMU{}
-	mmu.Memory = &memory
+	mmu := &mmu.MMU18Bit{}
 	c = New(mmu)
 
 	os.Exit(m.Run())
@@ -113,7 +112,7 @@ func TestCPU_movOp(t *testing.T) {
 
 	c.Registers[0] = 0xff
 	c.Registers[1] = 0
-	c.mmunit.Memory[0xff] = uint8(4)
+	c.mmunit.Memory[0xff] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -151,7 +150,7 @@ func TestCPU_comOp(t *testing.T) {
 	}
 
 	c.Registers[0] = 0xf0
-	c.mmunit.Memory[0xff] = uint8(4)
+	c.mmunit.Memory[0xff] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

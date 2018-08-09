@@ -5,6 +5,7 @@ import (
 	"pdp/console"
 	"pdp/mmu"
 	"pdp/pdpcpu"
+	"pdp/psw"
 	"pdp/unibus"
 
 	"github.com/jroimartin/gocui"
@@ -12,12 +13,9 @@ import (
 
 // System definition.
 type System struct {
+	CPU *pdpcpu.CPU
 
-	// obsolete - the memory defined in MMU should be used.
-	Memory [4 * 1024 * 1024]byte
-	CPU    *pdpcpu.CPU
-
-	mmuEnabled bool
+	psw psw.PSW
 
 	// Unibus
 	unibus *unibus.Unibus
@@ -30,7 +28,7 @@ type System struct {
 
 // <- make it a part of system type?
 // definitely worth rethinking
-var mmunit mmu.MMU
+var mmunit *mmu.MMU18Bit
 
 // InitializeSystem initializes the emulated PDP-11/44 hardware
 func InitializeSystem(
@@ -40,20 +38,17 @@ func InitializeSystem(
 	sys.terminalView = terminalView
 	sys.regView = regView
 
-	// start emulation with enabled mmu:
-	sys.mmuEnabled = true
-
-	// point mmu to memory:
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
-
 	// unibus
 	sys.unibus = unibus.New(gui, console)
+
+	// point mmu to memory:
+	mmunit = mmu.New(&sys.psw, sys.unibus)
+
 	sys.unibus.WriteHello()
 	sys.unibus.WriteHello()
 
 	console.WriteConsole("Initializing PDP11 CPU.\n")
-	sys.CPU = pdpcpu.New(&mmunit)
+	sys.CPU = pdpcpu.New(mmunit)
 	sys.CPU.State = pdpcpu.RUN
 	return sys
 }

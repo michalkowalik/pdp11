@@ -39,11 +39,11 @@ type CPU struct {
 	Registers                   [8]uint16
 	statusFlags                 byte // not needed?
 	floatingPointStatusRegister byte
-	statusRegister              uint16 // Which status Register??
+	psw                         uint16 // Which status Register??
 	State                       int
 
 	// memory access is required:
-	mmunit *mmu.MMU
+	mmunit *mmu.MMU18Bit
 
 	// and stack pointer: kernel, super, illegal, user
 	// TODO: Really? -> what is it good for?
@@ -97,7 +97,7 @@ var cpuFlags = map[string]struct {
 }
 
 //New initializes and returns the CPU variable:
-func New(mmunit *mmu.MMU) *CPU {
+func New(mmunit *mmu.MMU18Bit) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	c.doubleTrap = false
@@ -195,7 +195,10 @@ func New(mmunit *mmu.MMU) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	instruction := c.mmunit.ReadMemoryWord(c.Registers[7])
+	instruction, err := c.mmunit.ReadMemoryWord(c.Registers[7])
+	if err != nil {
+		c.trap(interrupts.INTBus)
+	}
 	c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	return instruction
 }
@@ -274,7 +277,8 @@ func (c *CPU) readWord(op uint16) uint16 {
 		// TODO: Trigger a trap. something went awry!
 		return 0xffff
 	}
-	return c.mmunit.ReadMemoryWord(uint16(virtual & 0xffff))
+	data, _ := c.mmunit.ReadMemoryWord(uint16(virtual & 0xffff))
+	return data
 }
 
 // writeWord writes word value into specified memory address
@@ -348,26 +352,28 @@ func (c *CPU) GetFlag(flag string) bool {
 func (c *CPU) trap(vector uint16) error {
 	if !c.doubleTrap {
 		c.trapMask = 0
-		c.trapPsw = c.mmunit.Psw
+		c.trapPsw = *c.mmunit.Psw
 	} else {
-		if c.mmunit.MMUMode == 0 { // kernel mode
+		if c.mmunit.Psw.GetMode() == 0 { // kernel mode
 			vector = 4
 			c.doubleTrap = true
 		}
 	}
 
 	// read from kernel D sapce
-	c.mmunit.MMUMode = 0
+	// this is valid for pdp 11/44 and 11/70 only. commenting out for now
+	//c.mmunit.MMUMode = 0
 
-	newPC := c.mmunit.ReadMemoryWord(vector)
-	newPSW := psw.PSW(c.mmunit.ReadMemoryWord(vector + 2))
+	newPC, _ := c.mmunit.ReadMemoryWord(vector)
+	data, _ := c.mmunit.ReadMemoryWord(vector + 2)
+	newPSW := psw.PSW(data)
 
 	// set PREVIOUS MODE bits in new PSW -> take it from currentMode bits in
 	// saved c.trapPSW
 	newPSW = (newPSW & 0xcfff) | ((c.trapPsw >> 2) & 0x3000)
 
 	// set new Processor Status Word
-	c.mmunit.Psw = newPSW
+	c.mmunit.Psw = &newPSW
 
 	// TODO: - Double Trap not implemented
 
@@ -380,7 +386,7 @@ func (c *CPU) trap(vector uint16) error {
 
 // PopWord pops 1 word from Processor stack:
 func (c *CPU) PopWord() uint16 {
-	result := c.mmunit.ReadMemoryWord(c.Registers[6])
+	result, _ := c.mmunit.ReadMemoryWord(c.Registers[6])
 
 	// update Stack Pointer after reading the word
 	c.Registers[6] = (c.Registers[6] + 2) & 0xffff
@@ -426,15 +432,15 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 		virtAddress = (c.Registers[reg] - 2) & 0xffff
 	case 6:
 		// index mode -> read next word to get the basis for address, add value in Register
-		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
+		baseAddr, _ := c.mmunit.ReadMemoryWord(c.Registers[7])
 		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
 
 		// increment program counter register
 		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	case 7:
-		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
+		baseAddr, _ := c.mmunit.ReadMemoryWord(c.Registers[7])
 		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
-		virtAddress = c.mmunit.ReadMemoryWord(virtAddress)
+		virtAddress, _ = c.mmunit.ReadMemoryWord(virtAddress)
 		// increment program counter register
 		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	}
