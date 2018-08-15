@@ -210,7 +210,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 	// 2 operand instructions:
 	var opcode uint16
 
-	if opcode = instr & 0170000; opcode > 0 {
+	if opcode = instr & 070000; opcode > 0 {
 		if val, ok := c.doubleOpOpcodes[opcode]; ok {
 			return val
 		}
