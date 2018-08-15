@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"pdp/mmu"
+	"pdp/psw"
 	"testing"
 )
 
@@ -23,6 +24,8 @@ var memory [0x400000]byte // 64KB of memory is all everyone needs
 // TestMain to resucure -> initialize memory and CPU
 func TestMain(m *testing.M) {
 	mmu := &mmu.MMU18Bit{}
+	p := psw.PSW(0)
+	mmu.Psw = &p
 	c = New(mmu)
 
 	os.Exit(m.Run())
@@ -75,12 +78,12 @@ func TestCPU_addOp(t *testing.T) {
 	}
 
 	c.Registers[0] = 0xff
-	c.Registers[1] = 0xff
+	c.Registers[1] = 0xfe
 	c.Registers[2] = 0
 	c.Registers[3] = 2
-	c.mmunit.Memory[0xff] = 0xff
+	c.mmunit.Memory[0x7f] = 0xff
 	c.mmunit.Memory[0] = 2
-	c.mmunit.Memory[3] = 3
+	c.mmunit.Memory[2] = 0x300
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -110,9 +113,9 @@ func TestCPU_movOp(t *testing.T) {
 		{"move from memory to register", args{011001}, false, 4},
 	}
 
-	c.Registers[0] = 0xff
+	c.Registers[0] = 0xfe
 	c.Registers[1] = 0
-	c.mmunit.Memory[0xff] = uint16(4)
+	c.mmunit.Memory[0x7f] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -4,15 +4,26 @@ import (
 	"fmt"
 	"pdp/mmu"
 	"pdp/pdpcpu"
+	"pdp/psw"
 	"testing"
 )
 
+// global resources
+var (
+	sys *System
+	mm  mmu.MMU18Bit
+)
+
+// TestMain : initialize memory and CPU
+func TestMain(m *testing.M) {
+	sys = new(System)
+	mm = mmu.MMU18Bit{}
+	p := psw.PSW(0)
+	mm.Psw = &p
+	sys.CPU = pdpcpu.New(&mm)
+}
+
 func TestRegisterRead(t *testing.T) {
-	sys := new(System)
-	mmunit := mmu.MMU18Bit{}
-
-	sys.CPU = pdpcpu.New(&mmunit)
-
 	// load an address to register
 	sys.CPU.Registers[0] = 2
 	expected := " |R0: 02 |  |R1: 0 |  |R2: 0 |  |R3: 0 |  |R4: 0 |  |R5: 0 |  |R6: 0 |  |R7: 0 | "
@@ -33,16 +44,12 @@ var virtualAddressTests = []struct {
 	{030, 2, true},
 	{040, 4, true}, // <- autodecrement! expect dragons! and re-test with byte mode
 	{050, 0, true},
-	{061, 020, true},
+	{061, 020, true}, // <- err!! err!!
 	{071, 040, true},
 }
 
 // check if an address in memory can be read
 func TestGetVirtualAddress(t *testing.T) {
-	sys := new(System)
-	mmunit := mmu.MMU18Bit{}
-	sys.CPU = pdpcpu.New(&mmunit)
-
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
 		mmunit.Memory[2] = 2
@@ -69,9 +76,6 @@ func TestGetVirtualAddress(t *testing.T) {
 
 // try running few lines of machine code
 func TestRunCode(t *testing.T) {
-	sys := new(System)
-	mmunit := mmu.MMU18Bit{}
-	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
 
 	mmunit.Memory[0xff] = 2
@@ -91,7 +95,6 @@ func TestRunCode(t *testing.T) {
 	for _, c := range code {
 
 		// this should be actually bytes in word!
-
 		mmunit.Memory[memPointer] = uint16(c & 0xff)
 		mmunit.Memory[memPointer+1] = uint16(c >> 8)
 		memPointer += 2
@@ -117,14 +120,7 @@ func TestRunCode(t *testing.T) {
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
 func TestRunBranchCode(t *testing.T) {
-	sys := new(System)
-	mmunit := mmu.MMU18Bit{}
-	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
-
-	// lets start from here:
-	//sys.Memory[0xff] = 0
-
 	// sample code
 	code := []uint16{
 		012700, // 001000 mov 0xff R0

@@ -16,7 +16,7 @@ const (
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
 
-	// ReadMode -> Read from main memory
+	// ReadMode -> Read from main memory (as opposed to what exactly? (MK))
 	ReadMode = 2
 
 	// WriteMode -> Write to main memory
@@ -37,9 +37,8 @@ const (
 // CPU type:
 type CPU struct {
 	Registers                   [8]uint16
-	statusFlags                 byte // not needed?
 	floatingPointStatusRegister byte
-	psw                         uint16 // Which status Register??
+	psw                         uint16
 	State                       int
 
 	// memory access is required:
