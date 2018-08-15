@@ -3,7 +3,7 @@ package pdpcpu
 // Definitions of the PDP CPU branching instructions
 
 // branch calculates the branch to PC for a branch instruction offset
-func (c *CPU) branch(instruction int16) uint16 {
+func (c *CPU) branch(instruction uint16) uint16 {
 
 	// offset is an 8 bit signed integer
 	var offset uint16
@@ -26,13 +26,13 @@ func (c *CPU) branch(instruction int16) uint16 {
 
 // control opcodes:
 // br - unconditional branching (000400 + offset)
-func (c *CPU) brOp(instruction int16) error {
+func (c *CPU) brOp(instruction uint16) error {
 	c.Registers[7] = c.branch(instruction)
 	return nil
 }
 
 // bne - branch if not equal (to zero) 0010000 + offset
-func (c *CPU) bneOp(instruction int16) error {
+func (c *CPU) bneOp(instruction uint16) error {
 	if !c.GetFlag("Z") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -40,7 +40,7 @@ func (c *CPU) bneOp(instruction int16) error {
 }
 
 // beq - branch if equal (to zero) 001400 + offset
-func (c *CPU) beqOp(instruction int16) error {
+func (c *CPU) beqOp(instruction uint16) error {
 	if c.GetFlag("Z") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -48,7 +48,7 @@ func (c *CPU) beqOp(instruction int16) error {
 }
 
 // bpl - branch if plus
-func (c *CPU) bplOp(instruction int16) error {
+func (c *CPU) bplOp(instruction uint16) error {
 	if !c.GetFlag("N") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -56,7 +56,7 @@ func (c *CPU) bplOp(instruction int16) error {
 }
 
 // bmi - branch if minus
-func (c *CPU) bmiOp(instruction int16) error {
+func (c *CPU) bmiOp(instruction uint16) error {
 	if c.GetFlag("N") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -64,7 +64,7 @@ func (c *CPU) bmiOp(instruction int16) error {
 }
 
 // bvc - branch if overflow is clear
-func (c *CPU) bvcOp(instruction int16) error {
+func (c *CPU) bvcOp(instruction uint16) error {
 	if !c.GetFlag("V") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -72,7 +72,7 @@ func (c *CPU) bvcOp(instruction int16) error {
 }
 
 // bvs - branch if overflow is set
-func (c *CPU) bvsOp(instruction int16) error {
+func (c *CPU) bvsOp(instruction uint16) error {
 	if c.GetFlag("V") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -80,7 +80,7 @@ func (c *CPU) bvsOp(instruction int16) error {
 }
 
 // bcc branch if carry is clear
-func (c *CPU) bccOp(instruction int16) error {
+func (c *CPU) bccOp(instruction uint16) error {
 	if !c.GetFlag("C") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -88,7 +88,7 @@ func (c *CPU) bccOp(instruction int16) error {
 }
 
 // bcs - branch if carry is set
-func (c *CPU) bcsOp(instruction int16) error {
+func (c *CPU) bcsOp(instruction uint16) error {
 	if c.GetFlag("C") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -96,7 +96,7 @@ func (c *CPU) bcsOp(instruction int16) error {
 }
 
 // bge - branch if greater than or equal (signed int)
-func (c *CPU) bgeOp(instruction int16) error {
+func (c *CPU) bgeOp(instruction uint16) error {
 	if c.GetFlag("N") == c.GetFlag("V") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -104,7 +104,7 @@ func (c *CPU) bgeOp(instruction int16) error {
 }
 
 // blt - branch if less than (zero)
-func (c *CPU) bltOp(instruction int16) error {
+func (c *CPU) bltOp(instruction uint16) error {
 	if c.GetFlag("N") != c.GetFlag("V") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -112,7 +112,7 @@ func (c *CPU) bltOp(instruction int16) error {
 }
 
 // bgt - branch if greater than (zero)
-func (c *CPU) bgtOp(instruction int16) error {
+func (c *CPU) bgtOp(instruction uint16) error {
 	if (c.GetFlag("V") == c.GetFlag("N")) && !c.GetFlag("Z") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -120,7 +120,7 @@ func (c *CPU) bgtOp(instruction int16) error {
 }
 
 // ble - branch if less than or equal
-func (c *CPU) bleOp(instruction int16) error {
+func (c *CPU) bleOp(instruction uint16) error {
 	if (c.GetFlag("N") != c.GetFlag("V")) && !c.GetFlag("Z") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -128,7 +128,7 @@ func (c *CPU) bleOp(instruction int16) error {
 }
 
 // bhi - branch if higher
-func (c *CPU) bhiOp(instruction int16) error {
+func (c *CPU) bhiOp(instruction uint16) error {
 	if !c.GetFlag("C") && !c.GetFlag("Z") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -136,7 +136,7 @@ func (c *CPU) bhiOp(instruction int16) error {
 }
 
 // blos - branch if lower or same
-func (c *CPU) blosOp(instruction int16) error {
+func (c *CPU) blosOp(instruction uint16) error {
 	if c.GetFlag("C") != c.GetFlag("Z") {
 		c.Registers[7] = c.branch(instruction)
 	}
@@ -144,11 +144,11 @@ func (c *CPU) blosOp(instruction int16) error {
 }
 
 // bhis - branch if higher or the same
-func (c *CPU) bhisOp(instruction int16) error {
+func (c *CPU) bhisOp(instruction uint16) error {
 	return c.bccOp(instruction)
 }
 
 // blo - branch if lower
-func (c *CPU) bloOp(instruction int16) error {
+func (c *CPU) bloOp(instruction uint16) error {
 	return c.bccOp(instruction)
 }

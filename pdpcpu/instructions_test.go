@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 
 func TestCPU_clrOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name    string
@@ -66,7 +66,7 @@ func TestCPU_clrOp(t *testing.T) {
 
 func TestCPU_addOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name    string
@@ -102,7 +102,7 @@ func TestCPU_addOp(t *testing.T) {
 
 func TestCPU_movOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name    string
@@ -132,6 +132,34 @@ func TestCPU_movOp(t *testing.T) {
 	}
 }
 
+func TestCPU_movbOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+		dst     int16
+	}{
+		{"move from memory to register", args{0111001}, false, 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := c.movOp(tt.args.instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.movOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			d := c.readWord(uint16(tt.args.instruction & 077))
+
+			if int16(d) != tt.dst {
+				t.Logf("destination addr: %x\n", tt.args.instruction&077)
+				t.Errorf("Expected destination: %x, got %x\n", tt.dst, d)
+			}
+		})
+	}
+}
+
 // TODO: finish test implementation
 // tests:
 // - offset 0 -> no res
@@ -141,7 +169,7 @@ func TestCPU_movOp(t *testing.T) {
 // - odd register number -> basically a rotate
 func TestCPU_comOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name    string
@@ -173,7 +201,7 @@ func TestCPU_comOp(t *testing.T) {
 
 func TestCPU_incOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name    string
@@ -221,7 +249,7 @@ func TestCPU_incOp(t *testing.T) {
 
 func TestCPU_negOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name    string
@@ -272,7 +300,7 @@ func TestCPU_negOp(t *testing.T) {
 
 func TestCPU_adcOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name      string
@@ -321,7 +349,7 @@ func TestCPU_adcOp(t *testing.T) {
 
 func TestCPU_xorOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name    string
@@ -351,7 +379,7 @@ func TestCPU_xorOp(t *testing.T) {
 
 func TestCPU_ashcOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name             string
@@ -394,7 +422,7 @@ func TestCPU_ashcOp(t *testing.T) {
 
 // ashcLoadRegisters loads the register values to the register number
 // extracted from the 8-6 bits of the opcode
-func ashcLoadRegisters(op int16, rValue, rPlusValue uint16) {
+func ashcLoadRegisters(op uint16, rValue, rPlusValue uint16) {
 	register := (op >> 6) & 7
 	c.Registers[register] = rValue
 	c.Registers[register|1] = rPlusValue
@@ -403,7 +431,7 @@ func ashcLoadRegisters(op int16, rValue, rPlusValue uint16) {
 // assertRegistersShifted checks if the register values ar shifted after
 // the ashc operation
 // TODO: add right shift - but for now check the left at least
-func assertRegistersShifted(op int16, rValue, rPlusValue uint16) error {
+func assertRegistersShifted(op uint16, rValue, rPlusValue uint16) error {
 	register := (op >> 6) & 7
 	plusRegister := register | 1
 
@@ -427,7 +455,7 @@ func assertRegistersShifted(op int16, rValue, rPlusValue uint16) error {
 
 func TestCPU_ashOp(t *testing.T) {
 	type args struct {
-		instruction int16
+		instruction uint16
 	}
 	tests := []struct {
 		name         string
@@ -490,7 +518,7 @@ func TestCPU_subOp(t *testing.T) {
 		c.Registers[0] = uint16(tt.r0Val)
 		c.Registers[1] = uint16(tt.r1Val)
 		t.Run(tt.name, func(t *testing.T) {
-			if err := c.subOp(int16(instruction)); (err != nil) != tt.wantErr {
+			if err := c.subOp(instruction); (err != nil) != tt.wantErr {
 				t.Errorf("CPU.subOp() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
@@ -526,7 +554,7 @@ func TestCPU_bicOp(t *testing.T) {
 		c.Registers[0] = tt.r0Val
 		c.Registers[1] = tt.r1Val
 		t.Run(tt.name, func(t *testing.T) {
-			if err := c.bicOp(int16(instruction)); (err != nil) != tt.wantErr {
+			if err := c.bicOp(instruction); (err != nil) != tt.wantErr {
 				t.Errorf("CPU.bicOp() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
