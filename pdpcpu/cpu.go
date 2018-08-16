@@ -113,17 +113,29 @@ func New(mmunit *mmu.MMU18Bit) *CPU {
 	c.singleOpOpcodes[0100] = c.jmpOp
 	c.singleOpOpcodes[0300] = c.swabOp
 	c.singleOpOpcodes[05000] = c.clrOp
+	c.singleOpOpcodes[0105000] = c.clrbOp
 	c.singleOpOpcodes[05100] = c.comOp
+	c.singleOpOpcodes[0105100] = c.combOp
 	c.singleOpOpcodes[05200] = c.incOp
+	c.singleOpOpcodes[0105200] = c.incbOp
 	c.singleOpOpcodes[05300] = c.decOp
+	c.singleOpOpcodes[0105300] = c.decbOp
 	c.singleOpOpcodes[05400] = c.negOp
+	c.singleOpOpcodes[0105400] = c.negbOp
 	c.singleOpOpcodes[05500] = c.adcOp
+	c.singleOpOpcodes[0105500] = c.adcbOp
 	c.singleOpOpcodes[05600] = c.sbcOp
+	c.singleOpOpcodes[0105600] = c.sbcbOp
 	c.singleOpOpcodes[05700] = c.tstOp
+	c.singleOpOpcodes[0105700] = c.tstbOp
 	c.singleOpOpcodes[06000] = c.rorOp
+	c.singleOpOpcodes[0106000] = c.rorbOp
 	c.singleOpOpcodes[06100] = c.rolOp
+	c.singleOpOpcodes[0106100] = c.rolbOp
 	c.singleOpOpcodes[06200] = c.asrOp
+	c.singleOpOpcodes[0106200] = c.asrbOp
 	c.singleOpOpcodes[06300] = c.aslOp
+	c.singleOpOpcodes[0106300] = c.aslbOp
 	c.singleOpOpcodes[06400] = c.markOp
 	c.singleOpOpcodes[06500] = c.mfpiOp
 	c.singleOpOpcodes[06600] = c.mtpiOp
@@ -131,10 +143,15 @@ func New(mmunit *mmu.MMU18Bit) *CPU {
 
 	// dual operand:
 	c.doubleOpOpcodes[010000] = c.movOp
+	c.doubleOpOpcodes[0110000] = c.movbOp
 	c.doubleOpOpcodes[020000] = c.cmpOp
+	c.doubleOpOpcodes[0120000] = c.cmpbOp
 	c.doubleOpOpcodes[030000] = c.bitOp
+	c.doubleOpOpcodes[0130000] = c.bitbOp
 	c.doubleOpOpcodes[040000] = c.bicOp
+	c.doubleOpOpcodes[0140000] = c.bicbOp
 	c.doubleOpOpcodes[050000] = c.bisOp
+	c.doubleOpOpcodes[0150000] = c.bisbOp
 	c.doubleOpOpcodes[060000] = c.addOp
 	c.doubleOpOpcodes[0160000] = c.subOp
 
@@ -151,7 +168,7 @@ func New(mmunit *mmu.MMU18Bit) *CPU {
 	c.controlOpcodes[0400] = c.brOp
 	c.controlOpcodes[01000] = c.bneOp
 	c.controlOpcodes[01400] = c.beqOp
-	c.controlOpcodes[0100000] = c.bplOp
+	c.controlOpcodes[0100000] = c.bplOp // and what the heck happens here??
 	c.controlOpcodes[0100400] = c.bmiOp
 	c.controlOpcodes[0102000] = c.bvsOp
 	c.controlOpcodes[0103000] = c.bccOp
@@ -210,35 +227,35 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 	// 2 operand instructions:
 	var opcode uint16
 
-	if opcode = instr & 070000; opcode > 0 {
+	if opcode = instr & 0170000; opcode > 0 {
 		if val, ok := c.doubleOpOpcodes[opcode]; ok {
 			return val
 		}
 	}
 
 	// 2 operand instructixon in RDD format
-	if opcode = instr & 077000; opcode > 0 {
+	if opcode = instr & 0177000; opcode > 0 {
 		if val, ok := c.rddOpOpcodes[opcode]; ok {
 			return val
 		}
 	}
 
 	// control instructions:
-	if opcode = instr & 077400; opcode > 0 {
+	if opcode = instr & 0177400; opcode > 0 {
 		if val, ok := c.controlOpcodes[opcode]; ok {
 			return val
 		}
 	}
 
 	// single operand opcodes
-	if opcode = instr & 077700; opcode > 0 {
+	if opcode = instr & 0177700; opcode > 0 {
 		if val, ok := c.singleOpOpcodes[opcode]; ok {
 			return val
 		}
 	}
 
 	// single register opcodes
-	if opcode = instr & 077770; opcode > 0 {
+	if opcode = instr & 0177770; opcode > 0 {
 		if val, ok := c.singleRegisterOpcodes[opcode]; ok {
 			return val
 		}

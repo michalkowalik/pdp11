@@ -33,12 +33,21 @@ func (c *CPU) clrOp(instruction uint16) error {
 	return nil
 }
 
+// clr Byte
+func (c *CPU) clrbOp(instruction uint16) error {
+	return c.clrOp(instruction)
+}
+
 // com - complement dst -> replace the contents of the destination address
 // by their logical complement (each bit equal 0 is set to 1, each 1 is cleared)
 func (c *CPU) comOp(instruction uint16) error {
 	dest := c.readWord(uint16(instruction & 077))
 	c.writeWord(uint16(instruction&077), ^dest)
 	return nil
+}
+
+func (c *CPU) combOp(instruction uint16) error {
+	return c.comOp(instruction)
 }
 
 // inc - increment dst
@@ -63,6 +72,10 @@ func (c *CPU) incOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) incbOp(instruction uint16) error {
+	return c.incOp(instruction)
+}
+
 // dec - decrement dst
 func (c *CPU) decOp(instruction uint16) error {
 	if addressMode := instruction & 070; addressMode == 0 {
@@ -83,6 +96,10 @@ func (c *CPU) decOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) decbOp(instruction uint16) error {
+	return c.decOp(instruction)
+}
+
 // neg - negate dst
 // replace the contents of the destination address
 // by it's 2 complement. 01000000 is replaced by itself
@@ -95,6 +112,10 @@ func (c *CPU) negOp(instruction uint16) error {
 	c.SetFlag("V", result == 0x8000)
 	c.SetFlag("C", result != 0)
 	return nil
+}
+
+func (c *CPU) negbOp(instruction uint16) error {
+	return c.negOp(instruction)
 }
 
 // adc - add cary
@@ -117,6 +138,10 @@ func (c *CPU) adcOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) adcbOp(instruction uint16) error {
+	return c.adcOp(instruction)
+}
+
 // sbc - substract carry
 func (c *CPU) sbcOp(instruction uint16) error {
 	dest := c.readWord(uint16(instruction & 077))
@@ -136,6 +161,10 @@ func (c *CPU) sbcOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) sbcbOp(instruction uint16) error {
+	return c.sbcOp(instruction)
+}
+
 // tst - sets the condition cods N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) error {
@@ -145,6 +174,10 @@ func (c *CPU) tstOp(instruction uint16) error {
 	c.SetFlag("V", false)
 	c.SetFlag("C", false)
 	return nil
+}
+
+func (c *CPU) tstbOp(instruction uint16) error {
+	return c.tstOp(instruction)
 }
 
 // asr - arithmetic shift right
@@ -166,6 +199,10 @@ func (c *CPU) asrOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) asrbOp(instruction uint16) error {
+	return c.asrOp(instruction)
+}
+
 // asl - arithmetic shift left
 // Shifts all bits of the destination left one place. Bit 0 is
 // loaded with an 0. The C·bit of the status word is loaded from
@@ -182,6 +219,10 @@ func (c *CPU) aslOp(instruction uint16) error {
 	c.SetFlag("C", (dest&0x8000) == 0x8000)
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
 	return nil
+}
+
+func (c *CPU) aslbOp(instruction uint16) error {
+	return c.aslOp(instruction)
 }
 
 // ror - rotate right
@@ -202,6 +243,10 @@ func (c *CPU) rorOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) rorbOp(instruction uint16) error {
+	return c.rorOp(instruction)
+}
+
 // rol - rorare left
 // : Rotate all bits of the destination left one place. Bit 15
 // is loaded into the C·bit of the status word and the previous
@@ -220,6 +265,10 @@ func (c *CPU) rolOp(instruction uint16) error {
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
 	return nil
+}
+
+func (c *CPU) rolbOp(instruction uint16) error {
+	return c.rolOp(instruction)
 }
 
 // jmp - jump to address:
@@ -297,6 +346,12 @@ func (c *CPU) movOp(instruction uint16) error {
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
 	return nil
+}
+
+// movb
+// TODO: Finish implementation
+func (c *CPU) movbOp(instruction uint16) error {
+	return c.movOp(instruction)
 }
 
 // misc instructions (decode all bits)
@@ -391,6 +446,10 @@ func (c *CPU) cmpOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) cmpbOp(instruction uint16) error {
+	return c.cmpOp(instruction)
+}
+
 //add (6)
 func (c *CPU) addOp(instruction uint16) error {
 	source := (instruction & 07700) >> 6
@@ -446,6 +505,10 @@ func (c *CPU) bitOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) bitbOp(instruction uint16) error {
+	return c.bitOp(instruction)
+}
+
 // bit clear (4)
 func (c *CPU) bicOp(instruction uint16) error {
 	source := (instruction & 07700) >> 6
@@ -462,6 +525,10 @@ func (c *CPU) bicOp(instruction uint16) error {
 	return nil
 }
 
+func (c *CPU) bicbOp(instruction uint16) error {
+	return c.bicOp(instruction)
+}
+
 // bit inclusive or (5)
 func (c *CPU) bisOp(instruction uint16) error {
 	source := (instruction & 07700) >> 6
@@ -476,6 +543,10 @@ func (c *CPU) bisOp(instruction uint16) error {
 	c.SetFlag("Z", destVal == 0)
 	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
 	return nil
+}
+
+func (c *CPU) bisbOp(instruction uint16) error {
+	return c.bisOp(instruction)
 }
 
 // RDD opcodes:
