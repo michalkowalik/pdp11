@@ -217,28 +217,28 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 	}
 
 	// 2 operand instructixon in RDD format
-	if opcode = instr & 0177000; opcode > 0 {
+	if opcode = instr & 077000; opcode > 0 {
 		if val, ok := c.rddOpOpcodes[opcode]; ok {
 			return val
 		}
 	}
 
 	// control instructions:
-	if opcode = instr & 0177400; opcode > 0 {
+	if opcode = instr & 077400; opcode > 0 {
 		if val, ok := c.controlOpcodes[opcode]; ok {
 			return val
 		}
 	}
 
 	// single operand opcodes
-	if opcode = instr & 0177700; opcode > 0 {
+	if opcode = instr & 077700; opcode > 0 {
 		if val, ok := c.singleOpOpcodes[opcode]; ok {
 			return val
 		}
 	}
 
 	// single register opcodes
-	if opcode = instr & 0177770; opcode > 0 {
+	if opcode = instr & 077770; opcode > 0 {
 		if val, ok := c.singleRegisterOpcodes[opcode]; ok {
 			return val
 		}
