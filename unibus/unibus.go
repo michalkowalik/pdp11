@@ -11,16 +11,23 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// const values for memory addresses for attached devices
+// Unibus address mappings for attached devices.
 const (
-	VT100Addr = 017772000
+	VT100Addr   = 017772000
+	LKSAddr     = 0777546
+	ConsoleAddr = 0777560
+	RK11Addr    = 0777400
 )
 
 // Unibus definition
 type Unibus struct {
 
 	// Unibus map registers
+	// todo: remove if not needed!
 	UnibusMap [32]int16
+
+	// LKS - KW11-L Clock status
+	LKS uint16
 
 	// Channel for interrupt communication
 	Interrupts chan interrupts.Interrupt

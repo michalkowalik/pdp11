@@ -1,8 +1,8 @@
 package system
 
 import (
-	"fmt"
 	"pdp/console"
+	"pdp/interrupts"
 	"pdp/mmu"
 	"pdp/pdpcpu"
 	"pdp/psw"
@@ -30,7 +30,7 @@ type System struct {
 // definitely worth rethinking
 var mmunit *mmu.MMU18Bit
 
-// InitializeSystem initializes the emulated PDP-11/44 hardware
+// InitializeSystem initializes the emulated PDP-11/40 hardware
 func InitializeSystem(
 	console *console.Console, terminalView, regView *gocui.View, gui *gocui.Gui) *System {
 	sys := new(System)
@@ -53,41 +53,42 @@ func InitializeSystem(
 	return sys
 }
 
-// emulate calls CPU execute as long as cpu is in run state:
-// TODO: Probably obsolete. Consider removal
-func (sys *System) emulate() {
-	for sys.CPU.State == pdpcpu.RUN {
-		sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
-		sys.CPU.Execute()
+// Run system
+func (sys *System) Run() {
+	for {
+		sys.run()
 	}
-	sys.console.WriteConsole(
-		fmt.Sprintf("CPU status: %v\n ", sys.CPU.State))
 }
 
-// loop keeps the emulation running.
-// checks the interrupt queue and lets CPU run
-//
-// * why does sleep make the memory to explode and blocks everything?
-// * how do I actually handle the wait state in a secure manner?
+// actually run the system
+func (sys *System) run() {
+	defer func() {
+		// recover from trap...
+	}()
 
-func (sys *System) loop() {
 	for {
-		for step := 0; step < 4000; step++ {
-			// check interrupts
-			sys.processInterruptQueue()
-
-			// check traps
-
-			// run cpu instruction
-			sys.CPU.Execute()
-		}
-		sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
-		if sys.CPU.State == pdpcpu.WAIT {
-			sys.console.WriteConsole("CPU in WAIT state \n")
-			break
-		}
+		sys.step()
 	}
-	sys.console.WriteConsole("out of for loop")
+}
+
+//  single cpu step:
+func (sys *System) step() {
+	// handle interrupts
+	sys.processInterruptQueue()
+
+	// execute next CPU instruction
+	sys.CPU.Execute()
+	sys.CPU.ClockCounter++
+	if sys.CPU.ClockCounter >= 40000 {
+		sys.CPU.ClockCounter = 0
+		sys.unibus.LKS |= (1 << 7)
+		if sys.unibus.LKS&(1<<6) != 0 {
+			sys.unibus.SendInterrupt(6, interrupts.INTClock)
+		}
+		// try outputting the sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n") here?
+		// it works, but it's too often.
+		// sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
+	}
 }
 
 // check for incoming interrupt, insert it into CPU interrupt queue.

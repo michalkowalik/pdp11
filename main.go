@@ -10,12 +10,6 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-/**
-BIGGEST TODO:
- -- do I need to introduce some kind of multiplexer for all goroutines communicating
-    with channels?
-*/
-
 func main() {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
@@ -99,7 +93,9 @@ func startPdp(g *gocui.Gui) error {
 	// update registers:
 	updateRegisters(pdp, g)
 
-	pdp.Boot()
+	// it may, or may be not a good idea.
+	// keep it marked for now!
+	go pdp.Boot()
 
 	// default return value -> no errors encoutered
 	return nil

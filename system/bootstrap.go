@@ -33,7 +33,7 @@ var bootcode = [...]uint16{
 	0005003,        /* CLR R3 */
 	0012704, 02020, /* MOV #START+20, R4 */
 	0005005, /* CLR R5 */
-	000001,  /* WAIT (MK!) */
+	// 000001,  /* WAIT (MK!) */
 	0105711, /* TSTB (R1)  (wait for ready) */
 	0100376, /* BPL .-2 */
 	0105011, /* CLRB (R1) */
@@ -198,5 +198,6 @@ func (sys *System) Boot() {
 		sys.CPU.State = pdpcpu.RUN
 	}
 	// sys.emulate()
-	sys.loop()
+	// sys.loop()
+	sys.Run()
 }

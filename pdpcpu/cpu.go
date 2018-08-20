@@ -63,6 +63,9 @@ type CPU struct {
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	InterruptQueue []interrupts.Interrupt
 
+	// ClockCounter
+	ClockCounter uint16
+
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it
 	// the opcode function should append to the following signature:
@@ -100,6 +103,7 @@ func New(mmunit *mmu.MMU18Bit) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	c.doubleTrap = false
+	c.ClockCounter = 0
 
 	// single operand
 	c.singleOpOpcodes = make(map[uint16](func(uint16) error))
