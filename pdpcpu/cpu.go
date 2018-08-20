@@ -270,10 +270,13 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 }
 
 // Execute decoded instruction
-func (c *CPU) Execute() error {
+func (c *CPU) Execute() {
+	if c.State == WAIT {
+		return
+	}
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
-	return opcode(instruction)
+	opcode(instruction)
 }
 
 // helper functions:

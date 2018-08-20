@@ -604,3 +604,36 @@ func assertFlags(flags flags, c *CPU) error {
 
 	return errors.New(errorMsg)
 }
+
+func TestCPU_swabOp(t *testing.T) {
+	var instruction uint16 = 000300
+	tests := []struct {
+		name       string
+		r0Val      uint16
+		swappedVal uint16
+		flags      flags
+		wantErr    bool
+	}{
+		{"swap bytes:low nonzero", 0xff00, 0x00ff, flags{false, false, false, true}, false},
+		{"swap bytes:low zero", 0x0022, 0x2200, flags{false, false, true, false}, false},
+	}
+	for _, tt := range tests {
+		c.Registers[0] = tt.r0Val
+		t.Run(tt.name, func(t *testing.T) {
+			swabOpcode := c.Decode(instruction)
+			if err := swabOpcode(instruction); (err != nil) != tt.wantErr {
+				t.Errorf("CPU.swabOp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// assert value:
+			if c.Registers[0] != tt.swappedVal {
+				t.Errorf("cpu.swapbOp r0 = %x, exp -> %x", c.Registers[0], tt.swappedVal)
+			}
+
+			// assert flags
+			if err := assertFlags(tt.flags, c); err != nil {
+				t.Error(err.Error())
+			}
+		})
+	}
+}
