@@ -85,9 +85,6 @@ func (sys *System) step() {
 		if sys.unibus.LKS&(1<<6) != 0 {
 			sys.unibus.SendInterrupt(6, interrupts.INTClock)
 		}
-		// try outputting the sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n") here?
-		// it works, but it's too often.
-		// sys.console.WriteConsole(sys.CPU.PrintRegisters() + "\n")
 	}
 }
 
@@ -100,4 +97,9 @@ func (sys *System) processInterruptQueue() {
 		return
 	default:
 	}
+}
+
+// process interrupt in the cpu interrup queue
+func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
+
 }

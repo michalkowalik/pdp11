@@ -42,6 +42,9 @@ const MaxMemory = 0760000
 // MaxTotalMemory - highest address available. Top  4k used by unibus
 const MaxTotalMemory = 0777776
 
+// UnibusMemoryBegin in 16 bit mode
+const UnibusMemoryBegin = 0170000
+
 // New returns the new MMU18Bit struct
 func New(psw *psw.PSW, unibus *unibus.Unibus) *MMU18Bit {
 	mmu := MMU18Bit{}
@@ -50,8 +53,20 @@ func New(psw *psw.PSW, unibus *unibus.Unibus) *MMU18Bit {
 	return &mmu
 }
 
+// return true if MMU enabled - controlled by 1 bit in the SR0
+func (m *MMU18Bit) mmuEnabled() bool {
+	return m.SR0&1 == 1
+}
+
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
 func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
+	if !m.mmuEnabled() {
+		addr := uint32(virtualAddress)
+		if addr >= UnibusMemoryBegin {
+			addr += 0600000
+		}
+		return addr
+	}
 
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)

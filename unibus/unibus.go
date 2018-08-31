@@ -63,6 +63,11 @@ func (u *Unibus) processInterruptQueue() {
 	go func() error {
 		for {
 			interrupt := <-u.Interrupts
+
+			// this interrupt should land in the cpu interrupt queue.
+			// which basically calls for CPU being a device connected to the Unibus
+			// and the same should be actually done for MMU as well.
+
 			u.controlConsole.WriteConsole(
 				fmt.Sprintf("Incomming interrupt on vector %d\n", interrupt.Vector))
 		}

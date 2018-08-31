@@ -42,6 +42,7 @@ type CPU struct {
 	State                       int
 
 	// memory access is required:
+	// this should be actually managed by unibus, and not here.
 	mmunit *mmu.MMU18Bit
 
 	// and stack pointer: kernel, super, illegal, user
@@ -426,6 +427,7 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 
 	switch addressMode {
 	case 0:
+		// TODO: REALLY throw a trap here.
 		return 0, errors.New("Wrong address mode - throw trap?")
 	case 1:
 		// register keeps the address:
