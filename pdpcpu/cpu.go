@@ -45,10 +45,6 @@ type CPU struct {
 	// this should be actually managed by unibus, and not here.
 	mmunit *mmu.MMU18Bit
 
-	// and stack pointer: kernel, super, illegal, user
-	// TODO: Really? -> what is it good for?
-	StackPointer [4]uint16
-
 	// track double traps. initialize with false.
 	doubleTrap bool
 
@@ -60,9 +56,6 @@ type CPU struct {
 
 	// PIR (Programmable Interrupt Register)
 	PIR uint16
-
-	// InterruptQueue queue to keep incoming interrupts before processing them
-	InterruptQueue []interrupts.Interrupt
 
 	// ClockCounter
 	ClockCounter uint16
@@ -218,7 +211,7 @@ func New(mmunit *mmu.MMU18Bit) *CPU {
 func (c *CPU) Fetch() uint16 {
 	instruction, err := c.mmunit.ReadMemoryWord(c.Registers[7])
 	if err != nil {
-		c.trap(interrupts.INTBus)
+		c.Trap(interrupts.INTBus)
 	}
 	c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	return instruction
@@ -371,9 +364,9 @@ func (c *CPU) GetFlag(flag string) bool {
 	return false
 }
 
-// trap handles all trap / abort events.
-// TODO: Do I need to signal trap occurence?
-func (c *CPU) trap(vector uint16) error {
+// Trap handles all Trap / abort events.
+// TODO: Do I need to signal Trap occurence?
+func (c *CPU) Trap(vector uint16) error {
 	if !c.doubleTrap {
 		c.trapMask = 0
 		c.trapPsw = *c.mmunit.Psw

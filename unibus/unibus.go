@@ -2,7 +2,6 @@ package unibus
 
 import (
 	"errors"
-	"fmt"
 	"pdp/console"
 	"pdp/disk"
 	"pdp/interrupts"
@@ -34,6 +33,10 @@ type Unibus struct {
 
 	// console
 	controlConsole *console.Console
+
+	// InterruptQueue queue to keep incoming interrupts before processing them
+	// TODO: change to array!
+	InterruptQueue [8]interrupts.Interrupt
 }
 
 // attached devices:
@@ -58,18 +61,39 @@ func New(gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	return &unibus
 }
 
-// temporary solution - dummy interrupt processing function
+// save incoming interrupt in a proper place
 func (u *Unibus) processInterruptQueue() {
 	go func() error {
 		for {
 			interrupt := <-u.Interrupts
 
-			// this interrupt should land in the cpu interrupt queue.
-			// which basically calls for CPU being a device connected to the Unibus
-			// and the same should be actually done for MMU as well.
+			if interrupt.Vector&1 == 1 {
+				panic("Interrupt with Odd vector number")
+			}
 
-			u.controlConsole.WriteConsole(
-				fmt.Sprintf("Incomming interrupt on vector %d\n", interrupt.Vector))
+			var i int
+			for ; i < len(u.InterruptQueue); i++ {
+				if u.InterruptQueue[i].Vector == 0 ||
+					u.InterruptQueue[i].Priority < interrupt.Priority {
+					break
+				}
+			}
+
+			for ; i < len(u.InterruptQueue); i++ {
+				if u.InterruptQueue[i].Vector == 0 ||
+					u.InterruptQueue[i].Vector >= interrupt.Vector {
+					break
+				}
+			}
+
+			if i == len(u.InterruptQueue) {
+				panic("Interrupt table full")
+			}
+
+			for j := len(u.InterruptQueue) - 1; j > i; j-- {
+				u.InterruptQueue[j] = u.InterruptQueue[j-1]
+			}
+			u.InterruptQueue[i] = interrupt
 		}
 	}()
 }

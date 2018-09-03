@@ -20,6 +20,11 @@ type System struct {
 	// Unibus
 	unibus *unibus.Unibus
 
+	// system stack pointers: kernel, super, illegal, user
+	// super won't be needed for pdp11/40:
+	KernelStackPointer uint16
+	UserStackPointer   uint16
+
 	// console and status output:
 	console      *console.Console
 	terminalView *gocui.View
@@ -53,6 +58,27 @@ func InitializeSystem(
 	return sys
 }
 
+// SwitchMode switches the kernel / user mode:
+// 0 for user, 3 for kernel, everything else is a mistake.
+// values are as they are used in the PSW
+func (sys *System) SwitchMode(m uint16) {
+	sys.psw.SwitchMode(m)
+
+	// save processor stack pointers:
+	if m > 0 {
+		sys.KernelStackPointer = sys.CPU.Registers[6]
+	} else {
+		sys.UserStackPointer = sys.CPU.Registers[6]
+	}
+
+	// set processor stack:
+	if m > 0 {
+		sys.CPU.Registers[6] = sys.KernelStackPointer
+	} else {
+		sys.CPU.Registers[6] = sys.UserStackPointer
+	}
+}
+
 // Run system
 func (sys *System) Run() {
 	for {
@@ -74,7 +100,16 @@ func (sys *System) run() {
 //  single cpu step:
 func (sys *System) step() {
 	// handle interrupts
-	sys.processInterruptQueue()
+	if len(sys.unibus.InterruptQueue) > 0 &&
+		sys.unibus.InterruptQueue[0].Priority >= sys.psw.Priority() {
+		sys.processInterrupt(sys.unibus.InterruptQueue[0])
+		for i := 0; i < len(sys.unibus.InterruptQueue); i++ {
+			sys.unibus.InterruptQueue[i] = sys.unibus.InterruptQueue[i+1]
+		}
+		// empty interrupt struct
+		sys.unibus.InterruptQueue[len(sys.unibus.InterruptQueue)-1] = interrupts.Interrupt{}
+
+	}
 
 	// execute next CPU instruction
 	sys.CPU.Execute()
@@ -88,18 +123,19 @@ func (sys *System) step() {
 	}
 }
 
-// check for incoming interrupt, insert it into CPU interrupt queue.
-// multiplexing with `select` to avoid blocking the programme.
-func (sys *System) processInterruptQueue() {
-	select {
-	case interrupt := <-sys.unibus.Interrupts:
-		sys.CPU.InterruptQueue = append(sys.CPU.InterruptQueue, interrupt)
-		return
-	default:
-	}
-}
-
 // process interrupt in the cpu interrup queue
-func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
+func (sys *System) processInterrupt(interrupt interrupts.Interrupt) bool {
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case nil:
+		default:
+			panic(t)
 
+		}
+		// TODO: make sure it's not stuck in waiting state!
+	}()
+	// prev := sys.psw.Get()
+
+	return true
 }

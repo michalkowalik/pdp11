@@ -365,13 +365,13 @@ func (c *CPU) haltOp(instruction uint16) error {
 // bpt - breakpoint trap
 func (c *CPU) bptOp(instruction uint16) error {
 	// 14 is breakpoint trap vector
-	c.trap(014)
+	c.Trap(014)
 	return nil
 }
 
 // iot - i/o trap
 func (c *CPU) iotOp(instruction uint16) error {
-	c.trap(020)
+	c.Trap(020)
 	return nil
 }
 
@@ -677,14 +677,14 @@ func (c *CPU) sobOp(instruction uint16) error {
 // trap opcodes:
 // emt - emulator trap - trap vector hardcoded to location 32
 func (c *CPU) emtOp(instruction uint16) error {
-	c.trap(32)
+	c.Trap(32)
 	return nil
 }
 
 // trap
 // trap vector for TRAP is hardcoded for all PDP11s to memory location 34
 func (c *CPU) trapOp(instruction uint16) error {
-	c.trap(34)
+	c.Trap(34)
 	return nil
 }
 

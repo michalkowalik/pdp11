@@ -20,9 +20,29 @@ func (psw *PSW) Get() uint16 {
 	return uint16(*psw)
 }
 
+// Priority - current cpu priority
+func (psw *PSW) Priority() uint16 {
+	return uint16((*psw >> 5) & 7)
+}
+
 // GetMode returns 0 for user and 3 for kernel
 func (psw *PSW) GetMode() uint16 {
 	return uint16(*psw >> 14)
+}
+
+// SwitchMode sets CPU into user or kernel mode and saves previous mode to
+// psw previous mode field (bits 12, 13)
+func (psw *PSW) SwitchMode(m uint16) {
+	mode := PSW((m & 3) << 14)
+	currentMode := psw.GetMode()
+
+	*psw &= 07777
+	if mode > 0 {
+		*psw |= (1 << 15) | (1 << 14)
+	}
+	if currentMode > 0 {
+		*psw |= (1 << 12) | (1 << 13)
+	}
 }
 
 // C returns C flag:
