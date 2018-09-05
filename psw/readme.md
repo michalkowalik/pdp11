@@ -21,3 +21,13 @@ lowest bits contain CPU flags, upper bits CPU mode
 |11 | General Register set |
 | 12 - 13 | Previous mode |
 | 14 - 15 | Current Mode |
+
+
+## Mode description:
+(PDP-11/40 Processor Manual, page 2-4, or pdp-11/70 Manual, page 280)
+
+|bits|Mode      |Notes              |
+|----|----------|-------------------|
+|00  |Kernel    |                   |
+|01  |Supervisor|Only on /70 and /45|
+|11  |User      |                   |

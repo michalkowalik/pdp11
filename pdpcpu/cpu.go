@@ -465,3 +465,16 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	// all-catcher return
 	return virtAddress, nil
 }
+
+// Push to processor stack
+func (c *CPU) Push(v uint16) {
+	c.Registers[6] -= 2
+	c.mmunit.WriteMemoryWord(c.Registers[6], v)
+}
+
+// Pop from CPU stack
+func (c *CPU) Pop() uint16 {
+	val, _ := c.mmunit.ReadMemoryWord(c.Registers[6])
+	c.Registers[6] += 2
+	return val
+}

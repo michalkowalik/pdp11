@@ -66,16 +66,16 @@ func (sys *System) SwitchMode(m uint16) {
 
 	// save processor stack pointers:
 	if m > 0 {
-		sys.KernelStackPointer = sys.CPU.Registers[6]
-	} else {
 		sys.UserStackPointer = sys.CPU.Registers[6]
+	} else {
+		sys.KernelStackPointer = sys.CPU.Registers[6]
 	}
 
 	// set processor stack:
 	if m > 0 {
-		sys.CPU.Registers[6] = sys.KernelStackPointer
-	} else {
 		sys.CPU.Registers[6] = sys.UserStackPointer
+	} else {
+		sys.CPU.Registers[6] = sys.KernelStackPointer
 	}
 }
 
@@ -100,10 +100,10 @@ func (sys *System) run() {
 //  single cpu step:
 func (sys *System) step() {
 	// handle interrupts
-	if len(sys.unibus.InterruptQueue) > 0 &&
+	if sys.unibus.InterruptQueue[0].Vector > 0 &&
 		sys.unibus.InterruptQueue[0].Priority >= sys.psw.Priority() {
 		sys.processInterrupt(sys.unibus.InterruptQueue[0])
-		for i := 0; i < len(sys.unibus.InterruptQueue); i++ {
+		for i := 0; i < len(sys.unibus.InterruptQueue)-1; i++ {
 			sys.unibus.InterruptQueue[i] = sys.unibus.InterruptQueue[i+1]
 		}
 		// empty interrupt struct
@@ -123,19 +123,32 @@ func (sys *System) step() {
 	}
 }
 
-// process interrupt in the cpu interrup queue
-func (sys *System) processInterrupt(interrupt interrupts.Interrupt) bool {
-	defer func() {
+// process interrupt in the cpu interrupt queue
+// 1. push current PSW and PC to stack
+// 2. load PC from interrupt vector
+// 3. load PSW from (interrupt vector) + 2
+// 4. if previous state mode was User, then set the corresponding bits in PSW
+// 5. Return from subprocedure cpu instruction at the end of interrupt procedure
+//    makes sure to set the stack and PSW back to where it belongs
+func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
+	prev := sys.psw.Get()
+	defer func(prev uint16) {
 		t := recover()
 		switch t := t.(type) {
 		case nil:
 		default:
 			panic(t)
-
 		}
-		// TODO: make sure it's not stuck in waiting state!
-	}()
-	// prev := sys.psw.Get()
+		sys.CPU.Registers[7], _ = mmunit.ReadMemoryWord(interrupt.Vector)
+		intPSW, _ := mmunit.ReadMemoryWord(interrupt.Vector + 2)
 
-	return true
+		if (prev & (1 << 14)) > 0 {
+			intPSW |= (1 << 13) | (1 << 12)
+		}
+		sys.psw.Set(intPSW)
+	}(prev)
+
+	sys.SwitchMode(psw.KernelMode)
+	sys.CPU.Push(prev)
+	sys.CPU.Push(sys.CPU.Registers[7])
 }
