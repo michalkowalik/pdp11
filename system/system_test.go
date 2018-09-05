@@ -4,16 +4,26 @@ import (
 	"fmt"
 	"pdp/mmu"
 	"pdp/pdpcpu"
+	"pdp/psw"
 	"testing"
 )
 
+// global resources
+var (
+	sys *System
+	mm  mmu.MMU18Bit
+)
+
+// TestMain : initialize memory and CPU
+func TestMain(m *testing.M) {
+	sys = new(System)
+	mm = mmu.MMU18Bit{}
+	p := psw.PSW(0)
+	mm.Psw = &p
+	sys.CPU = pdpcpu.New(&mm)
+}
+
 func TestRegisterRead(t *testing.T) {
-	sys := new(System)
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
-
-	sys.CPU = pdpcpu.New(&mmunit)
-
 	// load an address to register
 	sys.CPU.Registers[0] = 2
 	expected := " |R0: 02 |  |R1: 0 |  |R2: 0 |  |R3: 0 |  |R4: 0 |  |R5: 0 |  |R6: 0 |  |R7: 0 | "
@@ -25,7 +35,7 @@ func TestRegisterRead(t *testing.T) {
 
 var virtualAddressTests = []struct {
 	op             uint16
-	virtualAddress uint32
+	virtualAddress uint16
 	errorNil       bool
 }{
 	{0, 0, false},
@@ -34,31 +44,26 @@ var virtualAddressTests = []struct {
 	{030, 2, true},
 	{040, 4, true}, // <- autodecrement! expect dragons! and re-test with byte mode
 	{050, 0, true},
-	{061, 020, true},
+	{061, 020, true}, // <- err!! err!!
 	{071, 040, true},
 }
 
 // check if an address in memory can be read
 func TestGetVirtualAddress(t *testing.T) {
-	sys := new(System)
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
-	sys.CPU = pdpcpu.New(&mmunit)
-
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
-		sys.Memory[2] = 2
-		sys.Memory[1] = 1
-		sys.Memory[0] = 4
+		mmunit.Memory[2] = 2
+		mmunit.Memory[1] = 1
+		mmunit.Memory[0] = 4
 		sys.CPU.Registers[0] = 2
 
 		// setup memory and registers for index mode:
 		sys.CPU.Registers[7] = 010
 		sys.CPU.Registers[1] = 010
-		sys.Memory[010] = 010
-		sys.Memory[020] = 040
+		mmunit.Memory[010] = 010
+		mmunit.Memory[020] = 040
 
-		virtualAddress, err := mmunit.GetVirtualByMode(&sys.CPU.Registers, test.op, 0)
+		virtualAddress, err := sys.CPU.GetVirtualByMode(test.op, 0)
 		if virtualAddress != test.virtualAddress {
 			t.Logf("Registers: %s\n", sys.CPU.PrintRegisters())
 			t.Error("Expected virtual address ", test.virtualAddress, " , got ", virtualAddress)
@@ -71,13 +76,9 @@ func TestGetVirtualAddress(t *testing.T) {
 
 // try running few lines of machine code
 func TestRunCode(t *testing.T) {
-	sys := new(System)
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
-	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
 
-	sys.Memory[0xff] = 2
+	mmunit.Memory[0xff] = 2
 
 	code := []uint16{
 		012701, // 001000 mov 0xff R1
@@ -92,8 +93,10 @@ func TestRunCode(t *testing.T) {
 	// load sample code to memory
 	memPointer := 001000
 	for _, c := range code {
-		mmunit.Memory[memPointer] = byte(c & 0xff)
-		mmunit.Memory[memPointer+1] = byte(c >> 8)
+
+		// this should be actually bytes in word!
+		mmunit.Memory[memPointer] = uint16(c & 0xff)
+		mmunit.Memory[memPointer+1] = uint16(c >> 8)
 		memPointer += 2
 	}
 
@@ -117,15 +120,7 @@ func TestRunCode(t *testing.T) {
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
 func TestRunBranchCode(t *testing.T) {
-	sys := new(System)
-	mmunit = mmu.MMU{}
-	mmunit.Memory = &sys.Memory
-	sys.CPU = pdpcpu.New(&mmunit)
 	sys.CPU.State = pdpcpu.RUN
-
-	// lets start from here:
-	//sys.Memory[0xff] = 0
-
 	// sample code
 	code := []uint16{
 		012700, // 001000 mov 0xff R0
@@ -135,7 +130,7 @@ func TestRunBranchCode(t *testing.T) {
 		//// the loop starts here:
 		//// move the value from R1 to the address pointed by R0
 		010120, // 001010 mov R1, (R0)+
-		005301, // 001012 dec R1
+		005301, // 001012 dec `R1
 		001375, // 001014 BNE -2	<- branch to mov
 		000000, // 001016 done, halt
 	}
@@ -143,8 +138,10 @@ func TestRunBranchCode(t *testing.T) {
 	// load sample code to memory
 	memPointer := 001000
 	for _, c := range code {
-		mmunit.Memory[memPointer] = byte(c & 0xff)
-		mmunit.Memory[memPointer+1] = byte(c >> 8)
+
+		// this should be bytes in 1 word!
+		mmunit.Memory[memPointer] = uint16(c & 0xff)
+		mmunit.Memory[memPointer+1] = uint16(c >> 8)
 		memPointer += 2
 	}
 

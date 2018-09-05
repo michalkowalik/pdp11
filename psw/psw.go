@@ -12,12 +12,48 @@ const zFlag = 2
 const nFlag = 3
 const tFlag = 4
 
+// KernelMode - processor mode
+const KernelMode = 0
+
+// UserMode - processor mode
+const UserMode = 3
+
 // PSW keeps processsor status word
 type PSW uint16
 
 // Get returns current processsor status word
 func (psw *PSW) Get() uint16 {
 	return uint16(*psw)
+}
+
+// Set PSW value
+func (psw *PSW) Set(p uint16) {
+	*psw = PSW(p)
+}
+
+// Priority - current cpu priority
+func (psw *PSW) Priority() uint16 {
+	return uint16((*psw >> 5) & 7)
+}
+
+// GetMode returns 3 for user and 0 for kernel
+func (psw *PSW) GetMode() uint16 {
+	return uint16(*psw >> 14)
+}
+
+// SwitchMode sets CPU into user or kernel mode and saves previous mode to
+// psw previous mode field (bits 12, 13)
+// short reminder: 00 means kernel, b11 means user
+func (psw *PSW) SwitchMode(m uint16) {
+	currentMode := psw.GetMode()
+
+	*psw &= 07777
+	if m > 0 {
+		*psw |= (1 << 15) | (1 << 14)
+	}
+	if currentMode > 0 {
+		*psw |= (1 << 12) | (1 << 13)
+	}
 }
 
 // C returns C flag:
