@@ -2,8 +2,8 @@
 
 ### What is this repository for? ###
 
-* PDP11/70 emulator written in go
-* It's still a very early stage - pretty much nothing works yet, and that's OK - I'll get there.
+* PDP11/40 emulator written in go
+* It's still a very early stage - pretty much nothing works yet, and that's OK - I'll get there
 
 ### quick summary ###
 
@@ -16,8 +16,13 @@
   - show registers
   - modify registers
   - mount / unmount drives
-  - dump memory image
+  - ?
 
+### What works already ###
+Nothing really. 
+CPU implementation is completed and more or less tested.
+Teletype implementation is almost done.
+Machine can boot, but that's all.
 ### How do I get set up? ###
 
 * clone repo
@@ -25,7 +30,7 @@
 
 ### Contribution guidelines ###
 
-* feel free to ping me if you find the code or the "project" interesting.
+* feel free to ping me if you find the thing interesting
 
 ### Who do I talk to? ###
 
