@@ -92,14 +92,14 @@ func (m *MMU18Bit) ReadMemoryWord(addr uint16) (uint16, error) {
 	if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
 		data, err := m.unibus.ReadIOPage(physicalAddress, false)
 		if err != nil {
-			m.unibus.SendTrap(interrupts.INTFault)
+			m.unibus.SendTrap(interrupts.INTFault, "mmu.go, ReadMemoryWord")
 			return 0, m.unibus.Error(err, interrupts.INTFault)
 		}
 		return data, nil
 	}
 
 	// if everything else fails:
-	m.unibus.SendTrap(interrupts.INTBus)
+	m.unibus.SendTrap(interrupts.INTBus, "mmu.go, ReadMemoryWord, last stance")
 	return 0, m.unibus.Error(errors.New("read from invalid address"), interrupts.INTBus)
 }
 

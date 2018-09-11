@@ -298,6 +298,13 @@ func (c *CPU) readWord(op uint16) uint16 {
 	return data
 }
 
+// read byte -- in reality, read word, if odd than
+// return lower byte, if even, return higher
+// TODO: Finish implementation!
+func (c *CPU) readByte(op uint16) byte {
+	return 0
+}
+
 // writeWord writes word value into specified memory address
 func (c *CPU) writeWord(op, value uint16) error {
 	mode := op >> 3

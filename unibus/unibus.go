@@ -2,6 +2,7 @@ package unibus
 
 import (
 	"errors"
+	"fmt"
 	"pdp/console"
 	"pdp/disk"
 	"pdp/interrupts"
@@ -30,6 +31,7 @@ type Unibus struct {
 
 	// Channel for interrupt communication
 	Interrupts chan interrupts.Interrupt
+	Traps      chan interrupts.Trap
 
 	// console
 	controlConsole *console.Console
@@ -52,12 +54,14 @@ var (
 func New(gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan interrupts.Interrupt)
+	unibus.Traps = make(chan interrupts.Trap)
 	unibus.controlConsole = controlConsole
 
 	// initialize attached devices:
 	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
 	unibus.processInterruptQueue()
+	unibus.processTraps()
 	return &unibus
 }
 
@@ -94,6 +98,19 @@ func (u *Unibus) processInterruptQueue() {
 				u.InterruptQueue[j] = u.InterruptQueue[j-1]
 			}
 			u.InterruptQueue[i] = interrupt
+		}
+	}()
+}
+
+// TODO: probably not the smartest way of handling it.
+func (u *Unibus) processTraps() {
+	go func() error {
+		for {
+			trap := <-u.Traps
+			fmt.Printf("Trap vector: %d, message: \"%s\"\n", trap.Vector, trap.Msg)
+			if trap.Vector > 0 {
+				panic("IT'S A TRAP!!")
+			}
 		}
 	}()
 }
@@ -151,8 +168,12 @@ func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 }
 
 // SendTrap sends a Trap to CPU the same way the interrupt is sent.
-func (u *Unibus) SendTrap(vector uint16) {
-	// nothing to see here yet!
+func (u *Unibus) SendTrap(vector uint16, msg string) {
+	t := interrupts.Trap{
+		Vector: vector,
+		Msg:    msg}
+	go func() { u.Traps <- t }()
+
 }
 
 // InsertData updates a word with new byte or word data allowing
@@ -178,6 +199,6 @@ func (u *Unibus) InsertData(
 
 // Error wrapper : take error, send trap, return error
 func (u *Unibus) Error(err error, trapVector uint16) error {
-	u.SendTrap(trapVector)
+	u.SendTrap(trapVector, err.Error())
 	return err
 }

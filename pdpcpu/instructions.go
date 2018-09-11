@@ -19,7 +19,7 @@ func (c *CPU) clrOp(instruction uint16) error {
 		c.Registers[instruction&7] = 0
 	} else {
 		// TODO: access mode is hardcoded. needs to be changed or removed
-		v, _ := c.GetVirtualByMode(uint16(instruction&0x3f), 1)
+		v, _ := c.GetVirtualByMode(uint16(instruction&0x3f), 0)
 		c.mmunit.Memory[v] = 0
 		c.mmunit.Memory[v+1] = 0
 	}
@@ -170,14 +170,19 @@ func (c *CPU) sbcbOp(instruction uint16) error {
 func (c *CPU) tstOp(instruction uint16) error {
 	dest := c.readWord(uint16(instruction & 077))
 	c.SetFlag("Z", dest == 0)
-	c.SetFlag("N", dest < 0)
+	c.SetFlag("N", (dest&0x8000) > 0)
 	c.SetFlag("V", false)
 	c.SetFlag("C", false)
 	return nil
 }
 
 func (c *CPU) tstbOp(instruction uint16) error {
-	return c.tstOp(instruction)
+	dest := c.readByte(uint16(instruction & 077))
+	c.SetFlag("Z", dest == 0)
+	c.SetFlag("N", (dest&0x80) > 0)
+	c.SetFlag("V", false)
+	c.SetFlag("C", false)
+	return nil
 }
 
 // asr - arithmetic shift right
