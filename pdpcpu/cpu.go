@@ -279,8 +279,9 @@ func (c *CPU) Execute() {
 
 // helper functions:
 
-// readWord returns value specified by source or destination part of the operand.
-func (c *CPU) readWord(op uint16) uint16 {
+// readMemory reads either a word or a byte from memory
+// mode: 1: byte, 0: word
+func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 	// check mode:
 	mode := op >> 3
 	register := op & 07
@@ -291,22 +292,37 @@ func (c *CPU) readWord(op uint16) uint16 {
 	}
 	virtual, err := c.GetVirtualByMode(op, mode)
 	if err != nil {
-		// TODO: Trigger a trap. something went awry!
-		return 0xffff
+		panic("Can't obtain virtual address")
 	}
-	data, _ := c.mmunit.ReadMemoryWord(uint16(virtual & 0xffff))
-	return data
+	if length == 1 {
+		virtual &= 0xfe
+	}
+	data, _ := c.mmunit.ReadMemoryWord(virtual)
+	if length == 0 {
+		// complete word
+		return data
+	}
+	if virtual&1 == 1 {
+		// lower byte
+		return data & 0xFF
+	}
+	// and finally, return the upper byte
+	return data >> 8
 }
 
-// read byte -- in reality, read word, if odd than
-// return lower byte, if even, return higher
-// TODO: Finish implementation!
+// readWord returns value specified by source or destination part of the operand.
+func (c *CPU) readWord(op uint16) uint16 {
+	return c.readFromMemory(op, 0)
+}
+
+// read byte
 func (c *CPU) readByte(op uint16) byte {
-	return 0
+	return byte(c.readFromMemory(op, 1))
 }
 
-// writeWord writes word value into specified memory address
-func (c *CPU) writeWord(op, value uint16) error {
+// writeMemory writes either byte or word,
+// complementary to read operations
+func (c *CPU) writeMemory(op, value, length uint16) error {
 	mode := op >> 3
 	register := op & 07
 
@@ -318,8 +334,22 @@ func (c *CPU) writeWord(op, value uint16) error {
 	if err != nil {
 		return err
 	}
-	c.mmunit.WriteMemoryWord(uint16(virtualAddr&0xffff), value)
+	if length == 0 {
+		c.mmunit.WriteMemoryWord(virtualAddr, value)
+	} else {
+		c.mmunit.WriteMemoryByte(virtualAddr, byte(value))
+	}
 	return nil
+}
+
+// writeWord writes word value into specified memory address
+func (c *CPU) writeWord(op, value uint16) error {
+	return c.writeMemory(op, value, 0)
+}
+
+// writeByte writes byte value into specified memory location
+func (c *CPU) writeByte(op, value uint16) error {
+	return c.writeMemory(op, value, 1)
 }
 
 //PrintRegisters returns buffer status as a string
@@ -419,6 +449,7 @@ func (c *CPU) PopWord() uint16 {
 }
 
 // GetVirtualByMode returns virtual address extracted from the CPU instuction
+// access mode: 0 for Word, 1 for Byte
 func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	var addressInc uint16
 	reg := instruction & 7
