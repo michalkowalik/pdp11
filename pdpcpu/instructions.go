@@ -104,9 +104,9 @@ func (c *CPU) decbOp(instruction uint16) error {
 // replace the contents of the destination address
 // by it's 2 complement. 01000000 is replaced by itself
 func (c *CPU) negOp(instruction uint16) error {
-	dest := c.readWord(uint16(instruction & 077))
+	dest := c.readWord(instruction)
 	result := ^dest + 1
-	c.writeWord(uint16(instruction&077), result)
+	c.writeWord(instruction, result)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", int16(result) < 0)
 	c.SetFlag("V", result == 0x8000)
@@ -115,7 +115,14 @@ func (c *CPU) negOp(instruction uint16) error {
 }
 
 func (c *CPU) negbOp(instruction uint16) error {
-	return c.negOp(instruction)
+	dest := c.readByte(instruction)
+	result := ^dest + 1
+	c.writeByte(instruction, uint16(result))
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("N", result&0x80 > 0)
+	c.SetFlag("V", result == 0x80)
+	c.SetFlag("C", result != 0)
+	return nil
 }
 
 // adc - add cary
