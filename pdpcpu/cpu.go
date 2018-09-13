@@ -282,6 +282,8 @@ func (c *CPU) Execute() {
 // readMemory reads either a word or a byte from memory
 // mode: 1: byte, 0: word
 func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
+	var data uint16
+	var err error
 	// check mode:
 	mode := op >> 3
 	register := op & 07
@@ -294,20 +296,18 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 	if err != nil {
 		panic("Can't obtain virtual address")
 	}
-	if length == 1 {
-		virtual &= 0xfe
-	}
-	data, _ := c.mmunit.ReadMemoryWord(virtual)
+	
 	if length == 0 {
-		// complete word
-		return data
+		data, err := c.mmunit.ReadMemoryWord(virtual)
+	} else {
+		data, err := uint16(c.mmunit.ReadMemoryByte(virtual))
 	}
-	if virtual&1 == 1 {
-		// lower byte
-		return data & 0xFF
+	
+	if err != nil {
+		// TODO: Replace with decent trap call
+		panic("Can't read from memory!")
 	}
-	// and finally, return the upper byte
-	return data >> 8
+	return data
 }
 
 // readWord returns value specified by source or destination part of the operand.
