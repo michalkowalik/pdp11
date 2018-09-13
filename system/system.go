@@ -89,7 +89,15 @@ func (sys *System) Run() {
 // actually run the system
 func (sys *System) run() {
 	defer func() {
-		// recover from trap...
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			sys.unibus.Traps <- t
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
 	}()
 
 	for {

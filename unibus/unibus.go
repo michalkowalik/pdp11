@@ -43,10 +43,14 @@ type Unibus struct {
 
 // attached devices:
 var (
-	// 1. terminal:
+	// 0. CPU
+
+	// 1. MMU
+
+	// 2. terminal:
 	termEmulator *teletype.Teletype
 
-	// 2. rk01 disk
+	// 3. rk01 disk
 	rk01 *disk.RK
 )
 

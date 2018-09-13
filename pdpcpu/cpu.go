@@ -259,19 +259,24 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 		}
 	}
 
-	// TODO: add "if debug"
-	// fmt.Printf("opcode: %#o\n", opcode)
+	if opcode = instr & 07; opcode > 0 {
+		if val, ok := c.otherOpcodes[opcode]; ok {
+			return val
+		}
+	}
 
-	// everything else:
-	return c.otherOpcodes[instr]
+	// haltOp has optcode of 0, easiest to treat it separately
+	if instr == 0 {
+		return c.otherOpcodes[0]
+	}
+
+	// at this point it can be only an invalid instruction:
+	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
 
 // Execute decoded instruction
 func (c *CPU) Execute() {
-	if c.State == WAIT {
-		return
-	}
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
 	opcode(instruction)
