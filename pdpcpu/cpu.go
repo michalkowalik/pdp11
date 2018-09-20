@@ -38,8 +38,10 @@ const (
 type CPU struct {
 	Registers                   [8]uint16
 	floatingPointStatusRegister byte
-	psw                         uint16
-	State                       int
+
+	// TODO: is it used anywhere?
+	psw   uint16
+	State int
 
 	// memory access is required:
 	// this should be actually managed by unibus, and not here.
@@ -287,8 +289,10 @@ func (c *CPU) Execute() {
 // readMemory reads either a word or a byte from memory
 // mode: 1: byte, 0: word
 func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
+	var byteData byte
 	var data uint16
 	var err error
+
 	// check mode:
 	mode := op >> 3
 	register := op & 07
@@ -301,13 +305,14 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 	if err != nil {
 		panic("Can't obtain virtual address")
 	}
-	
+
 	if length == 0 {
-		data, err := c.mmunit.ReadMemoryWord(virtual)
+		data, err = c.mmunit.ReadMemoryWord(virtual)
 	} else {
-		data, err := uint16(c.mmunit.ReadMemoryByte(virtual))
+		byteData, err = c.mmunit.ReadMemoryByte(virtual)
+		data = uint16(byteData)
 	}
-	
+
 	if err != nil {
 		// TODO: Replace with decent trap call
 		panic("Can't read from memory!")

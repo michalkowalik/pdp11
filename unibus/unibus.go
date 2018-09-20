@@ -121,6 +121,7 @@ func (u *Unibus) processTraps() {
 
 // map 18 bit unibus address to 22 bit physical via the unibus map (if active)
 // TODO: implementation missing
+// TODO2: Does it even happen in pdp11/40?
 func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 	return 0
 }
@@ -138,11 +139,16 @@ func (u *Unibus) WriteHello() {
 
 // ReadIOPage reads from unibus devices.
 func (u *Unibus) ReadIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
-	switch physicalAddres {
-	case VT100Addr:
+	switch {
+	case physicalAddres&0777770 == ConsoleAddr:
 		return termEmulator.ReadTerm(physicalAddres)
+	case physicalAddres&0777760 == RK11Addr:
+		// don't do any anything yet!
+		return 0, nil
 	default:
-		return 0, errors.New("Not a UNIBUS Address -> halt / trap?")
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    fmt.Sprintf("Read from invalid address %06o", physicalAddres)})
 	}
 }
 

@@ -388,40 +388,18 @@ func (c *CPU) iotOp(instruction uint16) error {
 }
 
 // rti - return from interrupt
-// I have seen in some other places, that the
-// PSW was masked by & 0xf8ff - but this makes
-// very little sense to me, as the bytes 8 to 12
-// aren't utilized anyway. skipping this part
 func (c *CPU) rtiOp(instruction uint16) error {
+	c.Registers[7] = c.Pop()
+	tempPsw := psw.PSW(c.Pop())
+	// TODO: add the psw modification if cpu in user mode
 
-	// get destination address from the stack
-	dstAddr := c.Registers[6]
-
-	// read address kept in the address kept on stack
-	virtualAddress, _ := c.mmunit.ReadMemoryWord(dstAddr)
-
-	dstAddr = (dstAddr + 2) & 0xffff
-	savePSW, _ := c.mmunit.ReadMemoryWord(dstAddr)
-
-	// update stack pointer:
-	c.Registers[6] = (dstAddr + 2) & 0xffff
-
-	// TODO: user / super restriction
-
-	c.Registers[7] = virtualAddress
-	tempPsw := psw.PSW(savePSW)
 	c.mmunit.Psw = &tempPsw
-
-	// turn off Trace trap
-	c.trapMask &= 0x10
 	return nil
 }
 
-// rtt - return from interrupt - same as rti, with distinction of inhibiting a trace trap
+// rtt - return from trap
 func (c *CPU) rttOp(instruction uint16) error {
-	c.rtiOp(instruction)
-	c.trapMask = uint16(*c.mmunit.Psw) & 0x10
-	return nil
+	return c.rtiOp(instruction)
 }
 
 // wait for interrupt

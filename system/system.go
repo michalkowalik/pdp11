@@ -143,7 +143,10 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	defer func(prev uint16) {
 		t := recover()
 		switch t := t.(type) {
+		case interrupts.Trap:
+			sys.unibus.Traps <- t
 		case nil:
+			// ignore
 		default:
 			panic(t)
 		}
