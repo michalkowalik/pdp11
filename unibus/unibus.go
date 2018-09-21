@@ -138,32 +138,37 @@ func (u *Unibus) WriteHello() {
 }
 
 // ReadIOPage reads from unibus devices.
-func (u *Unibus) ReadIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
+func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
 	switch {
-	case physicalAddres&0777770 == ConsoleAddr:
-		return termEmulator.ReadTerm(physicalAddres)
-	case physicalAddres&0777760 == RK11Addr:
+	case physicalAddress&0777770 == ConsoleAddr:
+		return termEmulator.ReadTerm(physicalAddress)
+	case physicalAddress&0777760 == RK11Addr:
 		// don't do any anything yet!
 		return 0, nil
 	default:
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
-			Msg:    fmt.Sprintf("Read from invalid address %06o", physicalAddres)})
+			Msg:    fmt.Sprintf("Read from invalid address %06o", physicalAddress)})
 	}
 }
 
 // WriteIOPage writes to the unibus connected device
-func (u *Unibus) WriteIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
-	switch physicalAddres {
-	case VT100Addr:
+func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
+	switch {
+	case physicalAddress&0777770 == ConsoleAddr:
 		termEmulator.Incoming <- teletype.Instruction{
-			Address: physicalAddres,
+			Address: physicalAddress,
 			Data:    data,
 			Read:    false}
 		return nil
+	case physicalAddress&0777760 == RK11Addr:
+		// don't do anything yet!
 	default:
-		return errors.New("Not a unibus address -> trap / halt perhaps?")
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
+	return nil
 }
 
 // SendInterrupt sends a new interrupts to the receiver
