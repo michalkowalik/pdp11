@@ -107,6 +107,11 @@ func (sys *System) run() {
 
 //  single cpu step:
 func (sys *System) step() {
+	// handle traps:
+	// encapsulate in method
+	// read from channel in case
+	// handle trap by possibly calling the already implemented cpu method
+
 	// handle interrupts
 	if sys.unibus.InterruptQueue[0].Vector > 0 &&
 		sys.unibus.InterruptQueue[0].Priority >= sys.psw.Priority() {

@@ -448,16 +448,6 @@ func (c *CPU) Trap(vector uint16) error {
 	return nil
 }
 
-// PopWord pops 1 word from Processor stack:
-func (c *CPU) PopWord() uint16 {
-	result, _ := c.mmunit.ReadMemoryWord(c.Registers[6])
-
-	// update Stack Pointer after reading the word
-	c.Registers[6] = (c.Registers[6] + 2) & 0xffff
-
-	return result
-}
-
 // GetVirtualByMode returns virtual address extracted from the CPU instuction
 // access mode: 0 for Word, 1 for Byte
 func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {

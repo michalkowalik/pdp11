@@ -687,7 +687,7 @@ func (c *CPU) rtsOp(instruction uint16) error {
 	c.Registers[7] = c.Registers[register]
 
 	// load word popped from processor stack to "register"
-	c.Registers[register] = c.PopWord()
+	c.Registers[register] = c.Pop()
 	return nil
 }
 
