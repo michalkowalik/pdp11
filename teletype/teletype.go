@@ -219,7 +219,7 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		}
 		break
 
-		// any other address -> error
+	// any other address -> error
 	default:
 		return fmt.Errorf("Write to invalid address %o", address)
 	}

@@ -39,6 +39,10 @@ type Unibus struct {
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	// TODO: change to array!
 	InterruptQueue [8]interrupts.Interrupt
+
+	// ActiveTrap keeps the active trap in case the trap is being throw
+	// or nil otheriwse
+	ActiveTrap interrupts.Trap
 }
 
 // attached devices:
@@ -106,14 +110,15 @@ func (u *Unibus) processInterruptQueue() {
 	}()
 }
 
-// TODO: probably not the smartest way of handling it.
+// TODO: is there any other way to handle traps actually?
 func (u *Unibus) processTraps() {
 	go func() error {
 		for {
 			trap := <-u.Traps
 			fmt.Printf("Trap vector: %d, message: \"%s\"\n", trap.Vector, trap.Msg)
 			if trap.Vector > 0 {
-				panic("IT'S A TRAP!!")
+				u.ActiveTrap = trap
+				// panic("IT'S A TRAP!!")
 			}
 		}
 	}()
@@ -121,10 +126,13 @@ func (u *Unibus) processTraps() {
 
 // map 18 bit unibus address to 22 bit physical via the unibus map (if active)
 // TODO: implementation missing
-// TODO2: Does it even happen in pdp11/40?
+// TODO2: Does it even happen in pdp11/40? --> nope. it doesn't. To be removed, just not
+// 		  in the same commit
+/*
 func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
 	return 0
 }
+*/
 
 // WriteHello : temp function, just to see if it works at all:
 func (u *Unibus) WriteHello() {

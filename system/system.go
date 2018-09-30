@@ -1,6 +1,7 @@
 package system
 
 import (
+	"fmt"
 	"pdp/console"
 	"pdp/interrupts"
 	"pdp/mmu"
@@ -108,9 +109,7 @@ func (sys *System) run() {
 //  single cpu step:
 func (sys *System) step() {
 	// handle traps:
-	// encapsulate in method
-	// read from channel in case
-	// handle trap by possibly calling the already implemented cpu method
+	sys.handleTraps()
 
 	// handle interrupts
 	if sys.unibus.InterruptQueue[0].Vector > 0 &&
@@ -133,6 +132,23 @@ func (sys *System) step() {
 		if sys.unibus.LKS&(1<<6) != 0 {
 			sys.unibus.SendInterrupt(6, interrupts.INTClock)
 		}
+	}
+}
+
+// encapsulate in method
+// read from channel in case
+// handle trap by possibly calling the already implemented cpu method
+func (sys *System) handleTraps() {
+	if sys.unibus.ActiveTrap.Vector > 0 {
+		// handle trap
+		sys.console.WriteConsole(
+			fmt.Sprintf(
+				"TRAP AT: %d, MSG: %s",
+				sys.unibus.ActiveTrap.Vector, sys.unibus.ActiveTrap.Msg))
+		sys.CPU.Trap(sys.unibus.ActiveTrap.Vector)
+		// set active to nil:
+		sys.unibus.ActiveTrap.Vector = 0
+		sys.unibus.ActiveTrap.Msg = ""
 	}
 }
 
