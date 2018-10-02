@@ -20,8 +20,11 @@ func (c *CPU) clrOp(instruction uint16) error {
 	} else {
 		// TODO: access mode is hardcoded. needs to be changed or removed
 		v, _ := c.GetVirtualByMode(uint16(instruction&0x3f), 0)
-		c.mmunit.Memory[v] = 0
-		c.mmunit.Memory[v+1] = 0
+
+		// todo: what the heck?? direct access to memory??
+		c.writeWord(v, 0)
+		// c.mmunit.Memory[v] = 0
+		// c.mmunit.Memory[v+1] = 0
 	}
 
 	// TODO: move all condition codes to psw kept by mmu

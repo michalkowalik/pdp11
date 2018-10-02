@@ -7,6 +7,7 @@ import (
 	"pdp/interrupts"
 	"pdp/mmu"
 	"pdp/psw"
+	"strings"
 
 	"github.com/jroimartin/gocui"
 )
@@ -372,10 +373,12 @@ func (c *CPU) PrintRegisters() string {
 }
 
 // DumpRegisters displays register values
-func (c *CPU) DumpRegisters(regView *gocui.View) {
+func (c *CPU) DumpRegisters(regView *gocui.View) string {
+	var res strings.Builder
 	for i, reg := range c.Registers {
-		fmt.Fprintf(regView, " |R%d: %#o | ", i, reg)
+		fmt.Fprintf(&res, " |R%d: %#o | ", i, reg)
 	}
+	return res.String()
 }
 
 //SetFlag sets CPU carry flag in Processor Status Word

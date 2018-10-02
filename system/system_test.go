@@ -158,3 +158,31 @@ func TestRunBranchCode(t *testing.T) {
 
 	// assert results
 }
+
+func TestTriggerTrap(t *testing.T) {
+	sys.CPU.State = pdpcpu.RUN
+
+	code := []uint16{
+		066666,
+		000000, // 001016 done, halt
+	}
+
+	// load sample code to memory
+	memPointer := 001000
+	for _, c := range code {
+
+		// this should be bytes in 1 word!
+		mmunit.Memory[memPointer] = uint16(c & 0xff)
+		mmunit.Memory[memPointer+1] = uint16(c >> 8)
+		memPointer += 2
+	}
+
+	// set PC to starting point
+	sys.CPU.Registers[7] = 001000
+
+	for sys.CPU.State == pdpcpu.RUN {
+		sys.CPU.Execute()
+		fmt.Printf("REG: %s\n", sys.CPU.PrintRegisters())
+	}
+
+}

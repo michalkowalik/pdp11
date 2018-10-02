@@ -84,6 +84,8 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) (uint16, error) {
 	physicalAddress := m.mapVirtualToPhysical(addr)
 	if (physicalAddress & 1) == 1 {
+
+		// TODO: panic with trap?
 		return 0, m.unibus.Error(errors.New("Reading from odd address"), interrupts.INTBus)
 	}
 	if physicalAddress < MaxMemory {
