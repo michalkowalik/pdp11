@@ -1,7 +1,6 @@
 package pdpcpu
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"pdp/interrupts"
@@ -212,10 +211,19 @@ func New(mmunit *mmu.MMU18Bit) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	instruction, err := c.mmunit.ReadMemoryWord(c.Registers[7])
-	if err != nil {
-		c.Trap(interrupts.INTBus)
-	}
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			c.Trap(t.Vector)
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
+	}()
+
+	instruction := c.mmunit.ReadMemoryWord(c.Registers[7])
 	c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	return instruction
 }
@@ -294,6 +302,18 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 	var data uint16
 	var err error
 
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			c.Trap(t.Vector)
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
+	}()
+
 	// check mode:
 	mode := op >> 3
 	register := op & 07
@@ -308,15 +328,10 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 	}
 
 	if length == 0 {
-		data, err = c.mmunit.ReadMemoryWord(virtual)
+		data = c.mmunit.ReadMemoryWord(virtual)
 	} else {
-		byteData, err = c.mmunit.ReadMemoryByte(virtual)
+		byteData = c.mmunit.ReadMemoryByte(virtual)
 		data = uint16(byteData)
-	}
-
-	if err != nil {
-		// TODO: Replace with decent trap call
-		panic("Can't read from memory!")
 	}
 	return data
 }
@@ -363,15 +378,6 @@ func (c *CPU) writeByte(op, value uint16) error {
 	return c.writeMemory(op, value, 1)
 }
 
-//PrintRegisters returns buffer status as a string
-func (c *CPU) PrintRegisters() string {
-	var buffer bytes.Buffer
-	for i, reg := range c.Registers {
-		buffer.WriteString(fmt.Sprintf(" |R%d: %#o | ", i, reg))
-	}
-	return buffer.String()
-}
-
 // DumpRegisters displays register values
 func (c *CPU) DumpRegisters(regView *gocui.View) string {
 	var res strings.Builder
@@ -415,7 +421,7 @@ func (c *CPU) GetFlag(flag string) bool {
 }
 
 // Trap handles all Trap / abort events.
-// TODO: Do I need to signal Trap occurence?
+// TODO: Is this method finished at all??
 func (c *CPU) Trap(vector uint16) error {
 	if !c.doubleTrap {
 		c.trapMask = 0
@@ -423,16 +429,11 @@ func (c *CPU) Trap(vector uint16) error {
 	} else {
 		if c.mmunit.Psw.GetMode() == 0 { // kernel mode
 			vector = 4
-			c.doubleTrap = true
 		}
 	}
 
-	// read from kernel D sapce
-	// this is valid for pdp 11/44 and 11/70 only. commenting out for now
-	//c.mmunit.MMUMode = 0
-
-	newPC, _ := c.mmunit.ReadMemoryWord(vector)
-	data, _ := c.mmunit.ReadMemoryWord(vector + 2)
+	newPC := c.mmunit.ReadMemoryWord(vector)
+	data := c.mmunit.ReadMemoryWord(vector + 2)
 	newPSW := psw.PSW(data)
 
 	// set PREVIOUS MODE bits in new PSW -> take it from currentMode bits in
@@ -442,12 +443,9 @@ func (c *CPU) Trap(vector uint16) error {
 	// set new Processor Status Word
 	c.mmunit.Psw = &newPSW
 
-	// TODO: - Double Trap not implemented
-
 	// set new Program counter:
 	c.Registers[7] = newPC
 
-	c.doubleTrap = false
 	return nil
 }
 
@@ -491,15 +489,15 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 		virtAddress = (c.Registers[reg] - 2) & 0xffff
 	case 6:
 		// index mode -> read next word to get the basis for address, add value in Register
-		baseAddr, _ := c.mmunit.ReadMemoryWord(c.Registers[7])
+		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
 		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
 
 		// increment program counter register
 		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	case 7:
-		baseAddr, _ := c.mmunit.ReadMemoryWord(c.Registers[7])
+		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
 		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
-		virtAddress, _ = c.mmunit.ReadMemoryWord(virtAddress)
+		virtAddress = c.mmunit.ReadMemoryWord(virtAddress)
 		// increment program counter register
 		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	}
@@ -515,7 +513,7 @@ func (c *CPU) Push(v uint16) {
 
 // Pop from CPU stack
 func (c *CPU) Pop() uint16 {
-	val, _ := c.mmunit.ReadMemoryWord(c.Registers[6])
+	val := c.mmunit.ReadMemoryWord(c.Registers[6])
 	c.Registers[6] += 2
 	return val
 }

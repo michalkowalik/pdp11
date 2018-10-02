@@ -171,8 +171,8 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		default:
 			panic(t)
 		}
-		sys.CPU.Registers[7], _ = mmunit.ReadMemoryWord(interrupt.Vector)
-		intPSW, _ := mmunit.ReadMemoryWord(interrupt.Vector + 2)
+		sys.CPU.Registers[7] = mmunit.ReadMemoryWord(interrupt.Vector)
+		intPSW := mmunit.ReadMemoryWord(interrupt.Vector + 2)
 
 		if (prev & (1 << 14)) > 0 {
 			intPSW |= (1 << 13) | (1 << 12)

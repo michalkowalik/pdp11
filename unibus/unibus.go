@@ -219,9 +219,3 @@ func (u *Unibus) InsertData(
 	}
 	return nil
 }
-
-// Error wrapper : take error, send trap, return error
-func (u *Unibus) Error(err error, trapVector uint16) error {
-	u.SendTrap(trapVector, err.Error())
-	return err
-}
