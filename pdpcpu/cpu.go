@@ -47,9 +47,6 @@ type CPU struct {
 	// this should be actually managed by unibus, and not here.
 	mmunit *mmu.MMU18Bit
 
-	// track double traps. initialize with false.
-	doubleTrap bool
-
 	// original PSW while dealing with trap
 	trapPsw psw.PSW
 
@@ -98,7 +95,6 @@ var cpuFlags = map[string]struct {
 func New(mmunit *mmu.MMU18Bit) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
-	c.doubleTrap = false
 	c.ClockCounter = 0
 
 	// single operand
@@ -421,16 +417,7 @@ func (c *CPU) GetFlag(flag string) bool {
 }
 
 // Trap handles all Trap / abort events.
-// TODO: Is this method finished at all??
 func (c *CPU) Trap(vector uint16) error {
-	if !c.doubleTrap {
-		c.trapMask = 0
-		c.trapPsw = *c.mmunit.Psw
-	} else {
-		if c.mmunit.Psw.GetMode() == 0 { // kernel mode
-			vector = 4
-		}
-	}
 
 	newPC := c.mmunit.ReadMemoryWord(vector)
 	data := c.mmunit.ReadMemoryWord(vector + 2)
