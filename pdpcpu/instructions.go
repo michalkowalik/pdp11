@@ -18,13 +18,7 @@ func (c *CPU) clrOp(instruction uint16) error {
 	if addressMode := instruction & 0x38; addressMode == 0 {
 		c.Registers[instruction&7] = 0
 	} else {
-		// TODO: access mode is hardcoded. needs to be changed or removed
-		v, _ := c.GetVirtualByMode(uint16(instruction&0x3f), 0)
-
-		// todo: what the heck?? direct access to memory??
-		c.writeWord(v, 0)
-		// c.mmunit.Memory[v] = 0
-		// c.mmunit.Memory[v+1] = 0
+		c.writeWord(instruction, 0)
 	}
 
 	// TODO: move all condition codes to psw kept by mmu

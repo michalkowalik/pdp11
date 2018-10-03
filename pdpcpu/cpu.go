@@ -43,6 +43,11 @@ type CPU struct {
 	psw   uint16
 	State int
 
+	// system stack pointers: kernel, super, illegal, user
+	// super won't be needed for pdp11/40:
+	KernelStackPointer uint16
+	UserStackPointer   uint16
+
 	// memory access is required:
 	// this should be actually managed by unibus, and not here.
 	mmunit *mmu.MMU18Bit
@@ -311,14 +316,15 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 	}()
 
 	// check mode:
-	mode := op >> 3
-	register := op & 07
+	mode := (op >> 3) & 7
+	register := op & 7
 
 	if mode == 0 {
 		//value directly in register
+		//TODO: but oonly for length!!
 		return c.Registers[register]
 	}
-	virtual, err := c.GetVirtualByMode(op, mode)
+	virtual, err := c.GetVirtualByMode(op, length)
 	if err != nil {
 		panic("Can't obtain virtual address")
 	}
@@ -345,14 +351,28 @@ func (c *CPU) readByte(op uint16) byte {
 // writeMemory writes either byte or word,
 // complementary to read operations
 func (c *CPU) writeMemory(op, value, length uint16) error {
-	mode := op >> 3
-	register := op & 07
+
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			c.Trap(t.Vector)
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
+	}()
+
+	mode := (op >> 3) & 7
+	register := op & 7
 
 	if mode == 0 {
+		/// TODO: wowowowowow -- this will fail for byte mode!
 		c.Registers[register] = value
 		return nil
 	}
-	virtualAddr, err := c.GetVirtualByMode(op, mode)
+	virtualAddr, err := c.GetVirtualByMode(op, length)
 	if err != nil {
 		return err
 	}
@@ -416,24 +436,57 @@ func (c *CPU) GetFlag(flag string) bool {
 	return false
 }
 
+// SwitchMode switches the kernel / user mode:
+// 0 for user, 3 for kernel, everything else is a mistake.
+// values are as they are used in the PSW
+func (c *CPU) SwitchMode(m uint16) {
+	c.mmunit.Psw.SwitchMode(m)
+
+	// save processor stack pointers:
+	if m > 0 {
+		c.UserStackPointer = c.Registers[6]
+	} else {
+		c.KernelStackPointer = c.Registers[6]
+	}
+
+	// set processor stack:
+	if m > 0 {
+		c.Registers[6] = c.UserStackPointer
+	} else {
+		c.Registers[6] = c.KernelStackPointer
+	}
+}
+
 // Trap handles all Trap / abort events.
-func (c *CPU) Trap(vector uint16) error {
+// strikingly similar to processInterrupt.
+func (c *CPU) Trap(vector uint16) {
+	prev := c.mmunit.Psw.Get()
+	defer func(prev uint16) {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			panic("Red stack trap. Fatal.")
+		case nil:
+			break
+		default:
+			panic(t)
+		}
+		c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
+		intPSW := c.mmunit.ReadMemoryWord(vector + 2)
 
-	newPC := c.mmunit.ReadMemoryWord(vector)
-	data := c.mmunit.ReadMemoryWord(vector + 2)
-	newPSW := psw.PSW(data)
+		if (prev & (1 << 14)) > 0 {
+			intPSW |= (1 << 13) | (1 << 12)
+		}
+		c.mmunit.Psw.Set(intPSW)
+	}(prev)
 
-	// set PREVIOUS MODE bits in new PSW -> take it from currentMode bits in
-	// saved c.trapPSW
-	newPSW = (newPSW & 0xcfff) | ((c.trapPsw >> 2) & 0x3000)
+	if vector&1 == 1 {
+		panic("Odd vector number!")
+	}
 
-	// set new Processor Status Word
-	c.mmunit.Psw = &newPSW
-
-	// set new Program counter:
-	c.Registers[7] = newPC
-
-	return nil
+	c.SwitchMode(psw.KernelMode)
+	c.Push(prev)
+	c.Push(c.Registers[7])
 }
 
 // GetVirtualByMode returns virtual address extracted from the CPU instuction

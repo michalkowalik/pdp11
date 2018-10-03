@@ -21,11 +21,6 @@ type System struct {
 	// Unibus
 	unibus *unibus.Unibus
 
-	// system stack pointers: kernel, super, illegal, user
-	// super won't be needed for pdp11/40:
-	KernelStackPointer uint16
-	UserStackPointer   uint16
-
 	// console and status output:
 	console      *console.Console
 	terminalView *gocui.View
@@ -57,27 +52,6 @@ func InitializeSystem(
 	sys.CPU = pdpcpu.New(mmunit)
 	sys.CPU.State = pdpcpu.RUN
 	return sys
-}
-
-// SwitchMode switches the kernel / user mode:
-// 0 for user, 3 for kernel, everything else is a mistake.
-// values are as they are used in the PSW
-func (sys *System) SwitchMode(m uint16) {
-	sys.psw.SwitchMode(m)
-
-	// save processor stack pointers:
-	if m > 0 {
-		sys.UserStackPointer = sys.CPU.Registers[6]
-	} else {
-		sys.KernelStackPointer = sys.CPU.Registers[6]
-	}
-
-	// set processor stack:
-	if m > 0 {
-		sys.CPU.Registers[6] = sys.UserStackPointer
-	} else {
-		sys.CPU.Registers[6] = sys.KernelStackPointer
-	}
 }
 
 // Run system
@@ -159,6 +133,7 @@ func (sys *System) handleTraps() {
 // 4. if previous state mode was User, then set the corresponding bits in PSW
 // 5. Return from subprocedure cpu instruction at the end of interrupt procedure
 //    makes sure to set the stack and PSW back to where it belongs
+// TODO: wouldn't it make sense to move this method to CPU?
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	prev := sys.psw.Get()
 	defer func(prev uint16) {
@@ -180,7 +155,7 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		sys.psw.Set(intPSW)
 	}(prev)
 
-	sys.SwitchMode(psw.KernelMode)
+	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prev)
 	sys.CPU.Push(sys.CPU.Registers[7])
 }
