@@ -373,7 +373,11 @@ func (c *CPU) writeMemory(op, value, length uint16) error {
 	register := op & 7
 
 	if mode == 0 {
-		c.Registers[register] = (value & 0xFF)
+		if length == 1 {
+			c.Registers[register] = (value & 0xFF)
+		} else {
+			c.Registers[register] = value
+		}
 		return nil
 	}
 	virtualAddr, err := c.GetVirtualByMode(op, length)
