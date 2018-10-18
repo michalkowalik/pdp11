@@ -320,9 +320,14 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 	register := op & 7
 
 	if mode == 0 {
+
 		//value directly in register
-		//TODO: but oonly for length!!
-		return c.Registers[register]
+		if length == 0 {
+			return c.Registers[register]
+		}
+
+		// and for the byte mode:
+		return c.Registers[register] & 0xFF
 	}
 	virtual, err := c.GetVirtualByMode(op, length)
 	if err != nil {
@@ -368,8 +373,7 @@ func (c *CPU) writeMemory(op, value, length uint16) error {
 	register := op & 7
 
 	if mode == 0 {
-		/// TODO: wowowowowow -- this will fail for byte mode!
-		c.Registers[register] = value
+		c.Registers[register] = (value & 0xFF)
 		return nil
 	}
 	virtualAddr, err := c.GetVirtualByMode(op, length)

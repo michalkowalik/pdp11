@@ -124,16 +124,6 @@ func (u *Unibus) processTraps() {
 	}()
 }
 
-// map 18 bit unibus address to 22 bit physical via the unibus map (if active)
-// TODO: implementation missing
-// TODO2: Does it even happen in pdp11/40? --> nope. it doesn't. To be removed, just not
-// 		  in the same commit
-/*
-func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
-	return 0
-}
-*/
-
 // WriteHello : temp function, just to see if it works at all:
 func (u *Unibus) WriteHello() {
 	helloStr := "0_1.2_3.4_5.6_7.8_9.A_B.C_D.E_F\n"
