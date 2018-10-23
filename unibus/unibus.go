@@ -13,7 +13,6 @@ import (
 
 // Unibus address mappings for attached devices.
 const (
-	VT100Addr   = 017772000
 	LKSAddr     = 0777546
 	ConsoleAddr = 0777560
 	RK11Addr    = 0777400
