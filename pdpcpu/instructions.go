@@ -18,10 +18,7 @@ func (c *CPU) clrOp(instruction uint16) error {
 	if addressMode := instruction & 0x38; addressMode == 0 {
 		c.Registers[instruction&7] = 0
 	} else {
-		// TODO: access mode is hardcoded. needs to be changed or removed
-		v, _ := c.GetVirtualByMode(uint16(instruction&0x3f), 1)
-		c.mmunit.Memory[v] = 0
-		c.mmunit.Memory[v+1] = 0
+		c.writeWord(instruction, 0)
 	}
 
 	// TODO: move all condition codes to psw kept by mmu
@@ -104,9 +101,9 @@ func (c *CPU) decbOp(instruction uint16) error {
 // replace the contents of the destination address
 // by it's 2 complement. 01000000 is replaced by itself
 func (c *CPU) negOp(instruction uint16) error {
-	dest := c.readWord(uint16(instruction & 077))
+	dest := c.readWord(instruction)
 	result := ^dest + 1
-	c.writeWord(uint16(instruction&077), result)
+	c.writeWord(instruction, result)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", int16(result) < 0)
 	c.SetFlag("V", result == 0x8000)
@@ -115,7 +112,14 @@ func (c *CPU) negOp(instruction uint16) error {
 }
 
 func (c *CPU) negbOp(instruction uint16) error {
-	return c.negOp(instruction)
+	dest := c.readByte(instruction)
+	result := ^dest + 1
+	c.writeByte(instruction, uint16(result))
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("N", result&0x80 > 0)
+	c.SetFlag("V", result == 0x80)
+	c.SetFlag("C", result != 0)
+	return nil
 }
 
 // adc - add cary
@@ -170,14 +174,19 @@ func (c *CPU) sbcbOp(instruction uint16) error {
 func (c *CPU) tstOp(instruction uint16) error {
 	dest := c.readWord(uint16(instruction & 077))
 	c.SetFlag("Z", dest == 0)
-	c.SetFlag("N", dest < 0)
+	c.SetFlag("N", (dest&0x8000) > 0)
 	c.SetFlag("V", false)
 	c.SetFlag("C", false)
 	return nil
 }
 
 func (c *CPU) tstbOp(instruction uint16) error {
-	return c.tstOp(instruction)
+	dest := c.readByte(uint16(instruction & 077))
+	c.SetFlag("Z", dest == 0)
+	c.SetFlag("N", (dest&0x80) > 0)
+	c.SetFlag("V", false)
+	c.SetFlag("C", false)
+	return nil
 }
 
 // asr - arithmetic shift right
@@ -376,40 +385,18 @@ func (c *CPU) iotOp(instruction uint16) error {
 }
 
 // rti - return from interrupt
-// I have seen in some other places, that the
-// PSW was masked by & 0xf8ff - but this makes
-// very little sense to me, as the bytes 8 to 12
-// aren't utilized anyway. skipping this part
 func (c *CPU) rtiOp(instruction uint16) error {
+	c.Registers[7] = c.Pop()
+	tempPsw := psw.PSW(c.Pop())
+	// TODO: add the psw modification if cpu in user mode
 
-	// get destination address from the stack
-	dstAddr := c.Registers[6]
-
-	// read address kept in the address kept on stack
-	virtualAddress, _ := c.mmunit.ReadMemoryWord(dstAddr)
-
-	dstAddr = (dstAddr + 2) & 0xffff
-	savePSW, _ := c.mmunit.ReadMemoryWord(dstAddr)
-
-	// update stack pointer:
-	c.Registers[6] = (dstAddr + 2) & 0xffff
-
-	// TODO: user / super restriction
-
-	c.Registers[7] = virtualAddress
-	tempPsw := psw.PSW(savePSW)
 	c.mmunit.Psw = &tempPsw
-
-	// turn off Trace trap
-	c.trapMask &= 0x10
 	return nil
 }
 
-// rtt - return from interrupt - same as rti, with distinction of inhibiting a trace trap
+// rtt - return from trap
 func (c *CPU) rttOp(instruction uint16) error {
-	c.rtiOp(instruction)
-	c.trapMask = uint16(*c.mmunit.Psw) & 0x10
-	return nil
+	return c.rtiOp(instruction)
 }
 
 // wait for interrupt
@@ -697,7 +684,7 @@ func (c *CPU) rtsOp(instruction uint16) error {
 	c.Registers[7] = c.Registers[register]
 
 	// load word popped from processor stack to "register"
-	c.Registers[register] = c.PopWord()
+	c.Registers[register] = c.Pop()
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package system
 
 import (
+	"fmt"
 	"pdp/console"
 	"pdp/interrupts"
 	"pdp/mmu"
@@ -19,11 +20,6 @@ type System struct {
 
 	// Unibus
 	unibus *unibus.Unibus
-
-	// system stack pointers: kernel, super, illegal, user
-	// super won't be needed for pdp11/40:
-	KernelStackPointer uint16
-	UserStackPointer   uint16
 
 	// console and status output:
 	console      *console.Console
@@ -58,27 +54,6 @@ func InitializeSystem(
 	return sys
 }
 
-// SwitchMode switches the kernel / user mode:
-// 0 for user, 3 for kernel, everything else is a mistake.
-// values are as they are used in the PSW
-func (sys *System) SwitchMode(m uint16) {
-	sys.psw.SwitchMode(m)
-
-	// save processor stack pointers:
-	if m > 0 {
-		sys.UserStackPointer = sys.CPU.Registers[6]
-	} else {
-		sys.KernelStackPointer = sys.CPU.Registers[6]
-	}
-
-	// set processor stack:
-	if m > 0 {
-		sys.CPU.Registers[6] = sys.UserStackPointer
-	} else {
-		sys.CPU.Registers[6] = sys.KernelStackPointer
-	}
-}
-
 // Run system
 func (sys *System) Run() {
 	for {
@@ -89,7 +64,15 @@ func (sys *System) Run() {
 // actually run the system
 func (sys *System) run() {
 	defer func() {
-		// recover from trap...
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			sys.unibus.Traps <- t
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
 	}()
 
 	for {
@@ -99,6 +82,9 @@ func (sys *System) run() {
 
 //  single cpu step:
 func (sys *System) step() {
+	// handle traps:
+	sys.handleTraps()
+
 	// handle interrupts
 	if sys.unibus.InterruptQueue[0].Vector > 0 &&
 		sys.unibus.InterruptQueue[0].Priority >= sys.psw.Priority() {
@@ -123,6 +109,23 @@ func (sys *System) step() {
 	}
 }
 
+// encapsulate in method
+// read from channel in case
+// handle trap by possibly calling the already implemented cpu method
+func (sys *System) handleTraps() {
+	if sys.unibus.ActiveTrap.Vector > 0 {
+		// handle trap
+		sys.console.WriteConsole(
+			fmt.Sprintf(
+				"TRAP AT: %d, MSG: %s",
+				sys.unibus.ActiveTrap.Vector, sys.unibus.ActiveTrap.Msg))
+		sys.CPU.Trap(sys.unibus.ActiveTrap.Vector)
+		// set active to nil:
+		sys.unibus.ActiveTrap.Vector = 0
+		sys.unibus.ActiveTrap.Msg = ""
+	}
+}
+
 // process interrupt in the cpu interrupt queue
 // 1. push current PSW and PC to stack
 // 2. load PC from interrupt vector
@@ -130,17 +133,21 @@ func (sys *System) step() {
 // 4. if previous state mode was User, then set the corresponding bits in PSW
 // 5. Return from subprocedure cpu instruction at the end of interrupt procedure
 //    makes sure to set the stack and PSW back to where it belongs
+// TODO: wouldn't it make sense to move this method to CPU?
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	prev := sys.psw.Get()
 	defer func(prev uint16) {
 		t := recover()
 		switch t := t.(type) {
+		case interrupts.Trap:
+			sys.unibus.Traps <- t
 		case nil:
+			// ignore
 		default:
 			panic(t)
 		}
-		sys.CPU.Registers[7], _ = mmunit.ReadMemoryWord(interrupt.Vector)
-		intPSW, _ := mmunit.ReadMemoryWord(interrupt.Vector + 2)
+		sys.CPU.Registers[7] = mmunit.ReadMemoryWord(interrupt.Vector)
+		intPSW := mmunit.ReadMemoryWord(interrupt.Vector + 2)
 
 		if (prev & (1 << 14)) > 0 {
 			intPSW |= (1 << 13) | (1 << 12)
@@ -148,7 +155,7 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		sys.psw.Set(intPSW)
 	}(prev)
 
-	sys.SwitchMode(psw.KernelMode)
+	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prev)
 	sys.CPU.Push(sys.CPU.Registers[7])
 }
