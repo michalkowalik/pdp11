@@ -15,7 +15,6 @@ import (
 // System definition.
 type System struct {
 	CPU *pdpcpu.CPU
-
 	psw psw.PSW
 
 	// Unibus
@@ -40,7 +39,7 @@ func InitializeSystem(
 	sys.regView = regView
 
 	// unibus
-	sys.unibus = unibus.New(gui, console)
+	sys.unibus = unibus.New(&sys.psw, gui, console)
 
 	// point mmu to memory:
 	mmunit = mmu.New(&sys.psw, sys.unibus)

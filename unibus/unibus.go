@@ -6,6 +6,7 @@ import (
 	"pdp/console"
 	"pdp/disk"
 	"pdp/interrupts"
+	"pdp/psw"
 	"pdp/teletype"
 
 	"github.com/jroimartin/gocui"
@@ -16,6 +17,7 @@ const (
 	LKSAddr     = 0777546
 	ConsoleAddr = 0777560
 	RK11Addr    = 0777400
+	PSWAddr     = 0777776
 )
 
 // Unibus definition
@@ -42,6 +44,8 @@ type Unibus struct {
 	// ActiveTrap keeps the active trap in case the trap is being throw
 	// or nil otheriwse
 	ActiveTrap interrupts.Trap
+
+	psw *psw.PSW
 }
 
 // attached devices:
@@ -58,11 +62,12 @@ var (
 )
 
 // New initializes and returns the Unibus variable
-func New(gui *gocui.Gui, controlConsole *console.Console) *Unibus {
+func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan interrupts.Interrupt)
 	unibus.Traps = make(chan interrupts.Trap)
 	unibus.controlConsole = controlConsole
+	unibus.psw = psw
 
 	// initialize attached devices:
 	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
@@ -137,6 +142,8 @@ func (u *Unibus) WriteHello() {
 // ReadIOPage reads from unibus devices.
 func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
 	switch {
+	case physicalAddress == PSWAddr:
+		return u.psw.Get(), nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		return termEmulator.ReadTerm(physicalAddress)
 	case physicalAddress&0777760 == RK11Addr:
