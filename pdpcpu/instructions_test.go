@@ -44,8 +44,13 @@ func TestCPU_clrOp(t *testing.T) {
 		{"address in register", args{05011}, false},
 	}
 	c.Registers[0] = 0xff
-	c.Registers[1] = 0xff
-	c.mmunit.Memory[0xff] = 2
+	c.Registers[1] = 0xfe
+
+	// and let's give CPU stack some place to breath:
+	c.Registers[6] = 0xfe
+
+	// come back here!!
+	c.mmunit.Memory[0xfe] = 2
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -284,8 +289,8 @@ func TestCPU_negOp(t *testing.T) {
 				t.Errorf("CPU.negOp() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if c.Registers[0] != tt.dst {
-				t.Errorf("NEG returned unexpected result. expected %v, got %v\n",
-					tt.dst, c.Registers[0])
+				t.Errorf("\"%s\" ERROR: expected %v, got %v\n",
+					tt.name, tt.dst, c.Registers[0])
 			}
 			if z := c.GetFlag("Z"); z != tt.zFlag {
 				t.Errorf("Z flag error. Expected %v, got %v\n", tt.zFlag, z)

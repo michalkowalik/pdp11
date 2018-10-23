@@ -15,6 +15,12 @@ type Interrupt struct {
 	CleanFlag bool
 }
 
+// Trap is also a form of interrupt
+type Trap struct {
+	Vector uint16
+	Msg    string
+}
+
 // interrupt vectors:
 
 // TTYout : sent when character is being printed on the teletype

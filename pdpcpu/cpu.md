@@ -23,3 +23,10 @@ Stack limit checks are implemented for modes 1, 2, 4 & 6 (!)
 
 #### **!!**
 Also need to keep CPU.MMR1 updated as this stores which registers have been incremented and decremented so that the OS can reset and restart an instruction if a page fault occurs.
+
+
+## Instructions
+#### RTI and RTT
+`RTI` and `RTT` instructions are identical on PDP 11/40.
+They differ slightly on /70 and /45, where the nested traps are allowed.
+As this project is currently conentrating on /40 model, the nested traps are removed from the current scope.

@@ -2,6 +2,7 @@ package unibus
 
 import (
 	"errors"
+	"fmt"
 	"pdp/console"
 	"pdp/disk"
 	"pdp/interrupts"
@@ -30,6 +31,7 @@ type Unibus struct {
 
 	// Channel for interrupt communication
 	Interrupts chan interrupts.Interrupt
+	Traps      chan interrupts.Trap
 
 	// console
 	controlConsole *console.Console
@@ -37,14 +39,22 @@ type Unibus struct {
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	// TODO: change to array!
 	InterruptQueue [8]interrupts.Interrupt
+
+	// ActiveTrap keeps the active trap in case the trap is being throw
+	// or nil otheriwse
+	ActiveTrap interrupts.Trap
 }
 
 // attached devices:
 var (
-	// 1. terminal:
+	// 0. CPU
+
+	// 1. MMU
+
+	// 2. terminal:
 	termEmulator *teletype.Teletype
 
-	// 2. rk01 disk
+	// 3. rk01 disk
 	rk01 *disk.RK
 )
 
@@ -52,12 +62,14 @@ var (
 func New(gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan interrupts.Interrupt)
+	unibus.Traps = make(chan interrupts.Trap)
 	unibus.controlConsole = controlConsole
 
 	// initialize attached devices:
 	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
 	unibus.processInterruptQueue()
+	unibus.processTraps()
 	return &unibus
 }
 
@@ -98,10 +110,18 @@ func (u *Unibus) processInterruptQueue() {
 	}()
 }
 
-// map 18 bit unibus address to 22 bit physical via the unibus map (if active)
-// TODO: implementation missing
-func (u *Unibus) mapUnibusAddress(unibusAddress uint32) uint32 {
-	return 0
+// TODO: is there any other way to handle traps actually?
+func (u *Unibus) processTraps() {
+	go func() error {
+		for {
+			trap := <-u.Traps
+			fmt.Printf("Trap vector: %d, message: \"%s\"\n", trap.Vector, trap.Msg)
+			if trap.Vector > 0 {
+				u.ActiveTrap = trap
+				// panic("IT'S A TRAP!!")
+			}
+		}
+	}()
 }
 
 // WriteHello : temp function, just to see if it works at all:
@@ -116,27 +136,37 @@ func (u *Unibus) WriteHello() {
 }
 
 // ReadIOPage reads from unibus devices.
-func (u *Unibus) ReadIOPage(physicalAddres uint32, byteFlag bool) (uint16, error) {
-	switch physicalAddres {
-	case VT100Addr:
-		return termEmulator.ReadTerm(physicalAddres)
+func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
+	switch {
+	case physicalAddress&0777770 == ConsoleAddr:
+		return termEmulator.ReadTerm(physicalAddress)
+	case physicalAddress&0777760 == RK11Addr:
+		// don't do any anything yet!
+		return 0, nil
 	default:
-		return 0, errors.New("Not a UNIBUS Address -> halt / trap?")
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    fmt.Sprintf("Read from invalid address %06o", physicalAddress)})
 	}
 }
 
 // WriteIOPage writes to the unibus connected device
-func (u *Unibus) WriteIOPage(physicalAddres uint32, data uint16, byteFlag bool) error {
-	switch physicalAddres {
-	case VT100Addr:
+func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
+	switch {
+	case physicalAddress&0777770 == ConsoleAddr:
 		termEmulator.Incoming <- teletype.Instruction{
-			Address: physicalAddres,
+			Address: physicalAddress,
 			Data:    data,
 			Read:    false}
 		return nil
+	case physicalAddress&0777760 == RK11Addr:
+		// don't do anything yet!
 	default:
-		return errors.New("Not a unibus address -> trap / halt perhaps?")
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
+	return nil
 }
 
 // SendInterrupt sends a new interrupts to the receiver
@@ -151,8 +181,12 @@ func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 }
 
 // SendTrap sends a Trap to CPU the same way the interrupt is sent.
-func (u *Unibus) SendTrap(vector uint16) {
-	// nothing to see here yet!
+func (u *Unibus) SendTrap(vector uint16, msg string) {
+	t := interrupts.Trap{
+		Vector: vector,
+		Msg:    msg}
+	go func() { u.Traps <- t }()
+
 }
 
 // InsertData updates a word with new byte or word data allowing
@@ -174,10 +208,4 @@ func (u *Unibus) InsertData(
 
 	}
 	return nil
-}
-
-// Error wrapper : take error, send trap, return error
-func (u *Unibus) Error(err error, trapVector uint16) error {
-	u.SendTrap(trapVector)
-	return err
 }

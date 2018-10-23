@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"pdp/console"
 	"pdp/system"
 	"time"
@@ -116,10 +117,7 @@ func updateRegisters(pdp *system.System, g *gocui.Gui) {
 					return err
 				}
 				v.Clear()
-				pdp.CPU.DumpRegisters(v)
-
-				// go -race says it produces race contidion?
-				// fmt.Fprintf(v, " <t : 0x%x>", i)
+				fmt.Fprintf(v, pdp.CPU.DumpRegisters(v))
 				return nil
 			})
 			i++

@@ -1,7 +1,6 @@
 package system
 
 import (
-	"fmt"
 	"pdp/mmu"
 	"pdp/pdpcpu"
 	"pdp/psw"
@@ -21,16 +20,6 @@ func TestMain(m *testing.M) {
 	p := psw.PSW(0)
 	mm.Psw = &p
 	sys.CPU = pdpcpu.New(&mm)
-}
-
-func TestRegisterRead(t *testing.T) {
-	// load an address to register
-	sys.CPU.Registers[0] = 2
-	expected := " |R0: 02 |  |R1: 0 |  |R2: 0 |  |R3: 0 |  |R4: 0 |  |R5: 0 |  |R6: 0 |  |R7: 0 | "
-	returned := sys.CPU.PrintRegisters()
-	if returned != expected {
-		t.Error("Expected value: >", expected, "<, got: >", returned, "<")
-	}
 }
 
 var virtualAddressTests = []struct {
@@ -65,7 +54,6 @@ func TestGetVirtualAddress(t *testing.T) {
 
 		virtualAddress, err := sys.CPU.GetVirtualByMode(test.op, 0)
 		if virtualAddress != test.virtualAddress {
-			t.Logf("Registers: %s\n", sys.CPU.PrintRegisters())
 			t.Error("Expected virtual address ", test.virtualAddress, " , got ", virtualAddress)
 		}
 		if (err == nil) != test.errorNil {
@@ -105,7 +93,6 @@ func TestRunCode(t *testing.T) {
 
 	for sys.CPU.State == pdpcpu.RUN {
 		sys.CPU.Execute()
-		fmt.Printf("REG: %s\n", sys.CPU.PrintRegisters())
 	}
 
 	// assert memory at 0xff = 4
@@ -150,11 +137,33 @@ func TestRunBranchCode(t *testing.T) {
 
 	for sys.CPU.State == pdpcpu.RUN {
 		sys.CPU.Execute()
-		fmt.Printf("REG: %s\n", sys.CPU.PrintRegisters())
 	}
 
-	// registers status after the program execution
-	fmt.Printf("REG: %s\n", sys.CPU.PrintRegisters())
-
 	// assert results
+}
+
+func TestTriggerTrap(t *testing.T) {
+	sys.CPU.State = pdpcpu.RUN
+
+	code := []uint16{
+		066666,
+		000000, // 001016 done, halt
+	}
+
+	// load sample code to memory
+	memPointer := 001000
+	for _, c := range code {
+
+		// this should be bytes in 1 word!
+		mmunit.Memory[memPointer] = uint16(c & 0xff)
+		mmunit.Memory[memPointer+1] = uint16(c >> 8)
+		memPointer += 2
+	}
+
+	// set PC to starting point
+	sys.CPU.Registers[7] = 001000
+
+	for sys.CPU.State == pdpcpu.RUN {
+		sys.CPU.Execute()
+	}
 }

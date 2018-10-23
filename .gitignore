@@ -3,6 +3,8 @@
 pkg/*
 bin/*
 **/*.min.*
+**/*.log
+*.ptap
 pdp
 pdp.exe
 src/*.com/*

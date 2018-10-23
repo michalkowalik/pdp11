@@ -1,12 +1,12 @@
 package pdpcpu
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"pdp/interrupts"
 	"pdp/mmu"
 	"pdp/psw"
+	"strings"
 
 	"github.com/jroimartin/gocui"
 )
@@ -38,15 +38,19 @@ const (
 type CPU struct {
 	Registers                   [8]uint16
 	floatingPointStatusRegister byte
-	psw                         uint16
-	State                       int
+
+	// TODO: is it used anywhere?
+	psw   uint16
+	State int
+
+	// system stack pointers: kernel, super, illegal, user
+	// super won't be needed for pdp11/40:
+	KernelStackPointer uint16
+	UserStackPointer   uint16
 
 	// memory access is required:
 	// this should be actually managed by unibus, and not here.
 	mmunit *mmu.MMU18Bit
-
-	// track double traps. initialize with false.
-	doubleTrap bool
 
 	// original PSW while dealing with trap
 	trapPsw psw.PSW
@@ -96,7 +100,6 @@ var cpuFlags = map[string]struct {
 func New(mmunit *mmu.MMU18Bit) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
-	c.doubleTrap = false
 	c.ClockCounter = 0
 
 	// single operand
@@ -209,10 +212,19 @@ func New(mmunit *mmu.MMU18Bit) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	instruction, err := c.mmunit.ReadMemoryWord(c.Registers[7])
-	if err != nil {
-		c.Trap(interrupts.INTBus)
-	}
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			c.Trap(t.Vector)
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
+	}()
+
+	instruction := c.mmunit.ReadMemoryWord(c.Registers[7])
 	c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	return instruction
 }
@@ -259,19 +271,24 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 		}
 	}
 
-	// TODO: add "if debug"
-	// fmt.Printf("opcode: %#o\n", opcode)
+	if opcode = instr & 07; opcode > 0 {
+		if val, ok := c.otherOpcodes[opcode]; ok {
+			return val
+		}
+	}
 
-	// everything else:
-	return c.otherOpcodes[instr]
+	// haltOp has optcode of 0, easiest to treat it separately
+	if instr == 0 {
+		return c.otherOpcodes[0]
+	}
+
+	// at this point it can be only an invalid instruction:
+	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
 
 // Execute decoded instruction
 func (c *CPU) Execute() {
-	if c.State == WAIT {
-		return
-	}
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
 	opcode(instruction)
@@ -279,56 +296,119 @@ func (c *CPU) Execute() {
 
 // helper functions:
 
-// readWord returns value specified by source or destination part of the operand.
-func (c *CPU) readWord(op uint16) uint16 {
+// readMemory reads either a word or a byte from memory
+// mode: 1: byte, 0: word
+func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
+	var byteData byte
+	var data uint16
+	var err error
+
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			c.Trap(t.Vector)
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
+	}()
+
 	// check mode:
-	mode := op >> 3
-	register := op & 07
+	mode := (op >> 3) & 7
+	register := op & 7
 
 	if mode == 0 {
+
 		//value directly in register
-		return c.Registers[register]
+		if length == 0 {
+			return c.Registers[register]
+		}
+
+		// and for the byte mode:
+		return c.Registers[register] & 0xFF
 	}
-	virtual, err := c.GetVirtualByMode(op, mode)
+	virtual, err := c.GetVirtualByMode(op, length)
 	if err != nil {
-		// TODO: Trigger a trap. something went awry!
-		return 0xffff
+		panic("Can't obtain virtual address")
 	}
-	data, _ := c.mmunit.ReadMemoryWord(uint16(virtual & 0xffff))
+
+	if length == 0 {
+		data = c.mmunit.ReadMemoryWord(virtual)
+	} else {
+		byteData = c.mmunit.ReadMemoryByte(virtual)
+		data = uint16(byteData)
+	}
 	return data
+}
+
+// readWord returns value specified by source or destination part of the operand.
+func (c *CPU) readWord(op uint16) uint16 {
+	return c.readFromMemory(op, 0)
+}
+
+// read byte
+func (c *CPU) readByte(op uint16) byte {
+	return byte(c.readFromMemory(op, 1))
+}
+
+// writeMemory writes either byte or word,
+// complementary to read operations
+func (c *CPU) writeMemory(op, value, length uint16) error {
+
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			c.Trap(t.Vector)
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
+	}()
+
+	mode := (op >> 3) & 7
+	register := op & 7
+
+	if mode == 0 {
+		if length == 1 {
+			c.Registers[register] = (value & 0xFF)
+		} else {
+			c.Registers[register] = value
+		}
+		return nil
+	}
+	virtualAddr, err := c.GetVirtualByMode(op, length)
+	if err != nil {
+		return err
+	}
+	if length == 0 {
+		c.mmunit.WriteMemoryWord(virtualAddr, value)
+	} else {
+		c.mmunit.WriteMemoryByte(virtualAddr, byte(value))
+	}
+	return nil
 }
 
 // writeWord writes word value into specified memory address
 func (c *CPU) writeWord(op, value uint16) error {
-	mode := op >> 3
-	register := op & 07
-
-	if mode == 0 {
-		c.Registers[register] = value
-		return nil
-	}
-	virtualAddr, err := c.GetVirtualByMode(op, mode)
-	if err != nil {
-		return err
-	}
-	c.mmunit.WriteMemoryWord(uint16(virtualAddr&0xffff), value)
-	return nil
+	return c.writeMemory(op, value, 0)
 }
 
-//PrintRegisters returns buffer status as a string
-func (c *CPU) PrintRegisters() string {
-	var buffer bytes.Buffer
-	for i, reg := range c.Registers {
-		buffer.WriteString(fmt.Sprintf(" |R%d: %#o | ", i, reg))
-	}
-	return buffer.String()
+// writeByte writes byte value into specified memory location
+func (c *CPU) writeByte(op, value uint16) error {
+	return c.writeMemory(op, value, 1)
 }
 
 // DumpRegisters displays register values
-func (c *CPU) DumpRegisters(regView *gocui.View) {
+func (c *CPU) DumpRegisters(regView *gocui.View) string {
+	var res strings.Builder
 	for i, reg := range c.Registers {
-		fmt.Fprintf(regView, " |R%d: %#o | ", i, reg)
+		fmt.Fprintf(&res, " |R%d: %#o | ", i, reg)
 	}
+	return res.String()
 }
 
 //SetFlag sets CPU carry flag in Processor Status Word
@@ -364,54 +444,61 @@ func (c *CPU) GetFlag(flag string) bool {
 	return false
 }
 
-// Trap handles all Trap / abort events.
-// TODO: Do I need to signal Trap occurence?
-func (c *CPU) Trap(vector uint16) error {
-	if !c.doubleTrap {
-		c.trapMask = 0
-		c.trapPsw = *c.mmunit.Psw
+// SwitchMode switches the kernel / user mode:
+// 0 for user, 3 for kernel, everything else is a mistake.
+// values are as they are used in the PSW
+func (c *CPU) SwitchMode(m uint16) {
+	c.mmunit.Psw.SwitchMode(m)
+
+	// save processor stack pointers:
+	if m > 0 {
+		c.UserStackPointer = c.Registers[6]
 	} else {
-		if c.mmunit.Psw.GetMode() == 0 { // kernel mode
-			vector = 4
-			c.doubleTrap = true
-		}
+		c.KernelStackPointer = c.Registers[6]
 	}
 
-	// read from kernel D sapce
-	// this is valid for pdp 11/44 and 11/70 only. commenting out for now
-	//c.mmunit.MMUMode = 0
-
-	newPC, _ := c.mmunit.ReadMemoryWord(vector)
-	data, _ := c.mmunit.ReadMemoryWord(vector + 2)
-	newPSW := psw.PSW(data)
-
-	// set PREVIOUS MODE bits in new PSW -> take it from currentMode bits in
-	// saved c.trapPSW
-	newPSW = (newPSW & 0xcfff) | ((c.trapPsw >> 2) & 0x3000)
-
-	// set new Processor Status Word
-	c.mmunit.Psw = &newPSW
-
-	// TODO: - Double Trap not implemented
-
-	// set new Program counter:
-	c.Registers[7] = newPC
-
-	c.doubleTrap = false
-	return nil
+	// set processor stack:
+	if m > 0 {
+		c.Registers[6] = c.UserStackPointer
+	} else {
+		c.Registers[6] = c.KernelStackPointer
+	}
 }
 
-// PopWord pops 1 word from Processor stack:
-func (c *CPU) PopWord() uint16 {
-	result, _ := c.mmunit.ReadMemoryWord(c.Registers[6])
+// Trap handles all Trap / abort events.
+// strikingly similar to processInterrupt.
+func (c *CPU) Trap(vector uint16) {
+	prev := c.mmunit.Psw.Get()
+	defer func(prev uint16) {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			panic("Red stack trap. Fatal.")
+		case nil:
+			break
+		default:
+			panic(t)
+		}
+		c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
+		intPSW := c.mmunit.ReadMemoryWord(vector + 2)
 
-	// update Stack Pointer after reading the word
-	c.Registers[6] = (c.Registers[6] + 2) & 0xffff
+		if (prev & (1 << 14)) > 0 {
+			intPSW |= (1 << 13) | (1 << 12)
+		}
+		c.mmunit.Psw.Set(intPSW)
+	}(prev)
 
-	return result
+	if vector&1 == 1 {
+		panic("Odd vector number!")
+	}
+
+	c.SwitchMode(psw.KernelMode)
+	c.Push(prev)
+	c.Push(c.Registers[7])
 }
 
 // GetVirtualByMode returns virtual address extracted from the CPU instuction
+// access mode: 0 for Word, 1 for Byte
 func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	var addressInc uint16
 	reg := instruction & 7
@@ -450,15 +537,15 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 		virtAddress = (c.Registers[reg] - 2) & 0xffff
 	case 6:
 		// index mode -> read next word to get the basis for address, add value in Register
-		baseAddr, _ := c.mmunit.ReadMemoryWord(c.Registers[7])
+		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
 		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
 
 		// increment program counter register
 		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	case 7:
-		baseAddr, _ := c.mmunit.ReadMemoryWord(c.Registers[7])
+		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
 		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
-		virtAddress, _ = c.mmunit.ReadMemoryWord(virtAddress)
+		virtAddress = c.mmunit.ReadMemoryWord(virtAddress)
 		// increment program counter register
 		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	}
@@ -474,7 +561,7 @@ func (c *CPU) Push(v uint16) {
 
 // Pop from CPU stack
 func (c *CPU) Pop() uint16 {
-	val, _ := c.mmunit.ReadMemoryWord(c.Registers[6])
+	val := c.mmunit.ReadMemoryWord(c.Registers[6])
 	c.Registers[6] += 2
 	return val
 }

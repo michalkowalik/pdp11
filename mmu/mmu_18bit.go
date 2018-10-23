@@ -1,7 +1,7 @@
 package mmu
 
 import (
-	"errors"
+	"fmt"
 	"pdp/interrupts"
 	"pdp/psw"
 	"pdp/unibus"
@@ -81,67 +81,90 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
 }
 
 // ReadMemoryWord reads a word from virtual address addr
-func (m *MMU18Bit) ReadMemoryWord(addr uint16) (uint16, error) {
+func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
 	physicalAddress := m.mapVirtualToPhysical(addr)
 	if (physicalAddress & 1) == 1 {
-		return 0, m.unibus.Error(errors.New("Reading from odd address"), interrupts.INTBus)
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    fmt.Sprintf("Reading from odd address: %o", physicalAddress)})
+	}
+	if physicalAddress > MaxTotalMemory {
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    fmt.Sprintf("Read from invalid address")})
 	}
 	if physicalAddress < MaxMemory {
-		return m.Memory[physicalAddress>>1], nil
-	}
-	if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
-		data, err := m.unibus.ReadIOPage(physicalAddress, false)
-		if err != nil {
-			m.unibus.SendTrap(interrupts.INTFault)
-			return 0, m.unibus.Error(err, interrupts.INTFault)
-		}
-		return data, nil
+		return m.Memory[physicalAddress>>1]
 	}
 
-	// if everything else fails:
-	m.unibus.SendTrap(interrupts.INTBus)
-	return 0, m.unibus.Error(errors.New("read from invalid address"), interrupts.INTBus)
+	// IO Page:
+	data, err := m.unibus.ReadIOPage(physicalAddress, false)
+	if err != nil {
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg:    "mmu.go, ReadMemoryWord"})
+	}
+	return data
 }
 
 // ReadMemoryByte reads a byte from virtual address addr
-func (m *MMU18Bit) ReadMemoryByte(addr uint16) (byte, error) {
+func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			m.unibus.Traps <- t
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
+	}()
 
 	// Zero the lowest byte, to avoid reading a word from odd address
-	val, err := m.ReadMemoryWord(addr & 0xFFFE)
-	if err != nil {
-		return 0, err
-	}
+	val := m.ReadMemoryWord(addr & 0xFFFE)
 	if addr&1 > 0 {
-		return byte(val >> 8), nil
+		return byte(val >> 8)
 	}
-	return byte(val & 0xFF), nil
+	return byte(val & 0xFF)
 }
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
-func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) error {
+func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
 	physicalAddress := m.mapVirtualToPhysical(addr)
 	if (physicalAddress & 1) == 1 {
-		return m.unibus.Error(errors.New("Write to odd address"), interrupts.INTBus)
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    "Write to odd address"})
 	}
 	if physicalAddress < MaxMemory {
 		m.Memory[physicalAddress>>1] = data
-		return nil
-	}
-	if physicalAddress == MaxMemory {
+	} else if physicalAddress == MaxMemory {
 		// update PSW
 		*m.Psw = psw.PSW(data)
-		return nil
-	}
-	if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
+	} else if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
 		m.unibus.WriteIOPage(physicalAddress, data, false)
-		return nil
+	} else {
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    "Write to invalid address"})
 	}
-
-	return m.unibus.Error(errors.New("write to invalid address"), interrupts.INTBus)
 }
 
 // WriteMemoryByte writes a byte to the location pointed by virtual address addr
-func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) error {
+func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			m.unibus.Traps <- t
+		case nil:
+			// ignore
+		default:
+			panic(t)
+		}
+	}()
+
 	physicalAddress := m.mapVirtualToPhysical(addr)
 	var wordData uint16
 	if addr&1 == 0 {
@@ -149,5 +172,5 @@ func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) error {
 	} else {
 		wordData = (m.Memory[physicalAddress>>1] & 0xFF) | (uint16(data) << 8)
 	}
-	return m.WriteMemoryWord(addr, wordData)
+	m.WriteMemoryWord(addr, wordData)
 }
