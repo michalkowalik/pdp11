@@ -1,6 +1,20 @@
 package unibus
 
-import "testing"
+import (
+	"pdp/psw"
+	"testing"
+)
+
+var (
+	u *Unibus
+	p psw.PSW
+)
+
+func TestMain(m *testing.M) {
+	u = &Unibus{}
+	u.psw = &p
+	u.psw.SetC(true)
+}
 
 func TestUnibus_ReadIOPage(t *testing.T) {
 	type args struct {
@@ -9,16 +23,15 @@ func TestUnibus_ReadIOPage(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		u       *Unibus
 		args    args
 		want    uint16
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		{"Get PSW", args{PSWAddr, false}, 1, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.u.ReadIOPage(tt.args.physicalAddress, tt.args.byteFlag)
+			got, err := u.ReadIOPage(tt.args.physicalAddress, tt.args.byteFlag)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Unibus.ReadIOPage() error = %v, wantErr %v", err, tt.wantErr)
 				return
