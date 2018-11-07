@@ -20,9 +20,6 @@ type MMU18Bit struct {
 	// PDR : Page Description Registers
 	PDR [16]uint16
 
-	// APR : Active Page Register - 8 of them
-	APR [8]uint16
-
 	// MMU Status Register 0 (Status and error indicator 0)
 	SR0 uint16
 
