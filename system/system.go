@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"pdp/console"
 	"pdp/interrupts"
-	"pdp/mmu"
 	"pdp/pdpcpu"
 	"pdp/psw"
 	"pdp/unibus"
@@ -26,10 +25,6 @@ type System struct {
 	regView      *gocui.View
 }
 
-// <- make it a part of system type?
-// definitely worth rethinking
-var mmunit *mmu.MMU18Bit
-
 // InitializeSystem initializes the emulated PDP-11/40 hardware
 func InitializeSystem(
 	console *console.Console, terminalView, regView *gocui.View, gui *gocui.Gui) *System {
@@ -41,14 +36,11 @@ func InitializeSystem(
 	// unibus
 	sys.unibus = unibus.New(&sys.psw, gui, console)
 
-	// point mmu to memory:
-	mmunit = mmu.New(&sys.psw, sys.unibus)
-
 	sys.unibus.WriteHello()
 	sys.unibus.WriteHello()
 
 	console.WriteConsole("Initializing PDP11 CPU.\n")
-	sys.CPU = pdpcpu.New(mmunit)
+	sys.CPU = pdpcpu.New(sys.unibus.Mmu)
 	sys.CPU.State = pdpcpu.RUN
 	return sys
 }
@@ -145,8 +137,8 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		default:
 			panic(t)
 		}
-		sys.CPU.Registers[7] = mmunit.ReadMemoryWord(interrupt.Vector)
-		intPSW := mmunit.ReadMemoryWord(interrupt.Vector + 2)
+		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
+		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
 
 		if (prev & (1 << 14)) > 0 {
 			intPSW |= (1 << 13) | (1 << 12)

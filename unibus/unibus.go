@@ -18,6 +18,8 @@ const (
 	ConsoleAddr = 0777560
 	RK11Addr    = 0777400
 	PSWAddr     = 0777776
+	SR0Addr     = 0777572
+	SR2Addr     = 0777576
 )
 
 // Unibus definition
@@ -29,6 +31,9 @@ type Unibus struct {
 
 	// LKS - KW11-L Clock status
 	LKS uint16
+
+	// Memory management Unit
+	Mmu *MMU18Bit
 
 	// Channel for interrupt communication
 	Interrupts chan interrupts.Interrupt
@@ -52,8 +57,6 @@ type Unibus struct {
 var (
 	// 0. CPU
 
-	// 1. MMU
-
 	// 2. terminal:
 	termEmulator *teletype.Teletype
 
@@ -70,6 +73,7 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.psw = psw
 
 	// initialize attached devices:
+	unibus.Mmu = NewMMU(psw, &unibus)
 	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
 	unibus.processInterruptQueue()
@@ -146,6 +150,10 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 		return u.psw.Get(), nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		return termEmulator.ReadTerm(physicalAddress)
+	case physicalAddress == SR0Addr:
+		return u.Mmu.SR0, nil
+	case physicalAddress == SR2Addr:
+		return u.Mmu.SR2, nil
 	case physicalAddress&0777760 == RK11Addr:
 		// don't do any anything yet!
 		return 0, nil

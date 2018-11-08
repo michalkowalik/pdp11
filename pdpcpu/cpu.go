@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"pdp/interrupts"
-	"pdp/mmu"
 	"pdp/psw"
+	"pdp/unibus"
 	"strings"
 
 	"github.com/jroimartin/gocui"
@@ -50,7 +50,7 @@ type CPU struct {
 
 	// memory access is required:
 	// this should be actually managed by unibus, and not here.
-	mmunit *mmu.MMU18Bit
+	mmunit *unibus.MMU18Bit
 
 	// original PSW while dealing with trap
 	trapPsw psw.PSW
@@ -97,7 +97,7 @@ var cpuFlags = map[string]struct {
 }
 
 //New initializes and returns the CPU variable:
-func New(mmunit *mmu.MMU18Bit) *CPU {
+func New(mmunit *unibus.MMU18Bit) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0

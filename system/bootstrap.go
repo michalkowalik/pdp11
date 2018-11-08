@@ -184,7 +184,7 @@ func (sys *System) Boot() {
 	memPointer := uint16(BOOTBASE)
 
 	for _, c := range bootcode {
-		mmunit.WriteMemoryWord(memPointer, c)
+		sys.unibus.Mmu.WriteMemoryWord(memPointer, c)
 		memPointer += 2
 	}
 

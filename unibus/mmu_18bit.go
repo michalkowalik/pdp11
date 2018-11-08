@@ -1,10 +1,9 @@
-package mmu
+package unibus
 
 import (
 	"fmt"
 	"pdp/interrupts"
 	"pdp/psw"
-	"pdp/unibus"
 )
 
 // MMU18Bit implements the 18 bit memory management unit
@@ -20,6 +19,9 @@ type MMU18Bit struct {
 	// PDR : Page Description Registers
 	PDR [16]uint16
 
+	// APR : Active Page Register - 8 of them
+	APR [8]uint16
+
 	// MMU Status Register 0 (Status and error indicator 0)
 	SR0 uint16
 
@@ -30,7 +32,7 @@ type MMU18Bit struct {
 	Psw *psw.PSW
 
 	// it's also convenient to keep a pointer to Unibus..
-	unibus *unibus.Unibus
+	unibus *Unibus
 }
 
 // MaxMemory - available for user, 248k
@@ -42,8 +44,8 @@ const MaxTotalMemory = 0777776
 // UnibusMemoryBegin in 16 bit mode
 const UnibusMemoryBegin = 0170000
 
-// New returns the new MMU18Bit struct
-func New(psw *psw.PSW, unibus *unibus.Unibus) *MMU18Bit {
+// NewMMU returns the new MMU18Bit struct
+func NewMMU(psw *psw.PSW, unibus *Unibus) *MMU18Bit {
 	mmu := MMU18Bit{}
 	mmu.Psw = psw
 	mmu.unibus = unibus

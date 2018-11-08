@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"pdp/mmu"
 	"pdp/psw"
+	"pdp/unibus"
 	"testing"
 )
 
@@ -23,7 +23,7 @@ var memory [0x400000]byte // 64KB of memory is all everyone needs
 
 // TestMain to resucure -> initialize memory and CPU
 func TestMain(m *testing.M) {
-	mmu := &mmu.MMU18Bit{}
+	mmu := &unibus.MMU18Bit{}
 	p := psw.PSW(0)
 	mmu.Psw = &p
 	c = New(mmu)

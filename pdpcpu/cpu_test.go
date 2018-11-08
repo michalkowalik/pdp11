@@ -1,8 +1,8 @@
 package pdpcpu
 
 import (
-	"pdp/mmu"
 	"pdp/psw"
+	"pdp/unibus"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func Test_cpu_Fetch(t *testing.T) {
 
 func TestCPU_GetFlag(t *testing.T) {
 	var c = &CPU{}
-	c.mmunit = &mmu.MMU18Bit{}
+	c.mmunit = &unibus.MMU18Bit{}
 
 	tests := []struct {
 		name       string
