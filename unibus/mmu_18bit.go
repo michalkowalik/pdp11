@@ -57,6 +57,30 @@ func (m *MMU18Bit) mmuEnabled() bool {
 	return m.SR0&1 == 1
 }
 
+// Return Page Address or Page Description Register. Register address in virtual address.
+func (m *MMU18Bit) readPage(address uint32) uint16 {
+	i := ((address & 017) >> 1)
+
+	// kernel space:
+	if (address >= 0772300) && (address < 0772320) {
+		return m.PDR[i]
+	}
+	if (address >= 0772340) && (address < 0772360) {
+		return m.PAR[i]
+	}
+
+	// user space:
+	if (address >= 0777600) && (address < 0777620) {
+		return m.PDR[i+8]
+	}
+	if (address >= 0777640) && (address < 0777660) {
+		return m.PAR[i+8]
+	}
+	panic(interrupts.Trap{
+		Vector: interrupts.INTBus,
+		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", address)})
+}
+
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
 func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
 	if !m.mmuEnabled() {

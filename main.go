@@ -30,7 +30,7 @@ func main() {
 
 func setKeyBindings(g *gocui.Gui) {
 	var err error
-	if err = g.SetKeybinding("", gocui.KeyF9, gocui.ModAlt, quit); err != nil {
+	if err = g.SetKeybinding("", gocui.KeyF9, gocui.ModNone, quit); err != nil {
 		log.Panicln(err)
 	}
 
