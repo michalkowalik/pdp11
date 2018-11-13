@@ -157,6 +157,8 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 	case physicalAddress&0777760 == RK11Addr:
 		// don't do any anything yet!
 		return 0, nil
+	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
+		return u.Mmu.readPage(physicalAddress), nil
 	default:
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -165,6 +167,7 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 }
 
 // WriteIOPage writes to the unibus connected device
+// TODO: that signature smells funny. better to resign from that error return type ?
 func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
 	switch {
 	case physicalAddress&0777770 == ConsoleAddr:
@@ -173,14 +176,23 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 			Data:    data,
 			Read:    false}
 		return nil
+	case physicalAddress == SR0Addr:
+		u.Mmu.SR0 = data
+		return nil
+	case physicalAddress == SR2Addr:
+		u.Mmu.SR2 = data
+		return nil
 	case physicalAddress&0777760 == RK11Addr:
 		// don't do anything yet!
+		return nil
+	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
+		u.Mmu.writePage(physicalAddress, data)
+		return nil
 	default:
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
-	return nil
 }
 
 // SendInterrupt sends a new interrupts to the receiver

@@ -81,6 +81,34 @@ func (m *MMU18Bit) readPage(address uint32) uint16 {
 		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", address)})
 }
 
+// Modify memory page:
+func (m *MMU18Bit) writePage(address uint32, data uint16) {
+	i := ((address & 017) >> 1)
+
+	// kernel space:
+	if (address >= 0772300) && (address < 0772320) {
+		m.PDR[i] = data
+		return
+	}
+	if (address >= 0772340) && (address < 0772360) {
+		m.PAR[i] = data
+		return
+	}
+
+	// user space:
+	if (address >= 0777600) && (address < 0777620) {
+		m.PDR[i+8] = data
+		return
+	}
+	if (address >= 0777640) && (address < 0777660) {
+		m.PAR[i+8] = data
+		return
+	}
+	panic(interrupts.Trap{
+		Vector: interrupts.INTBus,
+		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", address)})
+}
+
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
 func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
 	if !m.mmuEnabled() {
