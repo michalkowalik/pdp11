@@ -6,6 +6,8 @@ import (
 	"pdp/psw"
 )
 
+type pdr uint16
+
 // MMU18Bit implements the 18 bit memory management unit
 // max 256KB RAM (128K words), enough to run early unix versions
 type MMU18Bit struct {
@@ -17,7 +19,7 @@ type MMU18Bit struct {
 	PAR [16]uint16
 
 	// PDR : Page Description Registers
-	PDR [16]uint16
+	PDR [16]pdr
 
 	// APR : Active Page Register - 8 of them
 	APR [8]uint16
@@ -52,6 +54,12 @@ func NewMMU(psw *psw.PSW, unibus *Unibus) *MMU18Bit {
 	return &mmu
 }
 
+// few helper functions to check the page status with Page description register
+func (p pdr) read() bool     { return p&2 == 2 }
+func (p pdr) write() bool    { return p&6 == 6 }
+func (p pdr) ed() bool       { return p&8 == 8 }
+func (p pdr) length() uint16 { return (uint16(p) >> 8) & 0x7F }
+
 // return true if MMU enabled - controlled by 1 bit in the SR0
 func (m *MMU18Bit) mmuEnabled() bool {
 	return m.SR0&1 == 1
@@ -63,7 +71,7 @@ func (m *MMU18Bit) readPage(address uint32) uint16 {
 
 	// kernel space:
 	if (address >= 0772300) && (address < 0772320) {
-		return m.PDR[i]
+		return uint16(m.PDR[i])
 	}
 	if (address >= 0772340) && (address < 0772360) {
 		return m.PAR[i]
@@ -71,7 +79,7 @@ func (m *MMU18Bit) readPage(address uint32) uint16 {
 
 	// user space:
 	if (address >= 0777600) && (address < 0777620) {
-		return m.PDR[i+8]
+		return uint16(m.PDR[i+8])
 	}
 	if (address >= 0777640) && (address < 0777660) {
 		return m.PAR[i+8]
@@ -87,7 +95,7 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 
 	// kernel space:
 	if (address >= 0772300) && (address < 0772320) {
-		m.PDR[i] = data
+		m.PDR[i] = pdr(data)
 		return
 	}
 	if (address >= 0772340) && (address < 0772360) {
@@ -97,7 +105,7 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 
 	// user space:
 	if (address >= 0777600) && (address < 0777620) {
-		m.PDR[i+8] = data
+		m.PDR[i+8] = pdr(data)
 		return
 	}
 	if (address >= 0777640) && (address < 0777660) {
