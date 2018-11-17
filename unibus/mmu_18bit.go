@@ -118,7 +118,7 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 }
 
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
-func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
+func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) uint32 {
 	if !m.mmuEnabled() {
 		addr := uint32(virtualAddress)
 		if addr >= UnibusMemoryBegin {
@@ -141,7 +141,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
 
 // ReadMemoryWord reads a word from virtual address addr
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
-	physicalAddress := m.mapVirtualToPhysical(addr)
+	physicalAddress := m.mapVirtualToPhysical(addr, false)
 	if (physicalAddress & 1) == 1 {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -190,7 +190,7 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
-	physicalAddress := m.mapVirtualToPhysical(addr)
+	physicalAddress := m.mapVirtualToPhysical(addr, true)
 	if (physicalAddress & 1) == 1 {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -224,7 +224,7 @@ func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
 		}
 	}()
 
-	physicalAddress := m.mapVirtualToPhysical(addr)
+	physicalAddress := m.mapVirtualToPhysical(addr, true)
 	var wordData uint16
 	if addr&1 == 0 {
 		wordData = (m.Memory[physicalAddress>>1] & 0xFF00) | uint16(data)
