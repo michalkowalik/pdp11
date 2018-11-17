@@ -75,6 +75,24 @@ Bits 12-15 are unused.
 W bit is set to 0 on every PAR or PDR modification
 * PLF - specifies number of blocks in the page. A page contains between 1 and 128 blocks of contiguos memory location. If the page expands downwards (ED=1), the page contains 128 - (page lenght in blocks).
 
+## Status Registers (SR0 and SR2)
+### SR0 (Status and error indicators)
+```
+| 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |SR0
+|ANR |ALE |AROV| X  | X  | X  | X | MM| X | MODE  | X |  PAGE NR  |EM |
+```
+* X   - Unused
+* ANR - Abort: Non-resident
+* ALE - Abort: Page Lenght Error
+* AROV - Abort: Read-Only Access Violation
+* MM - Maintenance Mode
+* M - Mode (Kernel = 00, User = 11)
+* PAGE NR - Page Number of a reference causing an error
+* EM - Enable Management. When EM=1 all addresses are relocated by MMU
+
+### SR2
+Status Register 2 is loaded with 16 bit virtual address at the beginning of each instruction fetch. SR2 is read-only, can not be rewritten. SR2 is the Virtual Address Programm Counter
+
 
 ### 18 Bit Address calculation:
 of a 16 bit virtual address:
