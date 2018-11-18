@@ -132,10 +132,68 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 	if m.Psw.GetMode() > 0 {
 		currentUser += 8
 	}
+	offset := (virtualAddress >> 13) + currentUser
 
-	currentPAR := m.PAR[(virtualAddress>>13)+currentUser]
+	// check page availability in PDR:
+	if writeMode && !m.PDR[offset].write() {
+		m.SR0 = (1 << 13) | 1
+		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
+
+		// check for user mode
+		if m.unibus.psw.GetMode() == 3 {
+			m.SR0 |= (1 << 5) | (1 << 6)
+		}
+
+		// TODO: need access to cpu
+		// m.SR2 =
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg:    "Abort: write on read-only page"})
+	}
+
+	if !m.PDR[offset].read() {
+		m.SR0 = (1 << 15) | 1
+		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
+
+		// check for user mode
+		if m.unibus.psw.GetMode() == 3 {
+			m.SR0 |= (1 << 5) | (1 << 6)
+		}
+
+		// TODO: need access to CPU
+		// m.SR2 =
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg:    "Abort: read on no-access page"})
+	}
+
+	currentPAR := m.PAR[offset]
 	block := (virtualAddress >> 6) & 0177
 	displacement := virtualAddress & 077
+
+	// check if page lenght not exceeded
+	if m.PDR[offset].ed() && block < m.PDR[offset].length() ||
+		!m.PDR[offset].ed() && block > m.PDR[offset].length() {
+		m.SR0 = (1 << 14) | 1
+		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
+
+		// check for user mode
+		if m.unibus.psw.GetMode() == 3 {
+			m.SR0 |= (1 << 5) | (1 << 6)
+		}
+
+		// TODO: need access to cpu
+		// m.SR2 =
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg:    "Page length exceeded"})
+	}
+
+	// set PDR W byte:
+	if writeMode {
+		m.PDR[offset] |= 1 << 6
+	}
+
 	return uint32(uint32((block+currentPAR)<<6+displacement) & 0777777)
 }
 

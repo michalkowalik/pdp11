@@ -58,8 +58,8 @@ Bits 12-15 are unused.
 
 ### PDR -> Page Description Register
 ```
-15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 PDF
- X  ------------- PLF --------------  X   W   X   X  ED  - ACF -  X     
+| 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | PDR
+| X  |------------- PLF --------------| X | W | X | X |ED |- ACF -| X |    
 ```
 * X - unused
 * ACF - Access Control Field:
