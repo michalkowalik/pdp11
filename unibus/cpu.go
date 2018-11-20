@@ -25,9 +25,9 @@ const (
 	ModifyWord = ReadMode | WriteMode
 
 	// CPU state: Run / Halt / Wait:
-	HALT = 0
-	CPURUN  = 1
-	WAIT = 2
+	HALT   = 0
+	CPURUN = 1
+	WAIT   = 2
 
 	// stack size:
 	StackOverflow = 0xff
@@ -37,10 +37,7 @@ const (
 type CPU struct {
 	Registers                   [8]uint16
 	floatingPointStatusRegister byte
-
-	// TODO: is it used anywhere?
-	psw   uint16
-	State int
+	State                       int
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
