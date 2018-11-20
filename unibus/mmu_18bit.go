@@ -144,8 +144,8 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 
-		// TODO: need access to cpu
-		// m.SR2 =
+		// set SR2 to the value of current program counter
+		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
 			Msg:    "Abort: write on read-only page"})
@@ -159,9 +159,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 		if m.unibus.psw.GetMode() == 3 {
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
-
-		// TODO: need access to CPU
-		// m.SR2 =
+		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
 			Msg:    "Abort: read on no-access page"})
@@ -181,9 +179,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 		if m.unibus.psw.GetMode() == 3 {
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
-
-		// TODO: need access to cpu
-		// m.SR2 =
+		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
 			Msg:    "Page length exceeded"})

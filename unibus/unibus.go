@@ -51,12 +51,12 @@ type Unibus struct {
 	ActiveTrap interrupts.Trap
 
 	psw *psw.PSW
+
+	PdpCPU *CPU
 }
 
 // attached devices:
 var (
-	// 0. CPU
-
 	// 2. terminal:
 	termEmulator *teletype.Teletype
 
@@ -74,6 +74,8 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 
 	// initialize attached devices:
 	unibus.Mmu = NewMMU(psw, &unibus)
+	unibus.PdpCPU = NewCPU(unibus.Mmu)
+
 	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
 	unibus.processInterruptQueue()

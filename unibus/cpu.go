@@ -1,11 +1,10 @@
-package pdpcpu
+package unibus
 
 import (
 	"errors"
 	"fmt"
 	"pdp/interrupts"
 	"pdp/psw"
-	"pdp/unibus"
 	"strings"
 
 	"github.com/jroimartin/gocui"
@@ -27,7 +26,7 @@ const (
 
 	// CPU state: Run / Halt / Wait:
 	HALT = 0
-	RUN  = 1
+	CPURUN  = 1
 	WAIT = 2
 
 	// stack size:
@@ -50,7 +49,7 @@ type CPU struct {
 
 	// memory access is required:
 	// this should be actually managed by unibus, and not here.
-	mmunit *unibus.MMU18Bit
+	mmunit *MMU18Bit
 
 	// original PSW while dealing with trap
 	trapPsw psw.PSW
@@ -96,8 +95,8 @@ var cpuFlags = map[string]struct {
 	"T": {0x10, 0xffef},
 }
 
-//New initializes and returns the CPU variable:
-func New(mmunit *unibus.MMU18Bit) *CPU {
+//NewCPU initializes and returns the CPU variable:
+func NewCPU(mmunit *MMU18Bit) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0

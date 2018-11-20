@@ -1,7 +1,6 @@
 package system
 
 import (
-	"pdp/pdpcpu"
 	"pdp/psw"
 	"pdp/unibus"
 	"testing"
@@ -19,7 +18,7 @@ func TestMain(m *testing.M) {
 	mm = unibus.MMU18Bit{}
 	p := psw.PSW(0)
 	mm.Psw = &p
-	sys.CPU = pdpcpu.New(&mm)
+	sys.CPU = unibus.NewCPU(&mm)
 }
 
 var virtualAddressTests = []struct {
@@ -64,7 +63,7 @@ func TestGetVirtualAddress(t *testing.T) {
 
 // try running few lines of machine code
 func TestRunCode(t *testing.T) {
-	sys.CPU.State = pdpcpu.RUN
+	sys.CPU.State = unibus.CPURUN
 
 	mm.Memory[0xff] = 2
 
@@ -91,7 +90,7 @@ func TestRunCode(t *testing.T) {
 	// set PC to starting point:
 	sys.CPU.Registers[7] = 001000
 
-	for sys.CPU.State == pdpcpu.RUN {
+	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
 	}
 
@@ -107,7 +106,7 @@ func TestRunCode(t *testing.T) {
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
 func TestRunBranchCode(t *testing.T) {
-	sys.CPU.State = pdpcpu.RUN
+	sys.CPU.State = unibus.CPURUN
 	// sample code
 	code := []uint16{
 		012700, // 001000 mov 0xff R0
@@ -135,7 +134,7 @@ func TestRunBranchCode(t *testing.T) {
 	// set PC to starting point
 	sys.CPU.Registers[7] = 001000
 
-	for sys.CPU.State == pdpcpu.RUN {
+	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
 	}
 
@@ -143,7 +142,7 @@ func TestRunBranchCode(t *testing.T) {
 }
 
 func TestTriggerTrap(t *testing.T) {
-	sys.CPU.State = pdpcpu.RUN
+	sys.CPU.State = unibus.CPURUN
 
 	code := []uint16{
 		066666,
@@ -163,7 +162,7 @@ func TestTriggerTrap(t *testing.T) {
 	// set PC to starting point
 	sys.CPU.Registers[7] = 001000
 
-	for sys.CPU.State == pdpcpu.RUN {
+	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
 	}
 }

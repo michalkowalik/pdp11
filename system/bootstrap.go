@@ -1,7 +1,7 @@
 package system
 
 import (
-	"pdp/pdpcpu"
+	"pdp/unibus"
 )
 
 /*
@@ -194,8 +194,8 @@ func (sys *System) Boot() {
 
 	// start execution
 	sys.console.WriteConsole("Booting..\n")
-	if sys.CPU.State != pdpcpu.RUN {
-		sys.CPU.State = pdpcpu.RUN
+	if sys.CPU.State != unibus.CPURUN {
+		sys.CPU.State = unibus.CPURUN
 	}
 	// sys.emulate()
 	// sys.loop()

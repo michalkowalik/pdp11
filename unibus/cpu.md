@@ -4,7 +4,14 @@
 
 Instruction operands are six bits in length - three bits for the mode and three for the register. 
 
+***(Information below is relevant for models with 22 bit MMU)***
 The 17th I/D bit in the resulting virtual address represents whether the reference is to **Instruction space** or **Data space** - which depends on combination of the mode and whether the register is the Program Counter (register 7).
+
+### Registers:
+7 -> PC
+6 -> SP
+0-5 -> General Usage
+
 
 ### Addressing Modes:
 The eight modes are:-

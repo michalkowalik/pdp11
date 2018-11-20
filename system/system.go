@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"pdp/console"
 	"pdp/interrupts"
-	"pdp/pdpcpu"
 	"pdp/psw"
 	"pdp/unibus"
 
@@ -13,7 +12,7 @@ import (
 
 // System definition.
 type System struct {
-	CPU *pdpcpu.CPU
+	CPU *unibus.CPU
 	psw psw.PSW
 
 	// Unibus
@@ -40,8 +39,8 @@ func InitializeSystem(
 	sys.unibus.WriteHello()
 
 	console.WriteConsole("Initializing PDP11 CPU.\n")
-	sys.CPU = pdpcpu.New(sys.unibus.Mmu)
-	sys.CPU.State = pdpcpu.RUN
+	sys.CPU = sys.unibus.PdpCPU
+	sys.CPU.State = unibus.CPURUN
 	return sys
 }
 

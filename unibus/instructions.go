@@ -1,4 +1,4 @@
-package pdpcpu
+package unibus
 
 import (
 	"pdp/psw"

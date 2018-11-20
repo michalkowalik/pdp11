@@ -10,12 +10,6 @@ var (
 	p psw.PSW
 )
 
-func TestMain(m *testing.M) {
-	u = &Unibus{}
-	u.psw = &p
-	u.psw.SetC(true)
-}
-
 func TestUnibus_ReadIOPage(t *testing.T) {
 	type args struct {
 		physicalAddress uint32
@@ -29,6 +23,11 @@ func TestUnibus_ReadIOPage(t *testing.T) {
 	}{
 		{"Get PSW", args{PSWAddr, false}, 1, false},
 	}
+
+	u = &Unibus{}
+	u.psw = &p
+	u.psw.SetC(true)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := u.ReadIOPage(tt.args.physicalAddress, tt.args.byteFlag)
