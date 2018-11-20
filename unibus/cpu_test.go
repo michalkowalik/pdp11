@@ -1,7 +1,6 @@
-package pdpcpu
+package unibus
 
 import (
-	"pdp/mmu"
 	"pdp/psw"
 	"testing"
 )
@@ -11,7 +10,7 @@ func Test_cpu_Fetch(t *testing.T) {
 		name string
 		c    CPU
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -22,7 +21,7 @@ func Test_cpu_Fetch(t *testing.T) {
 
 func TestCPU_GetFlag(t *testing.T) {
 	var c = &CPU{}
-	c.mmunit = &mmu.MMU18Bit{}
+	c.mmunit = &MMU18Bit{}
 
 	tests := []struct {
 		name       string

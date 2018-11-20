@@ -1,4 +1,4 @@
-package pdpcpu
+package unibus
 
 // Definitions of the PDP CPU branching instructions
 

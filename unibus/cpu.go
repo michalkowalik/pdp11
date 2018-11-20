@@ -1,10 +1,9 @@
-package pdpcpu
+package unibus
 
 import (
 	"errors"
 	"fmt"
 	"pdp/interrupts"
-	"pdp/mmu"
 	"pdp/psw"
 	"strings"
 
@@ -26,9 +25,9 @@ const (
 	ModifyWord = ReadMode | WriteMode
 
 	// CPU state: Run / Halt / Wait:
-	HALT = 0
-	RUN  = 1
-	WAIT = 2
+	HALT   = 0
+	CPURUN = 1
+	WAIT   = 2
 
 	// stack size:
 	StackOverflow = 0xff
@@ -38,10 +37,7 @@ const (
 type CPU struct {
 	Registers                   [8]uint16
 	floatingPointStatusRegister byte
-
-	// TODO: is it used anywhere?
-	psw   uint16
-	State int
+	State                       int
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
@@ -50,7 +46,7 @@ type CPU struct {
 
 	// memory access is required:
 	// this should be actually managed by unibus, and not here.
-	mmunit *mmu.MMU18Bit
+	mmunit *MMU18Bit
 
 	// original PSW while dealing with trap
 	trapPsw psw.PSW
@@ -96,8 +92,8 @@ var cpuFlags = map[string]struct {
 	"T": {0x10, 0xffef},
 }
 
-//New initializes and returns the CPU variable:
-func New(mmunit *mmu.MMU18Bit) *CPU {
+//NewCPU initializes and returns the CPU variable:
+func NewCPU(mmunit *MMU18Bit) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0

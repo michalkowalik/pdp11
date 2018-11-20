@@ -9,8 +9,11 @@ To circumvent it, the MMU (Memory Management Unit) has to be used.
 #### Abbreviation used below:
 * __MMR__ - Memory Management Register
 * __PAR__ - Page Address Register
+* __PDR__ - Page Description Register
 * __PAF__ - Page Address Field
 * __APF__ - Active Page Field
+* __SR0__ - Status Register 0 
+* __SR2__ - Status Register 2
 
 on top of that, pdp 11/(44,70) are using Instruction and data memory pages
 hence the I/D marker on the virtual address. 
@@ -19,6 +22,7 @@ That's also the reason for both MMUPar and MMUPDR
 On a real PDP 11 the memory registers are located in thee uppermost 8K of RAM address space along with the Unibus I/O device registers.
 
 #### MMR composition:
+___(MMR registers are available on machines with 22 bit MMU (/70, /44))___
 ```
 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 MMR0
 nonr leng read trap unus unus ena mnt cmp  -mode- i/d  --page--   enable
@@ -45,6 +49,50 @@ nonr leng read trap unus unus ena mnt cmp  -mode- i/d  --page--   enable
     * 8 of them are used in User mode, 8 in Kernel mode. The CPU mode is specified by bits 14 and 15 of the Processor Status Word (PSW)
 * 16 Page Description Registers (PDR)
 * 8 Active Page Registers (APR)
+
+## PAR and PDR details
+### PAR -> Page Address Register
+PAR contains __Page Address Field__ - a 12 bit field, which specifies the starting address of the page as a __block__ number in physical memory.
+
+Bits 12-15 are unused.
+
+### PDR -> Page Description Register
+```
+| 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | PDR
+| X  |------------- PLF --------------| X | W | X | X |ED |- ACF -| X |    
+```
+* X - unused
+* ACF - Access Control Field:
+
+    | ACF | Mode |
+    |-----|------|
+    | 00  | Non-residend, abort all accesses |
+    | 01  | Read-only, abort on write attempt|
+    | 10  | unused, abort all accesses|
+    | 11  | read / write|
+* ED - Expansion direction: Specifies whether the segment expands upward from __relative zero__ (ED=0), or downwards  toward the relative zero. Relative Zero is in this case  the __PAF__.
+* W - indicates whether or not the page has been modified since the PSR (what is psr??) was loaded (W=1 is affirmative).
+W bit is set to 0 on every PAR or PDR modification
+* PLF - specifies number of blocks in the page. A page contains between 1 and 128 blocks of contiguos memory location. If the page expands downwards (ED=1), the page contains 128 - (page lenght in blocks).
+
+## Status Registers (SR0 and SR2)
+### SR0 (Status and error indicators)
+```
+| 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |SR0
+|ANR |ALE |AROV| X  | X  | X  | X | MM| X | MODE  | X |  PAGE NR  |EM |
+```
+* X   - Unused
+* ANR - Abort: Non-resident
+* ALE - Abort: Page Lenght Error
+* AROV - Abort: Read-Only Access Violation
+* MM - Maintenance Mode
+* M - Mode (Kernel = 00, User = 11)
+* PAGE NR - Page Number of a reference causing an error
+* EM - Enable Management. When EM=1 all addresses are relocated by MMU
+
+### SR2
+Status Register 2 is loaded with 16 bit virtual address at the beginning of each instruction fetch. SR2 is read-only, can not be rewritten. SR2 is the Virtual Address Programm Counter
+
 
 ### 18 Bit Address calculation:
 of a 16 bit virtual address:

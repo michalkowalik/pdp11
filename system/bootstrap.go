@@ -1,7 +1,7 @@
 package system
 
 import (
-	"pdp/pdpcpu"
+	"pdp/unibus"
 )
 
 /*
@@ -184,7 +184,7 @@ func (sys *System) Boot() {
 	memPointer := uint16(BOOTBASE)
 
 	for _, c := range bootcode {
-		mmunit.WriteMemoryWord(memPointer, c)
+		sys.unibus.Mmu.WriteMemoryWord(memPointer, c)
 		memPointer += 2
 	}
 
@@ -194,8 +194,8 @@ func (sys *System) Boot() {
 
 	// start execution
 	sys.console.WriteConsole("Booting..\n")
-	if sys.CPU.State != pdpcpu.RUN {
-		sys.CPU.State = pdpcpu.RUN
+	if sys.CPU.State != unibus.CPURUN {
+		sys.CPU.State = unibus.CPURUN
 	}
 	// sys.emulate()
 	// sys.loop()

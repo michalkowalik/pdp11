@@ -1,3 +1,3 @@
 #!/bin/bash
 
-for d in `ls -d */`; do go.exe test pdp/$d; done
+for d in `ls -d */`; do go test pdp/$d; done

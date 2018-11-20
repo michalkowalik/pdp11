@@ -1,4 +1,4 @@
-package mmu
+package unibus
 
 import (
 	"testing"
@@ -16,11 +16,11 @@ func TestMMU18Bit_mapVirtualToPhysical(t *testing.T) {
 		want    uint32
 		wantErr bool
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.m.mapVirtualToPhysical(tt.args.virtualAddress)
+			got := tt.m.mapVirtualToPhysical(tt.args.virtualAddress, false)
 			if got != tt.want {
 				t.Errorf("MMU18Bit.mapVirtualToPhysical() = %v, want %v", got, tt.want)
 			}
@@ -38,7 +38,7 @@ func TestMMU18Bit_ReadMemoryWord(t *testing.T) {
 		args args
 		want uint16
 	}{
-	// TODO: Add test cases.
+		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

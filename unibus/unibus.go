@@ -6,6 +6,7 @@ import (
 	"pdp/console"
 	"pdp/disk"
 	"pdp/interrupts"
+	"pdp/psw"
 	"pdp/teletype"
 
 	"github.com/jroimartin/gocui"
@@ -13,10 +14,12 @@ import (
 
 // Unibus address mappings for attached devices.
 const (
-	VT100Addr   = 017772000
 	LKSAddr     = 0777546
 	ConsoleAddr = 0777560
 	RK11Addr    = 0777400
+	PSWAddr     = 0777776
+	SR0Addr     = 0777572
+	SR2Addr     = 0777576
 )
 
 // Unibus definition
@@ -28,6 +31,9 @@ type Unibus struct {
 
 	// LKS - KW11-L Clock status
 	LKS uint16
+
+	// Memory management Unit
+	Mmu *MMU18Bit
 
 	// Channel for interrupt communication
 	Interrupts chan interrupts.Interrupt
@@ -43,14 +49,14 @@ type Unibus struct {
 	// ActiveTrap keeps the active trap in case the trap is being throw
 	// or nil otheriwse
 	ActiveTrap interrupts.Trap
+
+	psw *psw.PSW
+
+	PdpCPU *CPU
 }
 
 // attached devices:
 var (
-	// 0. CPU
-
-	// 1. MMU
-
 	// 2. terminal:
 	termEmulator *teletype.Teletype
 
@@ -59,13 +65,17 @@ var (
 )
 
 // New initializes and returns the Unibus variable
-func New(gui *gocui.Gui, controlConsole *console.Console) *Unibus {
+func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan interrupts.Interrupt)
 	unibus.Traps = make(chan interrupts.Trap)
 	unibus.controlConsole = controlConsole
+	unibus.psw = psw
 
 	// initialize attached devices:
+	unibus.Mmu = NewMMU(psw, &unibus)
+	unibus.PdpCPU = NewCPU(unibus.Mmu)
+
 	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
 	unibus.processInterruptQueue()
@@ -138,11 +148,19 @@ func (u *Unibus) WriteHello() {
 // ReadIOPage reads from unibus devices.
 func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
 	switch {
+	case physicalAddress == PSWAddr:
+		return u.psw.Get(), nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		return termEmulator.ReadTerm(physicalAddress)
+	case physicalAddress == SR0Addr:
+		return u.Mmu.SR0, nil
+	case physicalAddress == SR2Addr:
+		return u.Mmu.SR2, nil
 	case physicalAddress&0777760 == RK11Addr:
 		// don't do any anything yet!
 		return 0, nil
+	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
+		return u.Mmu.readPage(physicalAddress), nil
 	default:
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -151,6 +169,7 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 }
 
 // WriteIOPage writes to the unibus connected device
+// TODO: that signature smells funny. better to resign from that error return type ?
 func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
 	switch {
 	case physicalAddress&0777770 == ConsoleAddr:
@@ -159,14 +178,23 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 			Data:    data,
 			Read:    false}
 		return nil
+	case physicalAddress == SR0Addr:
+		u.Mmu.SR0 = data
+		return nil
+	case physicalAddress == SR2Addr:
+		u.Mmu.SR2 = data
+		return nil
 	case physicalAddress&0777760 == RK11Addr:
 		// don't do anything yet!
+		return nil
+	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
+		u.Mmu.writePage(physicalAddress, data)
+		return nil
 	default:
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
-	return nil
 }
 
 // SendInterrupt sends a new interrupts to the receiver

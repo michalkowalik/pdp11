@@ -1,25 +1,24 @@
 package system
 
 import (
-	"pdp/mmu"
-	"pdp/pdpcpu"
 	"pdp/psw"
+	"pdp/unibus"
 	"testing"
 )
 
 // global resources
 var (
 	sys *System
-	mm  mmu.MMU18Bit
+	mm  unibus.MMU18Bit
 )
 
 // TestMain : initialize memory and CPU
 func TestMain(m *testing.M) {
 	sys = new(System)
-	mm = mmu.MMU18Bit{}
+	mm = unibus.MMU18Bit{}
 	p := psw.PSW(0)
 	mm.Psw = &p
-	sys.CPU = pdpcpu.New(&mm)
+	sys.CPU = unibus.NewCPU(&mm)
 }
 
 var virtualAddressTests = []struct {
@@ -41,16 +40,16 @@ var virtualAddressTests = []struct {
 func TestGetVirtualAddress(t *testing.T) {
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
-		mmunit.Memory[2] = 2
-		mmunit.Memory[1] = 1
-		mmunit.Memory[0] = 4
+		mm.Memory[2] = 2
+		mm.Memory[1] = 1
+		mm.Memory[0] = 4
 		sys.CPU.Registers[0] = 2
 
 		// setup memory and registers for index mode:
 		sys.CPU.Registers[7] = 010
 		sys.CPU.Registers[1] = 010
-		mmunit.Memory[010] = 010
-		mmunit.Memory[020] = 040
+		mm.Memory[010] = 010
+		mm.Memory[020] = 040
 
 		virtualAddress, err := sys.CPU.GetVirtualByMode(test.op, 0)
 		if virtualAddress != test.virtualAddress {
@@ -64,9 +63,9 @@ func TestGetVirtualAddress(t *testing.T) {
 
 // try running few lines of machine code
 func TestRunCode(t *testing.T) {
-	sys.CPU.State = pdpcpu.RUN
+	sys.CPU.State = unibus.CPURUN
 
-	mmunit.Memory[0xff] = 2
+	mm.Memory[0xff] = 2
 
 	code := []uint16{
 		012701, // 001000 mov 0xff R1
@@ -83,20 +82,20 @@ func TestRunCode(t *testing.T) {
 	for _, c := range code {
 
 		// this should be actually bytes in word!
-		mmunit.Memory[memPointer] = uint16(c & 0xff)
-		mmunit.Memory[memPointer+1] = uint16(c >> 8)
+		mm.Memory[memPointer] = uint16(c & 0xff)
+		mm.Memory[memPointer+1] = uint16(c >> 8)
 		memPointer += 2
 	}
 
 	// set PC to starting point:
 	sys.CPU.Registers[7] = 001000
 
-	for sys.CPU.State == pdpcpu.RUN {
+	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
 	}
 
 	// assert memory at 0xff = 4
-	if memVal := mmunit.Memory[0xff]; memVal != 4 {
+	if memVal := mm.Memory[0xff]; memVal != 4 {
 		t.Errorf("Expected memory cell at 0xff to be equal 4, got %x\n", memVal)
 	}
 }
@@ -107,7 +106,7 @@ func TestRunCode(t *testing.T) {
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
 func TestRunBranchCode(t *testing.T) {
-	sys.CPU.State = pdpcpu.RUN
+	sys.CPU.State = unibus.CPURUN
 	// sample code
 	code := []uint16{
 		012700, // 001000 mov 0xff R0
@@ -127,15 +126,15 @@ func TestRunBranchCode(t *testing.T) {
 	for _, c := range code {
 
 		// this should be bytes in 1 word!
-		mmunit.Memory[memPointer] = uint16(c & 0xff)
-		mmunit.Memory[memPointer+1] = uint16(c >> 8)
+		mm.Memory[memPointer] = uint16(c & 0xff)
+		mm.Memory[memPointer+1] = uint16(c >> 8)
 		memPointer += 2
 	}
 
 	// set PC to starting point
 	sys.CPU.Registers[7] = 001000
 
-	for sys.CPU.State == pdpcpu.RUN {
+	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
 	}
 
@@ -143,7 +142,7 @@ func TestRunBranchCode(t *testing.T) {
 }
 
 func TestTriggerTrap(t *testing.T) {
-	sys.CPU.State = pdpcpu.RUN
+	sys.CPU.State = unibus.CPURUN
 
 	code := []uint16{
 		066666,
@@ -155,15 +154,15 @@ func TestTriggerTrap(t *testing.T) {
 	for _, c := range code {
 
 		// this should be bytes in 1 word!
-		mmunit.Memory[memPointer] = uint16(c & 0xff)
-		mmunit.Memory[memPointer+1] = uint16(c >> 8)
+		mm.Memory[memPointer] = uint16(c & 0xff)
+		mm.Memory[memPointer+1] = uint16(c >> 8)
 		memPointer += 2
 	}
 
 	// set PC to starting point
 	sys.CPU.Registers[7] = 001000
 
-	for sys.CPU.State == pdpcpu.RUN {
+	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
 	}
 }

@@ -1,11 +1,12 @@
-package mmu
+package unibus
 
 import (
 	"fmt"
 	"pdp/interrupts"
 	"pdp/psw"
-	"pdp/unibus"
 )
+
+type pdr uint16
 
 // MMU18Bit implements the 18 bit memory management unit
 // max 256KB RAM (128K words), enough to run early unix versions
@@ -18,7 +19,7 @@ type MMU18Bit struct {
 	PAR [16]uint16
 
 	// PDR : Page Description Registers
-	PDR [16]uint16
+	PDR [16]pdr
 
 	// APR : Active Page Register - 8 of them
 	APR [8]uint16
@@ -33,7 +34,7 @@ type MMU18Bit struct {
 	Psw *psw.PSW
 
 	// it's also convenient to keep a pointer to Unibus..
-	unibus *unibus.Unibus
+	unibus *Unibus
 }
 
 // MaxMemory - available for user, 248k
@@ -45,21 +46,79 @@ const MaxTotalMemory = 0777776
 // UnibusMemoryBegin in 16 bit mode
 const UnibusMemoryBegin = 0170000
 
-// New returns the new MMU18Bit struct
-func New(psw *psw.PSW, unibus *unibus.Unibus) *MMU18Bit {
+// NewMMU returns the new MMU18Bit struct
+func NewMMU(psw *psw.PSW, unibus *Unibus) *MMU18Bit {
 	mmu := MMU18Bit{}
 	mmu.Psw = psw
 	mmu.unibus = unibus
 	return &mmu
 }
 
+// few helper functions to check the page status with Page description register
+func (p pdr) read() bool     { return p&2 == 2 }
+func (p pdr) write() bool    { return p&6 == 6 }
+func (p pdr) ed() bool       { return p&8 == 8 }
+func (p pdr) length() uint16 { return (uint16(p) >> 8) & 0x7F }
+
 // return true if MMU enabled - controlled by 1 bit in the SR0
 func (m *MMU18Bit) mmuEnabled() bool {
 	return m.SR0&1 == 1
 }
 
+// Return Page Address or Page Description Register. Register address in virtual address.
+func (m *MMU18Bit) readPage(address uint32) uint16 {
+	i := ((address & 017) >> 1)
+
+	// kernel space:
+	if (address >= 0772300) && (address < 0772320) {
+		return uint16(m.PDR[i])
+	}
+	if (address >= 0772340) && (address < 0772360) {
+		return m.PAR[i]
+	}
+
+	// user space:
+	if (address >= 0777600) && (address < 0777620) {
+		return uint16(m.PDR[i+8])
+	}
+	if (address >= 0777640) && (address < 0777660) {
+		return m.PAR[i+8]
+	}
+	panic(interrupts.Trap{
+		Vector: interrupts.INTBus,
+		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", address)})
+}
+
+// Modify memory page:
+func (m *MMU18Bit) writePage(address uint32, data uint16) {
+	i := ((address & 017) >> 1)
+
+	// kernel space:
+	if (address >= 0772300) && (address < 0772320) {
+		m.PDR[i] = pdr(data)
+		return
+	}
+	if (address >= 0772340) && (address < 0772360) {
+		m.PAR[i] = data
+		return
+	}
+
+	// user space:
+	if (address >= 0777600) && (address < 0777620) {
+		m.PDR[i+8] = pdr(data)
+		return
+	}
+	if (address >= 0777640) && (address < 0777660) {
+		m.PAR[i+8] = data
+		return
+	}
+	panic(interrupts.Trap{
+		Vector: interrupts.INTBus,
+		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", address)})
+}
+
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
-func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
+func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) uint32 {
 	if !m.mmuEnabled() {
 		addr := uint32(virtualAddress)
 		if addr >= UnibusMemoryBegin {
@@ -73,16 +132,70 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16) uint32 {
 	if m.Psw.GetMode() > 0 {
 		currentUser += 8
 	}
+	offset := (virtualAddress >> 13) + currentUser
 
-	currentPAR := m.PAR[(virtualAddress>>13)+currentUser]
+	// check page availability in PDR:
+	if writeMode && !m.PDR[offset].write() {
+		m.SR0 = (1 << 13) | 1
+		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
+
+		// check for user mode
+		if m.unibus.psw.GetMode() == 3 {
+			m.SR0 |= (1 << 5) | (1 << 6)
+		}
+
+		// set SR2 to the value of current program counter
+		m.SR2 = m.unibus.PdpCPU.Registers[7]
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg:    "Abort: write on read-only page"})
+	}
+
+	if !m.PDR[offset].read() {
+		m.SR0 = (1 << 15) | 1
+		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
+
+		// check for user mode
+		if m.unibus.psw.GetMode() == 3 {
+			m.SR0 |= (1 << 5) | (1 << 6)
+		}
+		m.SR2 = m.unibus.PdpCPU.Registers[7]
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg:    "Abort: read on no-access page"})
+	}
+
+	currentPAR := m.PAR[offset]
 	block := (virtualAddress >> 6) & 0177
 	displacement := virtualAddress & 077
+
+	// check if page lenght not exceeded
+	if m.PDR[offset].ed() && block < m.PDR[offset].length() ||
+		!m.PDR[offset].ed() && block > m.PDR[offset].length() {
+		m.SR0 = (1 << 14) | 1
+		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
+
+		// check for user mode
+		if m.unibus.psw.GetMode() == 3 {
+			m.SR0 |= (1 << 5) | (1 << 6)
+		}
+		m.SR2 = m.unibus.PdpCPU.Registers[7]
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg:    "Page length exceeded"})
+	}
+
+	// set PDR W byte:
+	if writeMode {
+		m.PDR[offset] |= 1 << 6
+	}
+
 	return uint32(uint32((block+currentPAR)<<6+displacement) & 0777777)
 }
 
 // ReadMemoryWord reads a word from virtual address addr
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
-	physicalAddress := m.mapVirtualToPhysical(addr)
+	physicalAddress := m.mapVirtualToPhysical(addr, false)
 	if (physicalAddress & 1) == 1 {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -131,7 +244,7 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
-	physicalAddress := m.mapVirtualToPhysical(addr)
+	physicalAddress := m.mapVirtualToPhysical(addr, true)
 	if (physicalAddress & 1) == 1 {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -165,7 +278,7 @@ func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
 		}
 	}()
 
-	physicalAddress := m.mapVirtualToPhysical(addr)
+	physicalAddress := m.mapVirtualToPhysical(addr, true)
 	var wordData uint16
 	if addr&1 == 0 {
 		wordData = (m.Memory[physicalAddress>>1] & 0xFF00) | uint16(data)
