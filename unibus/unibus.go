@@ -61,7 +61,7 @@ var (
 	termEmulator *teletype.Teletype
 
 	// 3. rk01 disk
-	rk01 *disk.RK
+	rk01 *disk.RK11
 )
 
 // New initializes and returns the Unibus variable
