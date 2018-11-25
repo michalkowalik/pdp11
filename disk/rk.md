@@ -7,6 +7,7 @@
 ### Drive Status Register (RKDS)
 * unibus address: 0777400
 * bits:
+
     |bits|designation|description|
     |----|-----------|-----------|
     |0 - 3 | Sector Counter (SC)|current sector address of the seclected drive|
@@ -30,6 +31,7 @@
 ### Control Status Register (RKCS)
 * unibus address: 0777404
 * bits:
+
     |bits|designation|description|
     |----|-----------|-----------|
     | 0  | GO | Causes the control to carry the function of ID kept in bits 1-3. Remains set until control begins to respond to GO|
