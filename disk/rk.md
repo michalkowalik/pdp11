@@ -45,3 +45,5 @@
 * bits:
     * 0: unused:
     * 1-15: ???
+
+### Disk Address Register (RKDA)    

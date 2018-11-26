@@ -4,7 +4,16 @@ import (
 	"io/ioutil"
 )
 
-const rk5ImageLength = 2077696
+const (
+	rk5ImageLength = 2077696
+	// unibus Addresses:
+	rkdsAddress = 0777400
+	rkerAddress = 0777402
+	rkcsAddress = 0777404
+	rkwcAddress = 0777406
+	rkbaAddress = 0777410
+	rkdaAddress = 0777412
+)
 
 // RK11 disk controller
 type RK11 struct {
@@ -14,6 +23,7 @@ type RK11 struct {
 	RKCS uint16
 	RKWC uint16
 	RKBA uint16
+	DKDA uint16
 
 	// disk units
 	unit [8]*RK05
@@ -86,8 +96,24 @@ func (r *RK11) rkNotReady() {
 	// nothing to see here yet
 }
 
+// read and return drive register value
 func (r *RK11) read(address uint32) uint16 {
-	return 0
+	switch address {
+	case rkdsAddress:
+		return r.RKDS
+	case rkerAddress:
+		return r.RKER
+	case rkcsAddress:
+		return r.RKCS
+	case rkwcAddress:
+		return r.RKWC
+	case rkbaAddress:
+		return r.RKBA
+	case rkdaAddress:
+		return uint16(r.sector | (r.surface << 4) | (r.cylinder << 5) | (r.drive << 13))
+	default:
+		panic("invalid RK11 read")
+	}
 }
 
 func (r *RK11) write(address uint32, value uint16) {
