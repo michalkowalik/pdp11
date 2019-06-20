@@ -1,10 +1,12 @@
 # RK11 disk controller
+
 * RK11 - disk controller
 * RK05 - disk cardridge
 
-## RK11 Registers:
+## RK11 Registers
 
 ### Drive Status Register (RKDS)
+
 * unibus address: 0777400
 * bits:
 
@@ -22,28 +24,37 @@
     | 12| Drive Power Low (DPL)| power loss sensed. reset may be required|
     | 13 - 15| Identification of drive (ID) | if interrupt occures, those bits keep the binary representation of logical drive number, that caused the interrupt|
 
-        
-
 ### Error Register (RKER)
+
 * unibus address: 0777402
 * bits:
 
 ### Control Status Register (RKCS)
+
 * unibus address: 0777404
 * bits:
 
     |bits|designation|description|
     |----|-----------|-----------|
     | 0  | GO | Causes the control to carry the function of ID kept in bits 1-3. Remains set until control begins to respond to GO|
+    | 1-3| Function (Read/Write)| The Function register, or function bits, are loaded with the binary representation of the function to be performed by the control when a GO command is initiated. These bits are loaded by the progmm and cleared by BUS INIT. They retain the function until altered by the program or cleared, enabling the user to continue from a soft error condition with GO. |
     | 7  | Control Ready (RDY - write only)| Control ready to perform a function. Set by init, cleared by GO|
 
+* functions:
+
+    ![functions](rk11-func.png)
+
 ### Word Count Register (RKWC)
+
 * unibus address: 0777406
 
 ### Current Bus Address Register (RKBA)
+
 * unibus address: 077410
 * bits:
-    * 0: unused:
-    * 1-15: ???
+  * 0: unused:
+  * 1-15: ???
 
-### Disk Address Register (RKDA)    
+### Disk Register (RKDA)
+
+tbd.

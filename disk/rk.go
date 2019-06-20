@@ -46,7 +46,7 @@ type RK05 struct {
 
 // Instruction - to provide unibus exchange channel
 // Read == false -> write operation
-// btw, it slowly looks like teletype and rk could implement the same interface.
+// TODO: it slowly looks like teletype and rk could implement the same interface.
 type Instruction struct {
 	Address uint32
 	Data    uint16
@@ -88,12 +88,16 @@ func (r *RK11) Run() {
 	}()
 }
 
+// rkReady - set Drive Ready bit in RKDS and Control Ready bit in RKCS registers to 1
 func (r *RK11) rkReady() {
-	// nothing to see here yet
+	r.RKDS |= 1 << 6
+	r.RKCS |= 1 << 7
 }
 
+// rkNotReady - set Drive Ready bit in RKDS and Control Ready bit in RKCS registers to 0
 func (r *RK11) rkNotReady() {
-	// nothing to see here yet
+	r.RKDS = r.RKDS &^ (1 << 6)
+	r.RKCS = r.RKCS &^ (1 << 7)
 }
 
 // read and return drive register value
