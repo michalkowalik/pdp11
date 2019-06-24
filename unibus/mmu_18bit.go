@@ -194,6 +194,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 }
 
 // ReadMemoryWord reads a word from virtual address addr
+// TODO: Why is ReadMemoryWord expecting address in bytes, not word??
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
 	physicalAddress := m.mapVirtualToPhysical(addr, false)
 	if (physicalAddress & 1) == 1 {

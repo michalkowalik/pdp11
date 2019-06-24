@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"errors"
 	"io/ioutil"
 )
 
@@ -69,6 +70,11 @@ func (r *RK11) Attach(drive int, path string) error {
 	unit := &RK05{
 		rdisk: buf,
 	}
+
+	if drive >= len(r.unit) {
+		return errors.New("tried to mount disk to unit > 7")
+	}
+
 	r.unit[drive] = unit
 	return nil
 }
@@ -132,4 +138,12 @@ func (r *RK11) reset() {
 	r.RKCS = 1 << 7
 	r.RKWC = 0
 	r.RKBA = 0
+}
+
+// Step - single operation step
+func (r *RK11) Step() {
+	if !r.running {
+		return
+	}
+
 }

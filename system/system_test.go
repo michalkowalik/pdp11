@@ -1,6 +1,7 @@
 package system
 
 import (
+	"os"
 	"pdp/psw"
 	"pdp/unibus"
 	"testing"
@@ -19,6 +20,7 @@ func TestMain(m *testing.M) {
 	p := psw.PSW(0)
 	mm.Psw = &p
 	sys.CPU = unibus.NewCPU(&mm)
+	os.Exit(m.Run())
 }
 
 var virtualAddressTests = []struct {
@@ -40,6 +42,8 @@ var virtualAddressTests = []struct {
 func TestGetVirtualAddress(t *testing.T) {
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
+		mm.Memory[8] = 040
+		mm.Memory[4] = 8
 		mm.Memory[2] = 2
 		mm.Memory[1] = 1
 		mm.Memory[0] = 4
@@ -48,8 +52,6 @@ func TestGetVirtualAddress(t *testing.T) {
 		// setup memory and registers for index mode:
 		sys.CPU.Registers[7] = 010
 		sys.CPU.Registers[1] = 010
-		mm.Memory[010] = 010
-		mm.Memory[020] = 040
 
 		virtualAddress, err := sys.CPU.GetVirtualByMode(test.op, 0)
 		if virtualAddress != test.virtualAddress {
@@ -62,6 +64,8 @@ func TestGetVirtualAddress(t *testing.T) {
 }
 
 // try running few lines of machine code
+// The memory array is using words, addressing is happening in bytes,
+// hence the value pointing to word 0xff is 0x1FE (or 0776 in octal)
 func TestRunCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 
@@ -69,11 +73,11 @@ func TestRunCode(t *testing.T) {
 
 	code := []uint16{
 		012701, // 001000 mov 0xff R1
-		000377, // 001002 000377
-		062711, // 001004 add 2  to memory pointed by R1 -> mem[0xff]  = 4
+		000776, // 001002 000377
+		062711, // 001004 add 2  to memory pointed by R1 -> mem[0xff]  = 4  // here where it dies!
 		000002, // 001006
 		000000, // 001010 done, halt
-		000377, // 001012 0377 -> memory address to be loaded to R1
+		000776, // 001012 0377 -> memory address to be loaded to R1
 		000002, // 001014 2 -> value to be added
 	}
 
@@ -82,13 +86,13 @@ func TestRunCode(t *testing.T) {
 	for _, c := range code {
 
 		// this should be actually bytes in word!
-		mm.Memory[memPointer] = uint16(c & 0xff)
-		mm.Memory[memPointer+1] = uint16(c >> 8)
-		memPointer += 2
+		mm.Memory[memPointer] = c //uint16(c & 0xff)
+		// mm.Memory[memPointer+1] = uint16(c >> 8)
+		memPointer++
 	}
 
 	// set PC to starting point:
-	sys.CPU.Registers[7] = 001000
+	sys.CPU.Registers[7] = 002000
 
 	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
