@@ -2,6 +2,7 @@
 .idea/*
 pkg/*
 bin/*
+images/*
 **/*.min.*
 **/*.log
 *.ptap

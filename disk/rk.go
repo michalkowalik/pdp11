@@ -2,6 +2,7 @@ package disk
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 )
 
@@ -14,6 +15,12 @@ const (
 	rkwcAddress = 0777406
 	rkbaAddress = 0777410
 	rkdaAddress = 0777412
+
+	// RK11 error codes:
+	rkOvr = (1 << 14)
+	rkNxd = (1 << 7)
+	rkNxc = (1 << 6)
+	rkNxs = (1 << 5)
 )
 
 // RK11 disk controller
@@ -81,6 +88,7 @@ func (r *RK11) Attach(drive int, path string) error {
 
 // Run - Start the RK11
 // initialize the go routine to read from incoming channel
+// TODO: goroutine should be calling the Step function!
 func (r *RK11) Run() {
 	go func() {
 		instruction := <-r.Instructions
@@ -127,7 +135,52 @@ func (r *RK11) read(address uint32) uint16 {
 }
 
 func (r *RK11) write(address uint32, value uint16) {
-	// end up in panic?
+	switch address {
+	case rkdsAddress:
+		break
+	case rkerAddress:
+		break
+	case rkcsAddress:
+		// set bus address:
+		r.RKBA = r.RKBA | ((value & 060) << 12)
+
+		var bits uint16 = 017517
+
+		// set only the writeable bits:
+		value &= bits
+		r.RKCS &= ^bits
+
+		// don't set the GO bit
+		r.RKCS |= value & ^uint16(1)
+		if value&1 == 1 {
+			r.rkgo()
+		}
+	case rkwcAddress:
+		r.RKWC = value
+	case rkbaAddress:
+		r.RKBA = value
+	case rkdaAddress:
+		r.drive = int(value >> 13)
+		r.cylinder = int(value>>5) & 0377
+		r.surface = int(value>>4) & 1
+		r.sector = int(value & 15)
+	default:
+		panic("RK5: Invalid write")
+	}
+
+}
+
+// Respond to GO bit set in RKCS - start operations
+func (r *RK11) rkgo() {
+	switch (r.RKCS & 017) >> 1 {
+	case 0: // Control reset
+		r.reset()
+	case 1, 2: // R/W
+		r.running = true
+		r.rkNotReady()
+	default:
+		panic(fmt.Sprintf("unimplemented RK5 operation %#o", ((r.RKCS & 017) >> 1)))
+	}
 }
 
 // reset sets the drive to it's default values.
@@ -140,10 +193,57 @@ func (r *RK11) reset() {
 	r.RKBA = 0
 }
 
+// rkerror is being called in response to specific RK11 error
+func (r *RK11) rkError(code int) {
+	r.rkReady() // <== but why actually?
+}
+
 // Step - single operation step
 func (r *RK11) Step() {
 	if !r.running {
 		return
+	}
+	if r.unit[r.drive] == nil {
+		r.rkError(rkNxd)
+	}
+
+	var isWrite bool
+
+	// check the "function" fields in RKCS register
+	switch (r.RKCS & 017) >> 1 {
+	case 01:
+		isWrite = true
+	case 02:
+		isWrite = false
+	case 07:
+		r.unit[r.drive].locked = true
+		r.running = false
+		r.rkReady()
+		return
+	default:
+		panic(fmt.Sprintf("unimplemented RK05 operation: %#o", ((r.RKCS & 017) >> 1)))
+	}
+
+	// set the head location:
+	if r.cylinder > 0312 {
+		r.rkError(rkNxc)
+	}
+	if r.sector > 013 {
+		r.rkError(rkNxc)
+	}
+	pos := (r.cylinder*24 + r.surface*12 + r.sector) * 512
+	if pos >= len(r.unit[r.drive].rdisk) {
+		panic(fmt.Sprintf("pos outside rkdisk length, pos: %v, len %v", pos, len(r.unit[r.drive].rdisk)))
+	}
+
+	// reaad complete sector:
+	for i := 0; i < 256 && r.RKWC != 0; i++ {
+		if isWrite {
+			// write to the disk
+			fmt.Printf("write to disk \n")
+		} else {
+
+		}
 	}
 
 }
