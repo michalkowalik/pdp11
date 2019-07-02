@@ -178,6 +178,9 @@ func (r *RK11) rkgo() {
 	case 1, 2: // R/W
 		r.running = true
 		r.rkNotReady()
+	case 7: // write lock
+		r.running = true
+		r.rkNotReady()
 	default:
 		panic(fmt.Sprintf("unimplemented RK5 operation %#o", ((r.RKCS & 017) >> 1)))
 	}
@@ -194,8 +197,28 @@ func (r *RK11) reset() {
 }
 
 // rkerror is being called in response to specific RK11 error
-func (r *RK11) rkError(code int) {
-	r.rkReady() // <== but why actually?
+func (r *RK11) rkError(code uint16) {
+	var msg string
+
+	r.rkReady()
+	r.RKER |= code
+	r.RKCS |= (1 << 14) | (1 << 15)
+
+	switch code {
+	case rkOvr:
+		msg = "operation overflowed the disk"
+		break
+	case rkNxd:
+		msg = "invalid disk accessed"
+		break
+	case rkNxc:
+		msg = "invalid cylinder accessed"
+		break
+	case rkNxs:
+		msg = "invalid sector accessed"
+		break
+	}
+	panic(msg)
 }
 
 // Step - single operation step
