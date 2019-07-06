@@ -24,7 +24,7 @@ func TestRK11_Attach(t *testing.T) {
 		{"exisiting file", args{0, "../images/rk0.img"}, false},
 		{"invalid drive number", args{8, "../images/rk0.img"}, true},
 	}
-	rk11 = NewRK()
+	rk11 = NewRK(nil)
 	wd, _ := os.Getwd()
 	fmt.Println("Current test dir: " + wd)
 

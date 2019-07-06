@@ -42,10 +42,7 @@ type RK11 struct {
 
 	running bool
 
-	// TODO: check how to communicate with unibus using channels only.
-	// !! unless this is done, just use it directly
-	// we also somehow need the unibus here...
-	Instructions chan Instruction
+	unibus *Unibus
 }
 
 // RK05 disk cartridge
@@ -64,9 +61,9 @@ type Instruction struct {
 }
 
 // NewRK  returns new RK11 object
-func NewRK() *RK11 {
+func NewRK(u *Unibus) *RK11 {
 	r := RK11{}
-	r.Instructions = make(chan Instruction)
+	r.unibus = u
 	return &r
 }
 
@@ -86,22 +83,6 @@ func (r *RK11) Attach(drive int, path string) error {
 
 	r.unit[drive] = unit
 	return nil
-}
-
-// Run - Start the RK11
-// initialize the go routine to read from incoming channel
-// TODO: goroutine should be calling the Step function!
-func (r *RK11) Run() {
-	go func() {
-		instruction := <-r.Instructions
-		if instruction.Read {
-			//data := r.read(instruction.Address)
-			r.read(instruction.Address)
-			// send back to Unibus!
-		} else {
-			r.write(instruction.Address, instruction.Data)
-		}
-	}()
 }
 
 // rkReady - set Drive Ready bit in RKDS and Control Ready bit in RKCS registers to 1
