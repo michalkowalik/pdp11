@@ -1,4 +1,4 @@
-package disk
+package unibus
 
 import (
 	"errors"
@@ -42,6 +42,8 @@ type RK11 struct {
 
 	running bool
 
+	// TODO: check how to communicate with unibus using channels only.
+	// !! unless this is done, just use it directly
 	// we also somehow need the unibus here...
 	Instructions chan Instruction
 }
@@ -61,8 +63,8 @@ type Instruction struct {
 	Read    bool
 }
 
-// New  returns new RK11 object
-func New() *RK11 {
+// NewRK  returns new RK11 object
+func NewRK() *RK11 {
 	r := RK11{}
 	r.Instructions = make(chan Instruction)
 	return &r

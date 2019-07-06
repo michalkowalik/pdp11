@@ -170,6 +170,7 @@ func (t *Teletype) getChar() uint16 {
 // WriteTerm : write to the terminal address:
 // Warning: Unibus needs to provide a map between the physical 22 bit
 // addresses and the 18 bit, DEC defined addresses for the devices.
+// TODO: this method can be private!
 func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 	switch address & 0777 {
 
@@ -191,7 +192,7 @@ func (t *Teletype) WriteTerm(address uint32, data uint16) error {
 		}
 		break
 
-		// output
+	// output
 	// side note:
 	// The original implementation introduces 1ms timeouts before setting the register value
 	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,

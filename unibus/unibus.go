@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"pdp/console"
-	"pdp/disk"
 	"pdp/interrupts"
 	"pdp/psw"
 	"pdp/teletype"
@@ -61,7 +60,7 @@ var (
 	termEmulator *teletype.Teletype
 
 	// 3. rk01 disk
-	rk01 *disk.RK11
+	rk01 *RK11
 )
 
 // New initializes and returns the Unibus variable
