@@ -97,6 +97,7 @@ func (sys *System) step() {
 			sys.unibus.SendInterrupt(6, interrupts.INTClock)
 		}
 	}
+	sys.unibus.Rk01.Step()
 }
 
 // encapsulate in method

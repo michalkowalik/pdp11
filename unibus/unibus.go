@@ -52,15 +52,14 @@ type Unibus struct {
 	psw *psw.PSW
 
 	PdpCPU *CPU
+
+	Rk01 *RK11
 }
 
 // attached devices:
 var (
 	// 2. terminal:
 	termEmulator *teletype.Teletype
-
-	// 3. rk01 disk
-	rk01 *RK11
 )
 
 // New initializes and returns the Unibus variable
@@ -77,6 +76,9 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 
 	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
+
+	unibus.Rk01 = NewRK(&unibus)
+
 	unibus.processInterruptQueue()
 	unibus.processTraps()
 	return &unibus
@@ -127,6 +129,7 @@ func (u *Unibus) processTraps() {
 			fmt.Printf("Trap vector: %d, message: \"%s\"\n", trap.Vector, trap.Msg)
 			if trap.Vector > 0 {
 				u.ActiveTrap = trap
+				// TODO: is it actually finished?
 				// panic("IT'S A TRAP!!")
 			}
 		}
@@ -156,8 +159,7 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 	case physicalAddress == SR2Addr:
 		return u.Mmu.SR2, nil
 	case physicalAddress&0777760 == RK11Addr:
-		// don't do any anything yet!
-		return 0, nil
+		return u.Rk01.read(physicalAddress), nil
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
 		return u.Mmu.readPage(physicalAddress), nil
 	default:

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"pdp/interrupts"
 )
 
 const (
@@ -214,6 +215,7 @@ func (r *RK11) Step() {
 	}
 
 	var isWrite bool
+	unit := r.unit[r.drive]
 
 	// check the "function" fields in RKCS register
 	switch (r.RKCS & 017) >> 1 {
@@ -222,7 +224,7 @@ func (r *RK11) Step() {
 	case 02:
 		isWrite = false
 	case 07:
-		r.unit[r.drive].locked = true
+		unit.locked = true
 		r.running = false
 		r.rkReady()
 		return
@@ -238,18 +240,50 @@ func (r *RK11) Step() {
 		r.rkError(rkNxc)
 	}
 	pos := (r.cylinder*24 + r.surface*12 + r.sector) * 512
-	if pos >= len(r.unit[r.drive].rdisk) {
+	if pos >= len(unit.rdisk) {
 		panic(fmt.Sprintf("pos outside rkdisk length, pos: %v, len %v", pos, len(r.unit[r.drive].rdisk)))
 	}
 
 	// reaad complete sector:
 	for i := 0; i < 256 && r.RKWC != 0; i++ {
 		if isWrite {
-			// write to the disk
-			fmt.Printf("write to disk \n")
+			val, err := r.unibus.ReadIOPage(uint32(r.RKBA), false)
+			if err != nil {
+				panic("Error reading from Unibus!")
+			}
+			unit.rdisk[pos] = byte(val & 0xFF)
+			unit.rdisk[pos+1] = byte((val >> 8) & 0xFF)
 		} else {
-
+			// TODO: monitor if it's fine. this implementation does not take care of
+			// bits 4 and 5 of rkcs, which should be used on systems with extended memory
+			r.unibus.WriteIOPage(
+				uint32(r.RKBA),
+				uint16(unit.rdisk[pos])|uint16(unit.rdisk[pos+1])<<8,
+				false)
+		}
+		r.RKBA += 2
+		pos += 2
+		r.RKWC = (r.RKWC + 1) & 0xFFFF
+	}
+	r.sector++
+	if r.sector > 13 {
+		r.sector = 0
+		r.surface++
+		if r.surface > 1 {
+			r.surface = 0
+			r.cylinder++
+			if r.cylinder > 0312 {
+				r.rkError(rkOvr)
+			}
 		}
 	}
 
+	// RKWC == 0 -> transfer is completed. if bit 6 set in RKCS, interrupt should be sent.
+	if r.RKWC == 0 {
+		r.running = false
+		r.rkReady()
+		if r.RKCS&(1<<6) != 0 {
+			r.unibus.SendInterrupt(5, interrupts.INTRK)
+		}
+	}
 }
