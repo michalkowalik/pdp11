@@ -34,9 +34,15 @@ func InitializeSystem(
 
 	// unibus
 	sys.unibus = unibus.New(&sys.psw, gui, console)
+	sys.unibus.PdpCPU.Reset()
 
 	sys.unibus.WriteHello()
 	sys.unibus.WriteHello()
+
+	// mount drive
+	// TODO: clean it up!
+	sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
+	sys.unibus.Rk01.Reset()
 
 	console.WriteConsole("Initializing PDP11 CPU.\n")
 	sys.CPU = sys.unibus.PdpCPU

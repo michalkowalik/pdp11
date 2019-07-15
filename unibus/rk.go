@@ -83,6 +83,9 @@ func (r *RK11) Attach(drive int, path string) error {
 	}
 
 	r.unit[drive] = unit
+
+	r.unibus.controlConsole.WriteConsole("disk mounted")
+
 	return nil
 }
 
@@ -158,7 +161,7 @@ func (r *RK11) write(address uint32, value uint16) {
 func (r *RK11) rkgo() {
 	switch (r.RKCS & 017) >> 1 {
 	case 0: // Control reset
-		r.reset()
+		r.Reset()
 	case 1, 2: // R/W
 		r.running = true
 		r.rkNotReady()
@@ -170,9 +173,9 @@ func (r *RK11) rkgo() {
 	}
 }
 
-// reset sets the drive to it's default values.
+// Reset sets the drive to it's default values.
 // check bits meaning in attached documentation
-func (r *RK11) reset() {
+func (r *RK11) Reset() {
 	r.RKDS = (1 << 11) | (1 << 7) | (1 << 6)
 	r.RKER = 0
 	r.RKCS = 1 << 7

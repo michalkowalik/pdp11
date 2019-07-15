@@ -561,3 +561,19 @@ func (c *CPU) Pop() uint16 {
 	c.Registers[6] += 2
 	return val
 }
+
+// Reset CPU
+// TODO: finish implementation
+func (c *CPU) Reset() {
+	for i := 0; i < 7; i++ {
+		c.Registers[i] = 0
+	}
+	for i := 0; i < 16; i++ {
+		c.mmunit.PAR[i] = 0
+		c.mmunit.PDR[i] = 0
+	}
+	c.mmunit.SR0 = 0
+	c.ClockCounter = 0
+	c.mmunit.unibus.Rk01.Reset()
+	c.State = CPURUN
+}

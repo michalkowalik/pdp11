@@ -412,6 +412,7 @@ func (c *CPU) waitOp(instruction uint16) error {
 // Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
 // Implementation needs to wait for the unibus.
 func (c *CPU) resetOp(instruction uint16) error {
+	c.Reset()
 	return nil
 }
 
