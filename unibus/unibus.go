@@ -19,6 +19,8 @@ const (
 	PSWAddr     = 0777776
 	SR0Addr     = 0777572
 	SR2Addr     = 0777576
+
+	DEBUG = true
 )
 
 // Unibus definition
@@ -59,7 +61,7 @@ type Unibus struct {
 // attached devices:
 var (
 	// 2. terminal:
-	termEmulator *teletype.Teletype
+	termEmulator teletype.Teletype
 )
 
 // New initializes and returns the Unibus variable
@@ -74,7 +76,7 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.Mmu = NewMMU(psw, &unibus)
 	unibus.PdpCPU = NewCPU(unibus.Mmu)
 
-	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
+	termEmulator = teletype.NewSimple(unibus.Interrupts) //gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
 
 	unibus.Rk01 = NewRK(&unibus)
@@ -140,7 +142,7 @@ func (u *Unibus) processTraps() {
 func (u *Unibus) WriteHello() {
 	helloStr := "0_1.2_3.4_5.6_7.8_9.A_B.C_D.E_F\n"
 	for _, c := range helloStr {
-		termEmulator.Incoming <- teletype.Instruction{
+		termEmulator.GetIncoming() <- teletype.Instruction{
 			Address: 0566,
 			Data:    uint16(c),
 			Read:    false}
@@ -176,7 +178,7 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
 	switch {
 	case physicalAddress&0777770 == ConsoleAddr:
-		termEmulator.Incoming <- teletype.Instruction{
+		termEmulator.GetIncoming() <- teletype.Instruction{
 			Address: physicalAddress,
 			Data:    data,
 			Read:    false}

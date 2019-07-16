@@ -10,7 +10,7 @@ import (
 
 const (
 	// BOOTBASE is a base bootstrap address
-	BOOTBASE = 01000
+	BOOTBASE = 02000
 )
 
 var bootcode = [...]uint16{
@@ -189,11 +189,11 @@ func (sys *System) Boot() {
 	}
 
 	// set SP and PC to their starting address:
-	sys.CPU.Registers[7] = BOOTBASE + 2
+	sys.CPU.Registers[7] = BOOTBASE
 	//sys.CPU.Registers[6] = BOOTBASE + 2
 
 	// start execution
-	sys.console.WriteConsole("Booting..\n")
+	// sys.console.WriteConsole("Booting..\n")
 	if sys.CPU.State != unibus.CPURUN {
 		sys.CPU.State = unibus.CPURUN
 	}

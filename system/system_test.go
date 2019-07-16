@@ -2,7 +2,6 @@ package system
 
 import (
 	"os"
-	"pdp/psw"
 	"pdp/unibus"
 	"testing"
 )
@@ -16,10 +15,19 @@ var (
 // TestMain : initialize memory and CPU
 func TestMain(m *testing.M) {
 	sys = new(System)
-	mm = unibus.MMU18Bit{}
-	p := psw.PSW(0)
-	mm.Psw = &p
-	sys.CPU = unibus.NewCPU(&mm)
+	sys.unibus = unibus.New(&sys.psw, nil, nil)
+	mm = *sys.unibus.Mmu
+
+	//p := psw.PSW(0)
+	//mm.Psw = &p
+	//sys.CPU = unibus.NewCPU(&mm)
+	sys.unibus.PdpCPU.Reset()
+	sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
+	sys.unibus.Rk01.Reset()
+
+	sys.CPU = sys.unibus.PdpCPU
+	sys.CPU.State = unibus.CPURUN
+
 	os.Exit(m.Run())
 }
 
@@ -169,4 +177,8 @@ func TestTriggerTrap(t *testing.T) {
 	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
 	}
+}
+
+func TestBoot(t *testing.T) {
+	sys.Boot()
 }
