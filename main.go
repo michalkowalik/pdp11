@@ -81,7 +81,8 @@ func startPdp(g *gocui.Gui) error {
 	}
 	terminalView.Clear()
 
-	c = console.NewGui(g)
+	//c = console.NewGui(g)
+	c = console.NewSimple()
 	c.WriteConsole("Starting PDP-11/70 emulator.")
 
 	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
