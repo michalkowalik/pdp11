@@ -19,8 +19,8 @@ type Instruction struct {
 	Read    bool
 }
 
-// TeletypeFull type  - simplest terminal emulator possible.
-type TeletypeFull struct {
+// Full type  - simplest terminal emulator possible.
+type Full struct {
 	// use gocui view, not a raw terminal
 	termView *gocui.View
 	gui      *gocui.Gui
@@ -59,7 +59,7 @@ type TeletypeFull struct {
 	// view, it needs to happen in the separate goroutine
 	consoleOut chan string
 
-	controlConsole *console.Console
+	controlConsole console.Console
 
 	interrupts chan interrupts.Interrupt
 
@@ -74,15 +74,15 @@ var logger = log.New(logFile, "", 0)
 func New(
 	gui *gocui.Gui,
 	controlConsole *console.Console,
-	interrupts chan interrupts.Interrupt) *TeletypeFull {
+	interrupts chan interrupts.Interrupt) *Full {
 	var err error
-	tele := TeletypeFull{}
+	tele := Full{}
 	tele.gui = gui
 	tele.termView, err = gui.View("terminal")
 	if err != nil {
 		log.Panicln(err)
 	}
-	tele.controlConsole = controlConsole
+	tele.controlConsole = *controlConsole
 	tele.interrupts = interrupts
 
 	// initialize channels
@@ -103,7 +103,7 @@ func New(
 }
 
 // GetIncoming returns incoming channel - needed for interface to work
-func (t *TeletypeFull) GetIncoming() chan Instruction {
+func (t *Full) GetIncoming() chan Instruction {
 	return t.Incoming
 }
 
@@ -112,7 +112,7 @@ func (t *TeletypeFull) GetIncoming() chan Instruction {
 // t.done channel is used to force synchronization.
 // 1ms sleep is required to give the gocui enough time to print the character.
 // consult gocui documentation for further details.
-func (t *TeletypeFull) initOutput() {
+func (t *Full) initOutput() {
 	go func() {
 		for {
 			s := <-t.consoleOut
@@ -128,7 +128,7 @@ func (t *TeletypeFull) initOutput() {
 
 // Run : Start the teletype
 // initialize the go routine to read from the incoming channel.
-func (t *TeletypeFull) Run() error {
+func (t *Full) Run() error {
 	t.TKS = 0
 	t.TPS = 1 << 7
 
@@ -158,13 +158,13 @@ func (t *TeletypeFull) Run() error {
 			<-t.done
 		}
 	}()
-	t.consoleOut <- "-TeletypeFull Initialized-\n"
+	t.consoleOut <- "-Full Initialized-\n"
 	<-t.done
 	return nil
 }
 
 //getChar - return char from keybuffer set registers accordingly
-func (t *TeletypeFull) getChar() uint16 {
+func (t *Full) getChar() uint16 {
 	if t.TKS&0x80 != 0 {
 		t.TKS &= 0xFF7E
 		return t.keybuffer
@@ -176,7 +176,7 @@ func (t *TeletypeFull) getChar() uint16 {
 // Warning: Unibus needs to provide a map between the physical 22 bit
 // addresses and the 18 bit, DEC defined addresses for the devices.
 // TODO: this method can be private!
-func (t *TeletypeFull) WriteTerm(address uint32, data uint16) error {
+func (t *Full) WriteTerm(address uint32, data uint16) error {
 	switch address & 0777 {
 
 	// keyboard control & status
@@ -233,7 +233,7 @@ func (t *TeletypeFull) WriteTerm(address uint32, data uint16) error {
 }
 
 // ReadTerm : read from terminal memory at address address
-func (t *TeletypeFull) ReadTerm(address uint32) (uint16, error) {
+func (t *Full) ReadTerm(address uint32) (uint16, error) {
 	switch address & 0777 {
 	case 0560:
 		return t.TKS, nil

@@ -61,6 +61,8 @@ func setKeyBindings(g *gocui.Gui) {
 // start pdp11 --> output to either console or status line..
 // (btw -- will it provide the buffer to show the most recent lines?)
 func startPdp(g *gocui.Gui) error {
+	var c console.Console
+
 	statusView, err := g.View("status")
 	if err != nil {
 		return err
@@ -79,11 +81,11 @@ func startPdp(g *gocui.Gui) error {
 	}
 	terminalView.Clear()
 
-	console := console.New(g)
-	console.WriteConsole("Starting PDP-11/70 emulator.")
+	c = console.NewGui(g)
+	c.WriteConsole("Starting PDP-11/70 emulator.")
 
 	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
-	pdp := system.InitializeSystem(console, terminalView, regView, g)
+	pdp := system.InitializeSystem(c, terminalView, regView, g)
 
 	if _, err := g.SetCurrentView("status"); err != nil {
 		log.Panic(err)

@@ -41,7 +41,7 @@ type Unibus struct {
 	Traps      chan interrupts.Trap
 
 	// console
-	controlConsole *console.Console
+	controlConsole console.Console
 
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	// TODO: change to array!
@@ -69,7 +69,7 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan interrupts.Interrupt)
 	unibus.Traps = make(chan interrupts.Trap)
-	unibus.controlConsole = controlConsole
+	unibus.controlConsole = *controlConsole
 	unibus.psw = psw
 
 	// initialize attached devices:

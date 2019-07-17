@@ -19,21 +19,21 @@ type System struct {
 	unibus *unibus.Unibus
 
 	// console and status output:
-	console      *console.Console
+	console      console.Console
 	terminalView *gocui.View
 	regView      *gocui.View
 }
 
 // InitializeSystem initializes the emulated PDP-11/40 hardware
 func InitializeSystem(
-	console *console.Console, terminalView, regView *gocui.View, gui *gocui.Gui) *System {
+	c console.Console, terminalView, regView *gocui.View, gui *gocui.Gui) *System {
 	sys := new(System)
-	sys.console = console
+	sys.console = c
 	sys.terminalView = terminalView
 	sys.regView = regView
 
 	// unibus
-	sys.unibus = unibus.New(&sys.psw, gui, console)
+	sys.unibus = unibus.New(&sys.psw, gui, &c)
 	sys.unibus.PdpCPU.Reset()
 
 	sys.unibus.WriteHello()
@@ -44,7 +44,7 @@ func InitializeSystem(
 	sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
 	sys.unibus.Rk01.Reset()
 
-	console.WriteConsole("Initializing PDP11 CPU.\n")
+	sys.console.WriteConsole("Initializing PDP11 CPU.\n")
 	sys.CPU = sys.unibus.PdpCPU
 	sys.CPU.State = unibus.CPURUN
 	return sys
