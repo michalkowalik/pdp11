@@ -49,8 +49,7 @@ func (sys *System) Boot() {
 	}
 
 	// set SP and PC to their starting address:
-	sys.CPU.Registers[7] = BOOTBASE
-	//sys.CPU.Registers[6] = BOOTBASE + 2
+	sys.CPU.Registers[7] = BOOTBASE + 2
 
 	// start execution
 	// sys.console.WriteConsole("Booting..\n")

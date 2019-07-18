@@ -520,12 +520,13 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
 	case 4:
 		// autodecrement - step depends on which register is in use:
+		// are there still DRAGONS here?
 		addressInc = 2
 		if (reg < 6) && (accessMode&ByteMode > 0) {
 			addressInc = 1
 		}
-		virtAddress = (c.Registers[reg] + addressInc) & 0xffff
 		c.Registers[reg] = (c.Registers[reg] - addressInc) & 0xffff
+		virtAddress = c.Registers[reg] & 0xffff
 	case 5:
 		// autodecrement deferred
 		virtAddress = (c.Registers[reg] - 2) & 0xffff

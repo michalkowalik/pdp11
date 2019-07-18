@@ -9,7 +9,7 @@ import (
 
 const (
 	// RKDEBUG flag to output extra info
-	RKDEBUG = false
+	RKDEBUG = true
 
 	rk5ImageLength = 2077696
 	// unibus Addresses:
@@ -165,7 +165,7 @@ func (r *RK11) write(address uint32, value uint16) {
 
 // Respond to GO bit set in RKCS - start operations
 func (r *RK11) rkgo() {
-	fmt.Printf("RK: It's a go!")
+	fmt.Printf("RK: It's a go, all engines running!\n")
 	switch (r.RKCS & 017) >> 1 {
 	case 0: // Control reset
 		r.Reset()
@@ -221,8 +221,6 @@ func (r *RK11) Step() {
 		return
 	}
 
-	fmt.Printf("RK: All engines running!")
-
 	if r.unit[r.drive] == nil {
 		r.rkError(rkNxd)
 	}
@@ -260,19 +258,18 @@ func (r *RK11) Step() {
 	// reaad complete sector:
 	for i := 0; i < 256 && r.RKWC != 0; i++ {
 		if isWrite {
-			val, err := r.unibus.ReadIOPage(uint32(r.RKBA), false)
-			if err != nil {
-				panic("Error reading from Unibus!")
-			}
+			val := r.unibus.Mmu.ReadMemoryWord(r.RKBA)
 			unit.rdisk[pos] = byte(val & 0xFF)
 			unit.rdisk[pos+1] = byte((val >> 8) & 0xFF)
 		} else {
+			if RKDEBUG {
+				fmt.Printf("RK read: BA: %o, Position: %o\n", r.RKBA, pos)
+			}
 			// TODO: monitor if it's fine. this implementation does not take care of
 			// bits 4 and 5 of rkcs, which should be used on systems with extended memory
-			r.unibus.WriteIOPage(
-				uint32(r.RKBA),
-				uint16(unit.rdisk[pos])|uint16(unit.rdisk[pos+1])<<8,
-				false)
+			r.unibus.Mmu.WriteMemoryWord(
+				r.RKBA,
+				uint16(unit.rdisk[pos])|uint16(unit.rdisk[pos+1])<<8)
 		}
 		r.RKBA += 2
 		pos += 2

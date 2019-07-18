@@ -189,7 +189,7 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 		u.Mmu.SR2 = data
 		return nil
 	case physicalAddress&0777760 == RK11Addr:
-		// don't do anything yet!
+		u.Rk01.write(physicalAddress, data)
 		return nil
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
 		u.Mmu.writePage(physicalAddress, data)
