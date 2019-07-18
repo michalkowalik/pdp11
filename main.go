@@ -141,7 +141,7 @@ func updateRegisters(pdp *system.System, g *gocui.Gui) {
 					return err
 				}
 				v.Clear()
-				fmt.Fprintf(v, pdp.CPU.DumpRegisters(v))
+				fmt.Fprintf(v, pdp.CPU.DumpRegisters())
 				return nil
 			})
 			i++

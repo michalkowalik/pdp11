@@ -6,8 +6,6 @@ import (
 	"pdp/interrupts"
 	"pdp/psw"
 	"strings"
-
-	"github.com/jroimartin/gocui"
 )
 
 // memory related constans (by far not all needed -- figuring out as while writing)
@@ -399,7 +397,7 @@ func (c *CPU) writeByte(op, value uint16) error {
 }
 
 // DumpRegisters displays register values
-func (c *CPU) DumpRegisters(regView *gocui.View) string {
+func (c *CPU) DumpRegisters() string {
 	var res strings.Builder
 	for i, reg := range c.Registers {
 		fmt.Fprintf(&res, " |R%d: %#o | ", i, reg)

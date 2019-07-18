@@ -8,6 +8,9 @@ import (
 )
 
 const (
+	// RKDEBUG flag to output extra info
+	RKDEBUG = false
+
 	rk5ImageLength = 2077696
 	// unibus Addresses:
 	rkdsAddress = 0777400
@@ -103,6 +106,9 @@ func (r *RK11) rkNotReady() {
 
 // read and return drive register value
 func (r *RK11) read(address uint32) uint16 {
+	if RKDEBUG {
+		fmt.Printf("RK: Reading from address %o\n", address)
+	}
 	switch address {
 	case rkdsAddress:
 		return r.RKDS
@@ -159,6 +165,7 @@ func (r *RK11) write(address uint32, value uint16) {
 
 // Respond to GO bit set in RKCS - start operations
 func (r *RK11) rkgo() {
+	fmt.Printf("RK: It's a go!")
 	switch (r.RKCS & 017) >> 1 {
 	case 0: // Control reset
 		r.Reset()
@@ -213,6 +220,9 @@ func (r *RK11) Step() {
 	if !r.running {
 		return
 	}
+
+	fmt.Printf("RK: All engines running!")
+
 	if r.unit[r.drive] == nil {
 		r.rkError(rkNxd)
 	}

@@ -58,9 +58,8 @@ type Unibus struct {
 	Rk01 *RK11
 }
 
-// attached devices:
+// attached devices (terminal is a special case so far..)
 var (
-	// 2. terminal:
 	termEmulator teletype.Teletype
 )
 

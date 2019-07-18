@@ -93,6 +93,10 @@ func (sys *System) step() {
 
 	}
 
+	// register status before execution
+	// DEBUG
+	sys.console.WriteConsole(sys.CPU.DumpRegisters())
+
 	// execute next CPU instruction
 	sys.CPU.Execute()
 	sys.CPU.ClockCounter++

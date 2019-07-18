@@ -36,3 +36,12 @@ func TestRK11_Attach(t *testing.T) {
 		})
 	}
 }
+
+// this is more of a component test - I need here
+// a complete system env. with cpu, unibus and mmu
+// the plan is to load values to rkda, rkcs, wc and trigger
+// the "go" programatically. - just take a piece of boottrap code
+// and see what the heck is happening there.
+func TestRK11_Initialize(t *testing.T) {
+
+}
