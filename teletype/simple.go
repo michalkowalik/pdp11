@@ -196,6 +196,9 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 
 // ReadTerm : read from terminal memory at address address
 func (t *Simple) ReadTerm(address uint32) (uint16, error) {
+
+	fmt.Printf("Attempting to read from teletype \n")
+
 	switch address & 0777 {
 	case 0560:
 		return t.TKS, nil

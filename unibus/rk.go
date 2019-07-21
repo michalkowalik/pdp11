@@ -33,7 +33,11 @@ type RK11 struct {
 	RKDS uint16
 	RKER uint16
 	RKCS uint16
-	RKWC uint16
+
+	// we do want to have RKWC as signed integer, as it is for whatever reason
+	// counting up to zero starting with negative value. not sure what were they
+	// smoking at DEC back then.
+	RKWC int
 	RKBA uint16
 	DKDA uint16
 
@@ -117,7 +121,7 @@ func (r *RK11) read(address uint32) uint16 {
 	case rkcsAddress:
 		return r.RKCS
 	case rkwcAddress:
-		return r.RKWC
+		return uint16(r.RKWC)
 	case rkbaAddress:
 		return r.RKBA
 	case rkdaAddress:
@@ -149,7 +153,7 @@ func (r *RK11) write(address uint32, value uint16) {
 			r.rkgo()
 		}
 	case rkwcAddress:
-		r.RKWC = value
+		r.RKWC = int(int(^value+1) * -1)
 	case rkbaAddress:
 		r.RKBA = value
 	case rkdaAddress:
@@ -165,7 +169,10 @@ func (r *RK11) write(address uint32, value uint16) {
 
 // Respond to GO bit set in RKCS - start operations
 func (r *RK11) rkgo() {
-	fmt.Printf("RK: It's a go, all engines running!\n")
+	if RKDEBUG {
+		fmt.Printf("RK: It's a go, all engines running!\n")
+		fmt.Printf("RKWC: %o\n", r.RKWC)
+	}
 	switch (r.RKCS & 017) >> 1 {
 	case 0: // Control reset
 		r.Reset()
@@ -263,7 +270,7 @@ func (r *RK11) Step() {
 			unit.rdisk[pos+1] = byte((val >> 8) & 0xFF)
 		} else {
 			if RKDEBUG {
-				fmt.Printf("RK read: BA: %o, Position: %o\n", r.RKBA, pos)
+				fmt.Printf("RK read: RKBA: %o, RKWC: %d, Position: %o\n", r.RKBA, r.RKWC, pos)
 			}
 			// TODO: monitor if it's fine. this implementation does not take care of
 			// bits 4 and 5 of rkcs, which should be used on systems with extended memory
@@ -273,7 +280,7 @@ func (r *RK11) Step() {
 		}
 		r.RKBA += 2
 		pos += 2
-		r.RKWC = (r.RKWC + 1) & 0xFFFF
+		r.RKWC++
 	}
 	r.sector++
 	if r.sector > 13 {
@@ -290,6 +297,7 @@ func (r *RK11) Step() {
 
 	// RKWC == 0 -> transfer is completed. if bit 6 set in RKCS, interrupt should be sent.
 	if r.RKWC == 0 {
+		fmt.Printf("RKWC: 0, transfer complete, RKCS: %o\n", r.RKCS)
 		r.running = false
 		r.rkReady()
 		if r.RKCS&(1<<6) != 0 {

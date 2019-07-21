@@ -136,6 +136,8 @@ func (sys *System) handleTraps() {
 //    makes sure to set the stack and PSW back to where it belongs
 // TODO: wouldn't it make sense to move this method to CPU?
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
+	sys.console.WriteConsole(
+		fmt.Sprintf("Processing interrupt %v\n", interrupt))
 	prev := sys.psw.Get()
 	defer func(prev uint16) {
 		t := recover()
