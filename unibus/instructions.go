@@ -424,12 +424,12 @@ func (c *CPU) cmpOp(instruction uint16) error {
 	sourceVal := c.readWord(uint16(source))
 	destVal := c.readWord(uint16(dest))
 
-	res := sourceVal - destVal
+	res := int(sourceVal) - int(destVal)
 
 	c.SetFlag("N", res < 0)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("C", sourceVal < destVal)
-	c.SetFlag("V", getSignWord((sourceVal^destVal)&(^destVal^res)) == 1)
+	c.SetFlag("V", getSignWord((sourceVal^destVal)&(^destVal^uint16(res))) == 1)
 
 	return nil
 }
@@ -541,6 +541,11 @@ func (c *CPU) bisbOp(instruction uint16) error {
 
 // jsr - jump to subroutine
 func (c *CPU) jsrOp(instruction uint16) error {
+	register := (instruction >> 6) & 7
+	destination := uint16(instruction & 077)
+	c.Push(uint16(c.Registers[register]))
+	c.Registers[register] = c.Registers[7]
+	c.Registers[7] = c.readWord(destination)
 	return nil
 }
 

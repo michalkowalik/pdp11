@@ -285,6 +285,9 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 func (c *CPU) Execute() {
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
+
+	fmt.Printf("INST: %06o\t\tREG: %s\n", instruction, c.DumpRegisters())
+
 	opcode(instruction)
 }
 
@@ -400,7 +403,7 @@ func (c *CPU) writeByte(op, value uint16) error {
 func (c *CPU) DumpRegisters() string {
 	var res strings.Builder
 	for i, reg := range c.Registers {
-		fmt.Fprintf(&res, " |R%d: %#o | ", i, reg)
+		fmt.Fprintf(&res, " |R%d: %06o | ", i, reg)
 	}
 	return res.String()
 }

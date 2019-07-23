@@ -150,5 +150,5 @@ func (c *CPU) bhisOp(instruction uint16) error {
 
 // blo - branch if lower
 func (c *CPU) bloOp(instruction uint16) error {
-	return c.bccOp(instruction)
+	return c.bcsOp(instruction)
 }
