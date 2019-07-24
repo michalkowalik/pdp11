@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"pdp/interrupts"
 	"pdp/psw"
+	"reflect"
+	"runtime"
 	"strings"
 )
 
@@ -286,7 +288,8 @@ func (c *CPU) Execute() {
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
 
-	fmt.Printf("INST: %06o\t\tREG: %s\n", instruction, c.DumpRegisters())
+	opCodeName := runtime.FuncForPC(reflect.ValueOf(opcode).Pointer()).Name()
+	fmt.Printf("INST: %06o |\tOPCODE: %s |\tREG: %s\n", instruction, opCodeName, c.DumpRegisters())
 
 	opcode(instruction)
 }
