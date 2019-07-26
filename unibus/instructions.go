@@ -546,6 +546,10 @@ func (c *CPU) jsrOp(instruction uint16) error {
 	c.Push(uint16(c.Registers[register]))
 	c.Registers[register] = c.Registers[7]
 	c.Registers[7] = c.readWord(destination)
+
+	// tmp only:
+	// c.mmunit.DumpMemory()
+
 	return nil
 }
 
