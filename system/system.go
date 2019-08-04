@@ -41,7 +41,9 @@ func InitializeSystem(
 
 	// mount drive
 	// TODO: clean it up!
-	sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
+	// sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
+	sys.unibus.Rk01.Attach(0, "/Users/mkowalik/src/pdp/images/rk0.img")
+	// sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rt11.iso")
 	sys.unibus.Rk01.Reset()
 
 	sys.console.WriteConsole("Initializing PDP11 CPU.\n")
@@ -95,6 +97,14 @@ func (sys *System) step() {
 
 	// execute next CPU instruction
 	sys.CPU.Execute()
+
+	// dump memory map.
+	// remove afterwards
+	//if sys.CPU.Registers[7] == 02070 {
+	//	sys.unibus.Mmu.DumpMemory()
+	//	panic("quit now")
+	//}
+
 	sys.CPU.ClockCounter++
 	if sys.CPU.ClockCounter >= 40000 {
 		sys.CPU.ClockCounter = 0

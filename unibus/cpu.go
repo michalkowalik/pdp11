@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"pdp/interrupts"
 	"pdp/psw"
-	"reflect"
-	"runtime"
 	"strings"
 )
 
@@ -288,9 +286,10 @@ func (c *CPU) Execute() {
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
 
-	opCodeName := runtime.FuncForPC(reflect.ValueOf(opcode).Pointer()).Name()
-	fmt.Printf("INST: %06o |\tOPCODE: %s |\tREG: %s\n", instruction, opCodeName, c.DumpRegisters())
-
+	//opCodeName := runtime.FuncForPC(reflect.ValueOf(opcode).Pointer()).Name()
+	//fmt.Printf("INST: %06o |\tOPCODE: %s | ", instruction, opCodeName)
+	c.printState(instruction)
+	fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
 	opcode(instruction)
 }
 
@@ -406,9 +405,21 @@ func (c *CPU) writeByte(op, value uint16) error {
 func (c *CPU) DumpRegisters() string {
 	var res strings.Builder
 	for i, reg := range c.Registers {
-		fmt.Fprintf(&res, " |R%d: %06o | ", i, reg)
+		fmt.Fprintf(&res, "R%d %06o ", i, reg)
 	}
-	return res.String()
+	s := res.String()
+	return s[:(len(s) - 1)]
+}
+
+func (c *CPU) printState(instruction uint16) {
+	//registers
+	fmt.Printf("%s\n", c.DumpRegisters())
+
+	// flags
+	fmt.Printf("%s ", c.mmunit.unibus.psw.GetFlags())
+
+	// instruction
+	fmt.Printf(" instr %06o: %06o   ", c.Registers[7]-2, instruction)
 }
 
 //SetFlag sets CPU carry flag in Processor Status Word

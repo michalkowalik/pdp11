@@ -282,6 +282,11 @@ func (c *CPU) rolbOp(instruction uint16) error {
 
 // jmp - jump to address:
 func (c *CPU) jmpOp(instruction uint16) error {
+	dest := c.readWord(uint16(instruction & 077))
+	if instruction&070 == 0 {
+		panic("JMP: Can't jump to register")
+	}
+	c.Registers[7] = dest
 	return nil
 }
 
@@ -350,7 +355,7 @@ func (c *CPU) movOp(instruction uint16) error {
 
 	sourceVal := c.readWord(uint16(source))
 	c.writeWord(uint16(dest), sourceVal)
-	c.SetFlag("N", source < 0)
+	c.SetFlag("N", (sourceVal&0100000) > 0)
 	c.SetFlag("Z", sourceVal == 0)
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
@@ -420,17 +425,17 @@ func (c *CPU) resetOp(instruction uint16) error {
 func (c *CPU) cmpOp(instruction uint16) error {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
+	msb := uint16(0100000)
 
 	sourceVal := c.readWord(uint16(source))
 	destVal := c.readWord(uint16(dest))
 
-	res := int(sourceVal) - int(destVal)
+	res := sourceVal + (^(destVal) + 1)
 
-	c.SetFlag("N", res < 0)
+	c.SetFlag("N", (res&msb) > 0)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("C", sourceVal < destVal)
-	c.SetFlag("V", getSignWord((sourceVal^destVal)&(^destVal^uint16(res))) == 1)
-
+	c.SetFlag("V", (sourceVal^destVal)&msb == msb && !((destVal^res)&msb == msb))
 	return nil
 }
 

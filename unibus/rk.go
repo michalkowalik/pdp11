@@ -9,7 +9,7 @@ import (
 
 const (
 	// RKDEBUG flag to output extra info
-	RKDEBUG = true
+	RKDEBUG = false
 
 	rk5ImageLength = 2077696
 	// unibus Addresses:

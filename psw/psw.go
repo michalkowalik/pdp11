@@ -119,3 +119,29 @@ func (psw *PSW) setFlag(flag uint, status bool) {
 		*psw &^= (1 << flag)
 	}
 }
+
+// GetFlags returns set flags
+func (psw *PSW) GetFlags() string {
+	var flags string
+	if psw.N() {
+		flags += "N"
+	} else {
+		flags += " "
+	}
+	if psw.Z() {
+		flags += "Z"
+	} else {
+		flags += " "
+	}
+	if psw.V() {
+		flags += "V"
+	} else {
+		flags += " "
+	}
+	if psw.C() {
+		flags += "C"
+	} else {
+		flags += " "
+	}
+	return "[kK" + flags + "]"
+}
