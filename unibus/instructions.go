@@ -282,7 +282,7 @@ func (c *CPU) rolbOp(instruction uint16) error {
 
 // jmp - jump to address:
 func (c *CPU) jmpOp(instruction uint16) error {
-	dest := c.readWord(uint16(instruction & 077))
+	dest, _ := c.GetVirtualByMode(instruction&077, 0) // c.readWord(uint16(instruction & 077))
 	if instruction&070 == 0 {
 		panic("JMP: Can't jump to register")
 	}

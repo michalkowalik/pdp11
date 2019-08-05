@@ -161,7 +161,6 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 		return u.Mmu.SR2, nil
 	case physicalAddress&0777760 == RK11Addr:
 		v := u.Rk01.read(physicalAddress)
-		// fmt.Printf("v: %x\n", v)
 		return v, nil
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
 		return u.Mmu.readPage(physicalAddress), nil
