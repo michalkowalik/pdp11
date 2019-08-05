@@ -19,6 +19,7 @@ const (
 	PSWAddr     = 0777776
 	SR0Addr     = 0777572
 	SR2Addr     = 0777576
+	RegAddr     = 0777700
 
 	DEBUG = true
 )
@@ -148,11 +149,24 @@ func (u *Unibus) WriteHello() {
 	}
 }
 
+// get Register value for address:
+func (u *Unibus) getRegisterValue(addr uint32) uint16 {
+	reg := (addr & 77) / 2
+	return u.PdpCPU.Registers[reg]
+}
+
+func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
+	reg := (addr & 77) / 2
+	u.PdpCPU.Registers[reg] = data
+}
+
 // ReadIOPage reads from unibus devices.
 func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
 	switch {
 	case physicalAddress == PSWAddr:
 		return u.psw.Get(), nil
+	case physicalAddress&RegAddr == RegAddr:
+		return u.getRegisterValue(physicalAddress), nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		return termEmulator.ReadTerm(physicalAddress)
 	case physicalAddress == SR0Addr:
@@ -175,6 +189,12 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 // TODO: that signature smells funny. better to resign from that error return type ?
 func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
 	switch {
+	case physicalAddress == PSWAddr:
+		u.psw.Set(data)
+		return nil
+	case physicalAddress&RegAddr == RegAddr:
+		u.setRegisterValue(physicalAddress, data)
+		return nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		termEmulator.GetIncoming() <- teletype.Instruction{
 			Address: physicalAddress,

@@ -11,7 +11,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as while writing)
 const (
 	// add debug output to the console
-	debug = true
+	debug = false
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1

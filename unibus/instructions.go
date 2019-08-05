@@ -550,7 +550,7 @@ func (c *CPU) jsrOp(instruction uint16) error {
 	destination := uint16(instruction & 077)
 	c.Push(uint16(c.Registers[register]))
 	c.Registers[register] = c.Registers[7]
-	c.Registers[7] = c.readWord(destination)
+	c.Registers[7], _ = c.GetVirtualByMode(destination, 0)
 
 	// tmp only:
 	// c.mmunit.DumpMemory()
