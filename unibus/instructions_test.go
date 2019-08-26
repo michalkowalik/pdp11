@@ -53,10 +53,7 @@ func TestCPU_clrOp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := c.clrOp(tt.args.instruction)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CPU.clrOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			c.clrOp(tt.args.instruction)
 			// also: check if value is really 0:
 			op := uint16(tt.args.instruction) & 077
 			t.Logf("instruction: %x, op: %x\n", tt.args.instruction, op)
@@ -91,10 +88,9 @@ func TestCPU_addOp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := c.addOp(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.addOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			// also -> check value
+			c.addOp(tt.args.instruction)
+			
+			//check value
 			w := c.readWord(uint16(tt.args.instruction & 077))
 			t.Logf("Value at dst: %x\n", w)
 			if int16(w) != tt.wantRes {
@@ -123,9 +119,7 @@ func TestCPU_movOp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := c.movOp(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.movOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			c.movOp(tt.args.instruction)
 			d := c.readWord(uint16(tt.args.instruction & 077))
 
 			if int16(d) != tt.dst {
@@ -156,9 +150,7 @@ func TestCPU_movbOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opcode := c.Decode(tt.args.instruction)
-			if err := opcode(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.movOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			opcode(tt.args.instruction)
 			d := c.readWord(tt.args.instruction & 077)
 
 			if d != tt.dst {
@@ -195,9 +187,7 @@ func TestCPU_comOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opcode := c.Decode(uint16(tt.args.instruction))
-			if err := opcode(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.comOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			opcode(tt.args.instruction)
 			d := c.readWord(uint16(tt.args.instruction & 077))
 
 			if d != tt.dst {
@@ -235,9 +225,7 @@ func TestCPU_incOp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c.Registers[0] = tt.regVal
 			instruction := c.Decode(uint16(tt.args.instruction))
-			if err := instruction(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.incOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			instruction(tt.args.instruction)
 
 			d := c.readWord(uint16(tt.args.instruction & 077))
 			if d != tt.dst {
@@ -284,9 +272,7 @@ func TestCPU_negOp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c.Registers[0] = tt.regVal
 			instruction := c.Decode(uint16(tt.args.instruction))
-			if err := instruction(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.negOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			instruction(tt.args.instruction)
 			if c.Registers[0] != tt.dst {
 				t.Errorf("\"%s\" ERROR: expected %v, got %v\n",
 					tt.name, tt.dst, c.Registers[0])
@@ -333,9 +319,7 @@ func TestCPU_adcOp(t *testing.T) {
 			c.Registers[0] = tt.regVal
 			c.SetFlag("C", tt.origCFlag)
 			instruction := c.Decode(uint16(tt.args.instruction))
-			if err := instruction(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.adcOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			instruction(tt.args.instruction)
 			if c.Registers[0] != tt.dst {
 				t.Errorf("ADC returned unexpected result. expected %v, got %v\n",
 					tt.dst, c.Registers[0])
@@ -374,9 +358,7 @@ func TestCPU_xorOp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := c.xorOp(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.xorOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			c.xorOp(tt.args.instruction)
 			w := c.readWord(uint16(tt.args.instruction & 077))
 			t.Logf("Value at dst: %x \n", w)
 			if w != tt.wantRes {
@@ -409,9 +391,7 @@ func TestCPU_ashcOp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c.SetFlag("C", false)
 			ashcLoadRegisters(tt.args.instruction, tt.rValue, tt.rPlusValue)
-			if err := c.ashcOp(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.ashcOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			c.ashcOp(tt.args.instruction)
 
 			// assert the register and flag values after the op
 			if err := assertRegistersShifted(
@@ -484,9 +464,7 @@ func TestCPU_ashOp(t *testing.T) {
 			c.SetFlag("C", false)
 			register := (tt.args.instruction >> 6) & 7
 			c.Registers[register] = tt.rValue
-			if err := c.ashOp(tt.args.instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.ashOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			c.ashOp(tt.args.instruction)
 
 			// assert values of shifted register:
 			if c.Registers[register] != tt.rExpectedVal {
@@ -527,9 +505,7 @@ func TestCPU_subOp(t *testing.T) {
 		c.Registers[0] = uint16(tt.r0Val)
 		c.Registers[1] = uint16(tt.r1Val)
 		t.Run(tt.name, func(t *testing.T) {
-			if err := c.subOp(instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.subOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			c.subOp(instruction)
 
 			// assert value
 			if c.Registers[1] != uint16(tt.res) {
@@ -563,9 +539,7 @@ func TestCPU_bicOp(t *testing.T) {
 		c.Registers[0] = tt.r0Val
 		c.Registers[1] = tt.r1Val
 		t.Run(tt.name, func(t *testing.T) {
-			if err := c.bicOp(instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.bicOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			c.bicOp(instruction)
 
 			// assert value
 			if c.Registers[1] != tt.res {
@@ -625,10 +599,8 @@ func TestCPU_swabOp(t *testing.T) {
 		c.Registers[0] = tt.r0Val
 		t.Run(tt.name, func(t *testing.T) {
 			swabOpcode := c.Decode(instruction)
-			if err := swabOpcode(instruction); (err != nil) != tt.wantErr {
-				t.Errorf("CPU.swabOp() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
+			swabOpcode(instruction)
+			
 			// assert value:
 			if c.Registers[0] != tt.swappedVal {
 				t.Errorf("cpu.swapbOp r0 = %x, exp -> %x", c.Registers[0], tt.swappedVal)
