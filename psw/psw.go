@@ -41,6 +41,11 @@ func (psw *PSW) GetMode() uint16 {
 	return uint16(*psw >> 14)
 }
 
+// GetPreviousMode returns previous system mode: 3 for user, 0 for kernel
+func (psw *PSW) GetPreviousMode() uint16 {
+	return uint16((*psw >> 12) & 03)
+}
+
 // SwitchMode sets CPU into user or kernel mode and saves previous mode to
 // psw previous mode field (bits 12, 13)
 // short reminder: 00 means kernel, b11 means user
@@ -123,6 +128,17 @@ func (psw *PSW) setFlag(flag uint, status bool) {
 // GetFlags returns set flags
 func (psw *PSW) GetFlags() string {
 	var flags string
+	if psw.GetPreviousMode() > 0 {
+		flags = "u"
+	} else {
+		flags = "k"
+	}
+	if psw.GetMode() > 0 {
+		flags += "U"
+	} else {
+		flags += "K"
+	}
+
 	if psw.N() {
 		flags += "N"
 	} else {
@@ -143,5 +159,5 @@ func (psw *PSW) GetFlags() string {
 	} else {
 		flags += " "
 	}
-	return "[kK" + flags + "]"
+	return "[" + flags + "]"
 }
