@@ -1,9 +1,5 @@
 package unibus
 
-import (
-	"pdp/psw"
-)
-
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
@@ -13,7 +9,7 @@ func getSignWord(i uint16) uint16 {
 }
 
 // single operand cpu instructions:
-func (c *CPU) clrOp(instruction uint16) error {
+func (c *CPU) clrOp(instruction uint16) {
 	// address mode 0 -> clear register
 	if addressMode := instruction & 0x38; addressMode == 0 {
 		c.Registers[instruction&7] = 0
@@ -27,30 +23,28 @@ func (c *CPU) clrOp(instruction uint16) error {
 	c.SetFlag("N", false)
 	c.SetFlag("V", false)
 	c.SetFlag("Z", true)
-	return nil
 }
 
 // clr Byte
-func (c *CPU) clrbOp(instruction uint16) error {
-	return c.clrOp(instruction)
+func (c *CPU) clrbOp(instruction uint16)  {
+	 c.clrOp(instruction)
 }
 
 // com - complement dst -> replace the contents of the destination address
 // by their logical complement (each bit equal 0 is set to 1, each 1 is cleared)
-func (c *CPU) comOp(instruction uint16) error {
+func (c *CPU) comOp(instruction uint16)  {
 	dest := c.readWord(uint16(instruction & 077))
 	c.writeWord(uint16(instruction&077), ^dest)
-	return nil
 }
 
-func (c *CPU) combOp(instruction uint16) error {
-	return c.comOp(instruction)
+func (c *CPU) combOp(instruction uint16) {
+	c.comOp(instruction)
 }
 
 // inc - increment dst
 // todo: make sure overflow is set properly
 // todo2: readWord should be able to handle reading operand with any addressing mode.
-func (c *CPU) incOp(instruction uint16) error {
+func (c *CPU) incOp(instruction uint16) {
 	if addressMode := instruction & 070; addressMode == 0 {
 		dst := c.Registers[instruction&7]
 		result := dst + 1
@@ -66,15 +60,14 @@ func (c *CPU) incOp(instruction uint16) error {
 		c.SetFlag("N", int16(res) < 0)
 		c.SetFlag("V", dst == 0x7FFF)
 	}
-	return nil
 }
 
-func (c *CPU) incbOp(instruction uint16) error {
-	return c.incOp(instruction)
+func (c *CPU) incbOp(instruction uint16) {
+	c.incOp(instruction)
 }
 
 // dec - decrement dst
-func (c *CPU) decOp(instruction uint16) error {
+func (c *CPU) decOp(instruction uint16) {
 	if addressMode := instruction & 070; addressMode == 0 {
 		dst := c.Registers[instruction&7]
 		result := dst - 1
@@ -90,17 +83,16 @@ func (c *CPU) decOp(instruction uint16) error {
 		c.SetFlag("N", int16(result) < 0)
 		c.SetFlag("V", dst == 0x7FFF)
 	}
-	return nil
 }
 
-func (c *CPU) decbOp(instruction uint16) error {
-	return c.decOp(instruction)
+func (c *CPU) decbOp(instruction uint16) {
+	c.decOp(instruction)
 }
 
 // neg - negate dst
 // replace the contents of the destination address
 // by it's 2 complement. 01000000 is replaced by itself
-func (c *CPU) negOp(instruction uint16) error {
+func (c *CPU) negOp(instruction uint16) {
 	dest := c.readWord(instruction)
 	result := ^dest + 1
 	c.writeWord(instruction, result)
@@ -108,10 +100,9 @@ func (c *CPU) negOp(instruction uint16) error {
 	c.SetFlag("N", int16(result) < 0)
 	c.SetFlag("V", result == 0x8000)
 	c.SetFlag("C", result != 0)
-	return nil
 }
 
-func (c *CPU) negbOp(instruction uint16) error {
+func (c *CPU) negbOp(instruction uint16) {
 	dest := c.readByte(instruction)
 	result := ^dest + 1
 	c.writeByte(instruction, uint16(result))
@@ -119,11 +110,10 @@ func (c *CPU) negbOp(instruction uint16) error {
 	c.SetFlag("N", result&0x80 > 0)
 	c.SetFlag("V", result == 0x80)
 	c.SetFlag("C", result != 0)
-	return nil
 }
 
 // adc - add cary
-func (c *CPU) adcOp(instruction uint16) error {
+func (c *CPU) adcOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 
 	result := dest
@@ -132,22 +122,21 @@ func (c *CPU) adcOp(instruction uint16) error {
 	}
 
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		return err
+		panic(err)
 	}
 
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("V", (dest == 077777) && c.GetFlag("C"))
 	c.SetFlag("C", (dest == 0xFFFF) && c.GetFlag("C"))
-	return nil
 }
 
-func (c *CPU) adcbOp(instruction uint16) error {
-	return c.adcOp(instruction)
+func (c *CPU) adcbOp(instruction uint16) {
+	c.adcOp(instruction)
 }
 
 // sbc - substract carry
-func (c *CPU) sbcOp(instruction uint16) error {
+func (c *CPU) sbcOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 	result := dest
 	if c.GetFlag("C") {
@@ -155,49 +144,46 @@ func (c *CPU) sbcOp(instruction uint16) error {
 	}
 
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		return err
+		panic(err)
 	}
 
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("V", dest == 0x8000)
 	c.SetFlag("V", (dest != 0) || c.GetFlag("C"))
-	return nil
 }
 
-func (c *CPU) sbcbOp(instruction uint16) error {
-	return c.sbcOp(instruction)
+func (c *CPU) sbcbOp(instruction uint16) {
+	c.sbcOp(instruction)
 }
 
 // tst - sets the condition cods N and Z according to the contents
 // of the destination address
-func (c *CPU) tstOp(instruction uint16) error {
+func (c *CPU) tstOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x8000) > 0)
 	c.SetFlag("V", false)
 	c.SetFlag("C", false)
-	return nil
 }
 
-func (c *CPU) tstbOp(instruction uint16) error {
+func (c *CPU) tstbOp(instruction uint16) {
 	dest := c.readByte(uint16(instruction & 077))
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x80) > 0)
 	c.SetFlag("V", false)
 	c.SetFlag("C", false)
-	return nil
 }
 
 // asr - arithmetic shift right
 // 	Shifts all bits of the destination right one place. Bit 15
 // is replicated. The C-bit is loaded from bit 0 of the destination.
 // ASR performs signed division of the destination by two.
-func (c *CPU) asrOp(instruction uint16) error {
+func (c *CPU) asrOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 	result := (dest & 0x8000) | (dest >> 1)
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		return err
+		panic(err)
 	}
 	c.SetFlag("C", (dest&1) == 1)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
@@ -205,11 +191,10 @@ func (c *CPU) asrOp(instruction uint16) error {
 
 	// V flag is a XOR on C and N flag, but golang doesn't provide boolean XOR
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
-	return nil
 }
 
-func (c *CPU) asrbOp(instruction uint16) error {
-	return c.asrOp(instruction)
+func (c *CPU) asrbOp(instruction uint16) {
+	c.asrOp(instruction)
 }
 
 // asl - arithmetic shift left
@@ -217,50 +202,49 @@ func (c *CPU) asrbOp(instruction uint16) error {
 // loaded with an 0. The C·bit of the status word is loaded from
 // the most significant bit of the destination. ASL performs a
 // signed multiplication of the destination by 2 with overflow indication.
-func (c *CPU) aslOp(instruction uint16) error {
+func (c *CPU) aslOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 	result := dest << 1
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		return err
+		panic(err)
 	}
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("C", (dest&0x8000) == 0x8000)
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
-	return nil
 }
 
-func (c *CPU) aslbOp(instruction uint16) error {
-	return c.aslOp(instruction)
+func (c *CPU) aslbOp(instruction uint16) {
+	c.aslOp(instruction)
 }
 
 // ror - rotate right
 // Rotates all bits of the destination right one place. Bit 0 is
 // loaded into the C-bit and the previous contents of the C-bit
 // are loaded into bit 15 of the destination.
-func (c *CPU) rorOp(instruction uint16) error {
+func (c *CPU) rorOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 	cBit := (dest & 1) << 15
 	result := (dest >> 1) | cBit
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		return err
+		panic(err)
 	}
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("C", cBit > 0)
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
-	return nil
 }
 
-func (c *CPU) rorbOp(instruction uint16) error {
-	return c.rorOp(instruction)
+// TODO -- really? no byte op??
+func (c *CPU) rorbOp(instruction uint16) {
+	c.rorOp(instruction)
 }
 
 // rol - rorare left
 // : Rotate all bits of the destination left one place. Bit 15
 // is loaded into the C·bit of the status word and the previous
 // contents of the C-bit are loaded into Bit 0 of the destination.
-func (c *CPU) rolOp(instruction uint16) error {
+func (c *CPU) rolOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 	c.SetFlag("C", (dest&0x8000) == 0x8000)
 	result := dest >> 1
@@ -268,26 +252,24 @@ func (c *CPU) rolOp(instruction uint16) error {
 		result = result | 1
 	}
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		return err
+		panic( err)
 	}
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
-	return nil
 }
 
-func (c *CPU) rolbOp(instruction uint16) error {
-	return c.rolOp(instruction)
+func (c *CPU) rolbOp(instruction uint16) {
+	c.rolOp(instruction)
 }
 
 // jmp - jump to address:
-func (c *CPU) jmpOp(instruction uint16) error {
+func (c *CPU) jmpOp(instruction uint16) {
 	dest, _ := c.GetVirtualByMode(instruction&077, 0) // c.readWord(uint16(instruction & 077))
 	if instruction&070 == 0 {
 		panic("JMP: Can't jump to register")
 	}
 	c.Registers[7] = dest
-	return nil
 }
 
 // swab - swap bytes
@@ -298,58 +280,56 @@ func (c *CPU) jmpOp(instruction uint16) error {
 // Z: set if low-order byte of result = 0; cleared otherwise
 // V: cleared
 // C: cleared
-func (c *CPU) swabOp(instruction uint16) error {
+func (c *CPU) swabOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 	result := (dest << 8) | (dest >> 8)
 
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		return err
+		panic( err)
 	}
 
 	c.SetFlag("N", (result&0x80) == 0x80)
 	c.SetFlag("Z", (result&0xff) == 0)
 	c.SetFlag("V", false)
 	c.SetFlag("C", false)
-	return nil
 }
 
 // mark - used as a part of subroutine return convention on pdp11
-func (c *CPU) markOp(instruction uint16) error {
-	return nil
+func (c *CPU) markOp(instruction uint16) {
+	panic("not implemented!")
 }
 
 // mfpi - move from previous instruction space
-func (c *CPU) mfpiOp(instruction uint16) error {
-	return nil
+func (c *CPU) mfpiOp(instruction uint16) {
+	panic("not implemented")
 }
 
 // mtpi - move to previous instruction space
-func (c *CPU) mtpiOp(instruction uint16) error {
-	return nil
+func (c *CPU) mtpiOp(instruction uint16) {
+	panic("not implemented")
 }
 
 // sxt - sign extended
 // If the condition code bit N is set then a -1 is placed in the
 // destination operand: if N bit is clear, then a 0 is placed in the
 // destination operand.
-func (c *CPU) sxtOp(instruction uint16) error {
+func (c *CPU) sxtOp(instruction uint16) {
 	res := 0
 	if c.GetFlag("N") {
 		res = -1
 	}
 
 	if err := c.writeWord(uint16(instruction&077), uint16(res)); err != nil {
-		return err
+		panic( err)
 	}
 
 	c.SetFlag("Z", !c.GetFlag("N"))
-	return nil
 }
 
 // double operand cpu instructions:
 
 // move (1)
-func (c *CPU) movOp(instruction uint16) error {
+func (c *CPU) movOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
@@ -359,70 +339,61 @@ func (c *CPU) movOp(instruction uint16) error {
 	c.SetFlag("Z", sourceVal == 0)
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
-	return nil
 }
 
 // movb
 // TODO: Finish implementation
-func (c *CPU) movbOp(instruction uint16) error {
-	return c.movOp(instruction)
+func (c *CPU) movbOp(instruction uint16) {
+	panic("movb not implemented!")
+	// c.movOp(instruction)
 }
 
 // misc instructions (decode all bits)
 // halt
-func (c *CPU) haltOp(instruction uint16) error {
+func (c *CPU) haltOp(instruction uint16) {
 	// halt is an empty instruction. just stop CPU
 	c.State = HALT
-	return nil
 }
 
 // bpt - breakpoint trap
-func (c *CPU) bptOp(instruction uint16) error {
+func (c *CPU) bptOp(instruction uint16) {
 	// 14 is breakpoint trap vector
 	c.Trap(014)
-	return nil
 }
 
 // iot - i/o trap
-func (c *CPU) iotOp(instruction uint16) error {
+func (c *CPU) iotOp(instruction uint16) {
 	c.Trap(020)
-	return nil
 }
 
 // rti - return from interrupt
-func (c *CPU) rtiOp(instruction uint16) error {
+func (c *CPU) rtiOp(instruction uint16) {
 	c.Registers[7] = c.Pop()
-	tempPsw := psw.PSW(c.Pop())
+	//tempPsw := psw.PSW(c.Pop())
 	// TODO: add the psw modification if cpu in user mode
-
-	c.mmunit.Psw = &tempPsw
-	return nil
+	panic("PSW modification if cpu in user mode missing!")
+	//c.mmunit.Psw = &tempPsw
 }
 
 // rtt - return from trap
-func (c *CPU) rttOp(instruction uint16) error {
-	return c.rtiOp(instruction)
+func (c *CPU) rttOp(instruction uint16) {
+	c.rtiOp(instruction)
 }
 
 // wait for interrupt
 // check for interrupts here!!
-func (c *CPU) waitOp(instruction uint16) error {
+func (c *CPU) waitOp(instruction uint16) {
 	c.State = WAIT
-
-	// update display:
-
-	return nil
 }
 
 // Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
 // Implementation needs to wait for the unibus.
-func (c *CPU) resetOp(instruction uint16) error {
+func (c *CPU) resetOp(instruction uint16) {
 	c.Reset()
-	return nil
 }
 
 // compare (2)
-func (c *CPU) cmpOp(instruction uint16) error {
+func (c *CPU) cmpOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 	msb := uint16(0100000)
@@ -436,15 +407,14 @@ func (c *CPU) cmpOp(instruction uint16) error {
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("C", sourceVal < destVal)
 	c.SetFlag("V", (sourceVal^destVal)&msb == msb && !((destVal^res)&msb == msb))
-	return nil
 }
 
-func (c *CPU) cmpbOp(instruction uint16) error {
-	return c.cmpOp(instruction)
+func (c *CPU) cmpbOp(instruction uint16) {
+	c.cmpOp(instruction)
 }
 
 //add (6)
-func (c *CPU) addOp(instruction uint16) error {
+func (c *CPU) addOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
@@ -460,13 +430,11 @@ func (c *CPU) addOp(instruction uint16) error {
 
 	// this is possible, as type of sum is infered by compiler
 	c.SetFlag("C", sum > 0xffff)
-
 	c.writeWord(uint16(dest), uint16(sum)&0xffff)
-	return nil
 }
 
 // substract (16)
-func (c *CPU) subOp(instruction uint16) error {
+func (c *CPU) subOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
@@ -480,11 +448,10 @@ func (c *CPU) subOp(instruction uint16) error {
 	c.SetFlag("V", getSignWord((sourceVal^destVal)&(^destVal^res)) == 1)
 
 	c.writeWord(uint16(dest), uint16(res)&0xffff)
-	return nil
 }
 
 //bit (3)
-func (c *CPU) bitOp(instruction uint16) error {
+func (c *CPU) bitOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
@@ -495,15 +462,15 @@ func (c *CPU) bitOp(instruction uint16) error {
 	c.SetFlag("V", false)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("N", (res&0x8000) > 0)
-	return nil
 }
 
-func (c *CPU) bitbOp(instruction uint16) error {
-	return c.bitOp(instruction)
+func (c *CPU) bitbOp(instruction uint16) {
+	panic("really no bitb specific implementation needed?")
+	// c.bitOp(instruction)
 }
 
 // bit clear (4)
-func (c *CPU) bicOp(instruction uint16) error {
+func (c *CPU) bicOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
@@ -515,15 +482,14 @@ func (c *CPU) bicOp(instruction uint16) error {
 	c.SetFlag("N", (destVal&0x8000) > 0)
 	c.SetFlag("Z", destVal == 0)
 	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
-	return nil
 }
 
-func (c *CPU) bicbOp(instruction uint16) error {
-	return c.bicOp(instruction)
+func (c *CPU) bicbOp(instruction uint16) {
+	c.bicOp(instruction)
 }
 
 // bit inclusive or (5)
-func (c *CPU) bisOp(instruction uint16) error {
+func (c *CPU) bisOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
@@ -535,17 +501,17 @@ func (c *CPU) bisOp(instruction uint16) error {
 	c.SetFlag("N", (destVal&0x8000) > 0)
 	c.SetFlag("Z", destVal == 0)
 	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
-	return nil
 }
 
-func (c *CPU) bisbOp(instruction uint16) error {
-	return c.bisOp(instruction)
+func (c *CPU) bisbOp(instruction uint16) {
+	panic("no byte bisb implementation needed?")
+	// c.bisOp(instruction)
 }
 
 // RDD opcodes:
 
 // jsr - jump to subroutine
-func (c *CPU) jsrOp(instruction uint16) error {
+func (c *CPU) jsrOp(instruction uint16) {
 	register := (instruction >> 6) & 7
 	destination := uint16(instruction & 077)
 	c.Push(uint16(c.Registers[register]))
@@ -554,27 +520,25 @@ func (c *CPU) jsrOp(instruction uint16) error {
 
 	// tmp only:
 	// c.mmunit.DumpMemory()
-
-	return nil
 }
 
 // multiply (070) --> EIS option, but let's have it
-func (c *CPU) mulOp(instruction uint16) error {
-	return nil
+func (c *CPU) mulOp(instruction uint16) {
+	panic("mul not implemented")
 }
 
 // divide (071)
-func (c *CPU) divOp(instruction uint16) error {
-	return nil
+func (c *CPU) divOp(instruction uint16) {
+	panic("div not implemented")
 }
 
 // shift arithmetically
-func (c *CPU) ashOp(instruction uint16) error {
+func (c *CPU) ashOp(instruction uint16) {
 
 	register := (instruction >> 6) & 7
 	offset := uint16(instruction & 077)
 	if offset == 0 {
-		return nil
+		return
 	}
 	result := uint16(c.Registers[register])
 
@@ -603,16 +567,15 @@ func (c *CPU) ashOp(instruction uint16) error {
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", result < 0)
 	c.Registers[register] = result
-	return nil
 }
 
 // arithmetic shift combined (EIS option)
-func (c *CPU) ashcOp(instruction uint16) error {
+func (c *CPU) ashcOp(instruction uint16) {
 
 	var result uint32
 	offset := uint16(instruction & 077)
 	if offset == 0 {
-		return nil
+		return
 	}
 
 	register := (instruction >> 6) & 7
@@ -644,12 +607,10 @@ func (c *CPU) ashcOp(instruction uint16) error {
 	c.SetFlag("Z", result == 0)
 	// V flag set if the sign bit changed during the shift
 	c.SetFlag("V", (dst>>31) != (result>>31))
-
-	return nil
 }
 
 // xor
-func (c *CPU) xorOp(instruction uint16) error {
+func (c *CPU) xorOp(instruction uint16) {
 	sourceVal := c.Registers[(instruction>>6)&7]
 	dest := instruction & 077
 	destVal := c.readWord(uint16(dest))
@@ -659,40 +620,35 @@ func (c *CPU) xorOp(instruction uint16) error {
 	c.SetFlag("N", res < 0)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("V", false)
-
 	c.writeWord(uint16(dest), uint16(res))
-	return nil
 }
 
 // sob - substract one and branch (if not equal 0)
 // if value of the register sourceReg is not 0, susbtract
 // twice the value of the offset (lowest 6 bits) from the SP
-func (c *CPU) sobOp(instruction uint16) error {
+func (c *CPU) sobOp(instruction uint16) {
 	sourceReg := (instruction >> 6) & 7
 	c.Registers[sourceReg] = (c.Registers[sourceReg] - 1) & 0xffff
 	if c.Registers[sourceReg] != 0 {
 		c.Registers[7] = (c.Registers[7] - ((uint16(instruction) & 077) << 1)) & 0xffff
 	}
-	return nil
 }
 
 // trap opcodes:
 // emt - emulator trap - trap vector hardcoded to location 32
-func (c *CPU) emtOp(instruction uint16) error {
+func (c *CPU) emtOp(instruction uint16) {
 	c.Trap(32)
-	return nil
 }
 
 // trap
 // trap vector for TRAP is hardcoded for all PDP11s to memory location 34
-func (c *CPU) trapOp(instruction uint16) error {
+func (c *CPU) trapOp(instruction uint16) {
 	c.Trap(34)
-	return nil
 }
 
 // Single Register opcodes
 // rts - return from subroutine
-func (c *CPU) rtsOp(instruction uint16) error {
+func (c *CPU) rtsOp(instruction uint16) {
 	register := instruction & 7
 
 	// load Program Counter from register passed in instruction
@@ -700,12 +656,11 @@ func (c *CPU) rtsOp(instruction uint16) error {
 
 	// load word popped from processor stack to "register"
 	c.Registers[register] = c.Pop()
-	return nil
 }
 
 // clear flag opcodes
 // covers following operations: CLN, CLZ, CLV, CLC, CCC
-func (c *CPU) clearFlagOp(instruction uint16) error {
+func (c *CPU) clearFlagOp(instruction uint16) {
 
 	switch flag := instruction & 0777; flag {
 	case 0241:
@@ -725,12 +680,11 @@ func (c *CPU) clearFlagOp(instruction uint16) error {
 		c.SetFlag("C", false)
 		c.SetFlag("V", false)
 	}
-	return nil
 }
 
 // set flag opcodes
 // covers following operations: SEN, SEZ, SEV, SEC, SCC
-func (c *CPU) setFlagOp(instruction uint16) error {
+func (c *CPU) setFlagOp(instruction uint16) {
 	switch flag := instruction & 0777; flag {
 	case 0261:
 		c.SetFlag("C", true)
@@ -746,5 +700,4 @@ func (c *CPU) setFlagOp(instruction uint16) error {
 		c.SetFlag("C", true)
 		c.SetFlag("V", true)
 	}
-	return nil
 }
