@@ -26,13 +26,13 @@ func (c *CPU) clrOp(instruction uint16) {
 }
 
 // clr Byte
-func (c *CPU) clrbOp(instruction uint16)  {
-	 c.clrOp(instruction)
+func (c *CPU) clrbOp(instruction uint16) {
+	c.clrOp(instruction)
 }
 
 // com - complement dst -> replace the contents of the destination address
 // by their logical complement (each bit equal 0 is set to 1, each 1 is cleared)
-func (c *CPU) comOp(instruction uint16)  {
+func (c *CPU) comOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))
 	c.writeWord(uint16(instruction&077), ^dest)
 }
@@ -252,7 +252,7 @@ func (c *CPU) rolOp(instruction uint16) {
 		result = result | 1
 	}
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic( err)
+		panic(err)
 	}
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
@@ -285,7 +285,7 @@ func (c *CPU) swabOp(instruction uint16) {
 	result := (dest << 8) | (dest >> 8)
 
 	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic( err)
+		panic(err)
 	}
 
 	c.SetFlag("N", (result&0x80) == 0x80)
@@ -320,7 +320,7 @@ func (c *CPU) sxtOp(instruction uint16) {
 	}
 
 	if err := c.writeWord(uint16(instruction&077), uint16(res)); err != nil {
-		panic( err)
+		panic(err)
 	}
 
 	c.SetFlag("Z", !c.GetFlag("N"))

@@ -89,7 +89,7 @@ func TestCPU_addOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c.addOp(tt.args.instruction)
-			
+
 			//check value
 			w := c.readWord(uint16(tt.args.instruction & 077))
 			t.Logf("Value at dst: %x\n", w)
@@ -600,7 +600,7 @@ func TestCPU_swabOp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			swabOpcode := c.Decode(instruction)
 			swabOpcode(instruction)
-			
+
 			// assert value:
 			if c.Registers[0] != tt.swappedVal {
 				t.Errorf("cpu.swapbOp r0 = %x, exp -> %x", c.Registers[0], tt.swappedVal)

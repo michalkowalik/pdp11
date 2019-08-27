@@ -41,8 +41,8 @@ func InitializeSystem(
 
 	// mount drive
 	// TODO: clean it up!
-	// sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
-	sys.unibus.Rk01.Attach(0, "/Users/mkowalik/src/pdp/images/rk0.img")
+	sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
+	// sys.unibus.Rk01.Attach(0, "/Users/mkowalik/src/pdp/images/rk0.img")
 	// sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rt11.iso")
 	sys.unibus.Rk01.Reset()
 

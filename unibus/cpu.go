@@ -66,12 +66,12 @@ type CPU struct {
 	// the opcode function should append to the following signature:
 	// param: instruction int16
 	// return: error -> nil if everything went OK
-	singleOpOpcodes       map[uint16](func(uint16) )
-	doubleOpOpcodes       map[uint16](func(uint16) )
-	rddOpOpcodes          map[uint16](func(uint16) )
-	controlOpcodes        map[uint16](func(uint16) )
-	singleRegisterOpcodes map[uint16](func(uint16) )
-	otherOpcodes          map[uint16](func(uint16) )
+	singleOpOpcodes       map[uint16](func(uint16))
+	doubleOpOpcodes       map[uint16](func(uint16))
+	rddOpOpcodes          map[uint16](func(uint16))
+	controlOpcodes        map[uint16](func(uint16))
+	singleRegisterOpcodes map[uint16](func(uint16))
+	otherOpcodes          map[uint16](func(uint16))
 }
 
 /**
@@ -100,12 +100,12 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 	c.ClockCounter = 0
 
 	// single operand
-	c.singleOpOpcodes = make(map[uint16](func(uint16) ))
-	c.doubleOpOpcodes = make(map[uint16](func(uint16) ))
-	c.rddOpOpcodes = make(map[uint16](func(uint16) ))
-	c.controlOpcodes = make(map[uint16](func(uint16) ))
-	c.otherOpcodes = make(map[uint16](func(uint16) ))
-	c.singleRegisterOpcodes = make(map[uint16](func(uint16) ))
+	c.singleOpOpcodes = make(map[uint16](func(uint16)))
+	c.doubleOpOpcodes = make(map[uint16](func(uint16)))
+	c.rddOpOpcodes = make(map[uint16](func(uint16)))
+	c.controlOpcodes = make(map[uint16](func(uint16)))
+	c.otherOpcodes = make(map[uint16](func(uint16)))
+	c.singleRegisterOpcodes = make(map[uint16](func(uint16)))
 
 	// single opearnd:
 	c.singleOpOpcodes[0100] = c.jmpOp

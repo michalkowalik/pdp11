@@ -122,7 +122,7 @@ func (c *CPU) bhiOp(instruction uint16) {
 }
 
 // blos - branch if lower or same
-func (c *CPU) blosOp(instruction uint16)  {
+func (c *CPU) blosOp(instruction uint16) {
 	if c.GetFlag("C") != c.GetFlag("Z") {
 		c.Registers[7] = c.branch(instruction)
 	}
