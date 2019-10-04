@@ -69,6 +69,8 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan interrupts.Interrupt)
 	unibus.Traps = make(chan interrupts.Trap)
+
+	// todo: why does it fail on test?
 	unibus.controlConsole = *controlConsole
 	unibus.psw = psw
 
@@ -168,6 +170,7 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 	case physicalAddress&RegAddr == RegAddr:
 		return u.getRegisterValue(physicalAddress), nil
 	case physicalAddress&0777770 == ConsoleAddr:
+
 		return termEmulator.ReadTerm(physicalAddress)
 	case physicalAddress == SR0Addr:
 		return u.Mmu.SR0, nil
@@ -196,6 +199,7 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 		u.setRegisterValue(physicalAddress, data)
 		return nil
 	case physicalAddress&0777770 == ConsoleAddr:
+		fmt.Printf("Attempting to write to terminal")
 		termEmulator.GetIncoming() <- teletype.Instruction{
 			Address: physicalAddress,
 			Data:    data,

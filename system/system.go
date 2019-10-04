@@ -35,7 +35,6 @@ func InitializeSystem(
 	// unibus
 	sys.unibus = unibus.New(&sys.psw, gui, &c)
 	sys.unibus.PdpCPU.Reset()
-
 	sys.unibus.WriteHello()
 	sys.unibus.WriteHello()
 

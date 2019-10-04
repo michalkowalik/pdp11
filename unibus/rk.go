@@ -91,7 +91,7 @@ func (r *RK11) Attach(drive int, path string) error {
 
 	r.unit[drive] = unit
 
-	r.unibus.controlConsole.WriteConsole("disk mounted")
+	// r.unibus.controlConsole.WriteConsole("disk mounted")
 
 	return nil
 }
