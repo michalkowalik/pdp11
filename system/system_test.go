@@ -114,6 +114,7 @@ func TestRunCode(t *testing.T) {
 // the instruction is to start at memory address 0xff
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
+// TODO: Does it work at all?
 func TestRunBranchCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 	code := []uint16{
@@ -131,7 +132,6 @@ func TestRunBranchCode(t *testing.T) {
 
 	memPointer := 001000
 	for _, c := range code {
-
 		// this should be bytes in 1 word!
 		mm.Memory[memPointer] = uint16(c & 0xff)
 		mm.Memory[memPointer+1] = uint16(c >> 8)
