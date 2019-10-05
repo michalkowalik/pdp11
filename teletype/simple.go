@@ -94,7 +94,7 @@ func (t *Simple) initOutput() {
 func (t *Simple) Run() error {
 	t.TKS = 0
 	t.TPS = 1 << 7
-
+	fmt.Printf("starting console")
 	go func() error {
 		for {
 			instruction := <-t.Incoming
@@ -196,7 +196,14 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 
 // ReadTerm : read from terminal memory at address address
 func (t *Simple) ReadTerm(address uint32) (uint16, error) {
-	// fmt.Printf("Attempting to read from teletype \n")
+	fmt.Printf("Attempting to read from teletype from address %v \n", address)
+
+	/*
+		TODO: - why does it want ro read from terminal, if there was no attempt to write to it?
+			  - why does it want to read from character buffer??
+			  - check the debug output what has happened there.
+			  - have I got the addresses wrong?
+	*/
 
 	switch address & 0777 {
 	case 0560:

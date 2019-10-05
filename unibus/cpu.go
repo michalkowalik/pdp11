@@ -11,7 +11,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as while writing)
 const (
 	// add debug output to the console
-	debug = true
+	debug = false
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -290,9 +290,6 @@ func (c *CPU) Execute() {
 	opcode := c.Decode(instruction)
 
 	if debug {
-		//opCodeName := runtime.FuncForPC(reflect.ValueOf(opcode).Pointer()).Name()
-		//fmt.Printf("INST: %06o |\tOPCODE: %s | ", instruction, opCodeName)
-
 		c.printState(instruction)
 		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
 	}
