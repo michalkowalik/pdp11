@@ -344,8 +344,15 @@ func (c *CPU) movOp(instruction uint16) {
 // movb
 // TODO: Finish implementation
 func (c *CPU) movbOp(instruction uint16) {
-	panic("movb not implemented!")
-	// c.movOp(instruction)
+	source := (instruction & 07700) >> 6
+	dest := instruction & 077
+
+	sourceVal := c.readByte(uint16(source))
+	c.writeByte(uint16(dest), uint16(sourceVal))
+
+	c.SetFlag("Z", sourceVal == 0)
+	c.SetFlag("V", false)
+	c.SetFlag("N", (sourceVal&0200) > 0)
 }
 
 // misc instructions (decode all bits)
