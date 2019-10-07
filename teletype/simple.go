@@ -94,7 +94,7 @@ func (t *Simple) initOutput() {
 func (t *Simple) Run() error {
 	t.TKS = 0
 	t.TPS = 1 << 7
-	fmt.Printf("starting console")
+	fmt.Printf("starting console\n")
 	go func() error {
 		for {
 			instruction := <-t.Incoming

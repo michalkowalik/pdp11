@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()
-	sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
+	sys.unibus.Rk01.Attach(0, "/Users/mkowalik/src/pdp/images/rk0.img")
 	sys.unibus.Rk01.Reset()
 
 	sys.CPU = sys.unibus.PdpCPU

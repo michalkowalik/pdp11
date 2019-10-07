@@ -554,11 +554,13 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 		virtAddress = (c.Registers[reg] - 2) & 0xffff
 	case 6:
 		// index mode -> read next word to get the basis for address, add value in Register
-		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
-		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
+		//baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
+		//virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
+		offset := c.Fetch()
+		virtAddress = offset + c.Registers[reg]
 
 		// increment program counter register
-		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
+		// c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	case 7:
 		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
 		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
