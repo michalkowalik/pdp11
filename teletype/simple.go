@@ -2,15 +2,14 @@ package teletype
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"pdp/interrupts"
-	"time"
 )
 
 // Simple type  - simplest terminal emulator possible.
 type Simple struct {
-	// not really sure if it is a good choice for the input type
-	keybuffer uint16
+	keyboardInput chan uint8
 
 	// TKS : Reader status Register (addr. xxxx560)
 	// bits in register:
@@ -27,110 +26,126 @@ type Simple struct {
 	// ??
 	TPB uint16
 
-	// incoming and outgoing stream
-	// incoming for the events coming from the unibus:
-	// -> print char (and in this case it's probably everthing,
-	//    as there's not delete, no refresh and new line is basically
-	//    just another char)
-	// outgoing channel for communicating with unibus:
-	// trigger interrupt when sending a char
-
-	// Incoming channel
-	Incoming chan Instruction
-
-	// Outgoing channel
-	Outgoing chan uint16
-
-	// keystroke channel
-	keystrokes chan rune
-
-	// terminal out channel -> required, as due to way gocui refreshes the
-	// view, it needs to happen in the separate goroutine
-	consoleOut chan string
-
 	interrupts chan interrupts.Interrupt
 
-	// trying to synchronize the output...
-	done chan bool
+	// ready to receive next order
+	ready bool
 }
 
 // NewSimple returns new teletype object
-func NewSimple(
-	interrupts chan interrupts.Interrupt) *Simple {
+func NewSimple(interrupts chan interrupts.Interrupt) *Simple {
 	tele := Simple{}
 	tele.interrupts = interrupts
 
 	// initialize channels
-	tele.Incoming = make(chan Instruction)
-
-	// outgoing channel is bound to trigger the interrupt -
-	// the type needs to be changed probably as well.
-	tele.Outgoing = make(chan uint16)
-	tele.keystrokes = make(chan rune)
-	tele.consoleOut = make(chan string)
-	tele.done = make(chan bool)
-	tele.initOutput()
+	tele.keyboardInput = make(chan uint8)
 	return &tele
 }
 
 // GetIncoming returns incoming channel - needed for interface to work
+// dummy method to keep the interface definition happy
 func (t *Simple) GetIncoming() chan Instruction {
-	return t.Incoming
-}
-
-// add char ->
-
-// initOutput starts a goroutine reading from the consoleOut channel
-// and calling the gocui.gui.Update to modify the view.
-// t.done channel is used to force synchronization.
-// 1ms sleep is required to give the gocui enough time to print the character.
-// consult gocui documentation for further details.
-func (t *Simple) initOutput() {
-	go func() {
-		for {
-			s := <-t.consoleOut
-			os.Stdout.Write([]byte(s))
-			time.Sleep(1 * time.Millisecond)
-			t.done <- true
-		}
-	}()
+	return nil
 }
 
 // Run : Start the teletype
 // initialize the go routine to read from the incoming channel.
 func (t *Simple) Run() error {
+	t.clearTerminal()
+	fmt.Printf("starting teletype terminal\n")
+	go t.stdin()
+	return nil
+}
+
+// Step - single step in terminal operation.
+func (t *Simple) Step() {
+	if t.ready {
+		select {
+		case v, ok := <-t.keyboardInput:
+			if ok {
+				t.addChar(byte(v))
+			}
+		default:
+		}
+	}
+	// count == > do I need it at all?
+	if t.TPS&0x80 == 0 {
+		t.writeTerminal(int(t.TPB & 0x7F))
+		t.TPS |= 0x80
+		if t.TPS&(1<<6) != 0 {
+			t.interrupts <- interrupts.Interrupt{
+				Priority: 4,
+				Vector:   interrupts.TTYout}
+		}
+	}
+}
+
+func (t *Simple) stdin() {
+	var b [1]byte
+	for {
+		n, err := os.Stdin.Read(b[:])
+		if n == 1 {
+			t.keyboardInput <- b[0]
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func (t *Simple) clearTerminal() {
 	t.TKS = 0
 	t.TPS = 1 << 7
-	fmt.Printf("starting console\n")
-	go func() error {
-		for {
-			instruction := <-t.Incoming
-			if instruction.Read {
-				data, err := t.ReadTerm(instruction.Address)
-				if err != nil {
-					return err
-				}
-				t.Outgoing <- data
-			} else {
-				err := t.WriteTerm(instruction.Address, instruction.Data)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}()
-	t.consoleOut <- "-Teletype Initialized-\n"
-	<-t.done
-	return nil
+	t.TKB = 0
+	t.TPB = 0
+	t.ready = true
+}
+
+func (t *Simple) writeTerminal(char int) {
+	var outb [1]byte
+
+	switch char {
+	case 13:
+		//skip
+	default:
+		outb[0] = byte(char)
+		os.Stdout.Write(outb[:])
+	}
 }
 
 //getChar - return char from keybuffer set registers accordingly
 func (t *Simple) getChar() uint16 {
 	if t.TKS&0x80 != 0 {
 		t.TKS &= 0xFF7E
-		return t.keybuffer
+		t.ready = true
+		return t.TKB
 	}
 	return 0
+}
+
+func (t *Simple) addChar(char byte) {
+	fmt.Printf("adding char %v\n", char)
+	switch char {
+	case 42:
+		t.TKB = 4
+	case 19:
+		t.TKB = 034
+	case '\n':
+		t.TKB = '\r'
+	default:
+		t.TKB = uint16(char)
+	}
+
+	// fmt.Printf("DEBUG: TKB: %x\n", t.TKB)
+
+	t.TKS |= 0x80
+	// fmt.Printf("DEBUG: TKS: %x\n", t.TKS)
+	t.ready = false
+	if t.TKS&(1<<6) != 0 {
+		t.interrupts <- interrupts.Interrupt{
+			Priority: 4,
+			Vector:   interrupts.TTYin}
+	}
 }
 
 // WriteTerm : write to the terminal address:
@@ -138,6 +153,8 @@ func (t *Simple) getChar() uint16 {
 // addresses and the 18 bit, DEC defined addresses for the devices.
 // TODO: this method can be private!
 func (t *Simple) WriteTerm(address uint32, data uint16) error {
+	// fmt.Printf("DEBUG: Console Write to addr %o\n", address)
+
 	switch address & 0777 {
 
 	// keyboard control & status
@@ -164,46 +181,19 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
 	// so I'm skipping that part.
 	case 0566:
-		fmt.Printf("DEBUG TELETYPE OUT: %v, TPS: %v\n", data, t.TPS)
-		data = data & 0xFF
-		if t.TPS&0x80 == 0 {
-			fmt.Printf("breaking! data: %d, tps: %x\n", data, t.TPS)
-			break
-		}
-		if data == 13 {
-			break
-		}
-		t.consoleOut <- string(data & 0x7F)
-		<-t.done
+		//fmt.Printf("DEBUG TELETYPE OUT: %v, TPS: %v\n", data, t.TPS)
 
+		t.TPB = data & 0xFF
 		t.TPS &= 0xFF7F
-		t.TPS = t.TPS | 0x80
-		if t.TPS&(1<<6) != 0 {
-			// send interrupt
-			t.interrupts <- interrupts.Interrupt{
-				Priority: 4,
-				Vector:   interrupts.TTYout}
-		}
-		break
-
 	// any other address -> error
 	default:
-		return fmt.Errorf("Write to invalid address %o", address)
+		panic(fmt.Sprintf("Write to invalid address %o\n", address))
 	}
 	return nil
 }
 
 // ReadTerm : read from terminal memory at address address
 func (t *Simple) ReadTerm(address uint32) (uint16, error) {
-	fmt.Printf("Attempting to read from teletype from address %v \n", address)
-
-	/*
-		TODO: - why does it want ro read from terminal, if there was no attempt to write to it?
-			  - why does it want to read from character buffer??
-			  - check the debug output what has happened there.
-			  - have I got the addresses wrong?
-	*/
-
 	switch address & 0777 {
 	case 0560:
 		return t.TKS, nil

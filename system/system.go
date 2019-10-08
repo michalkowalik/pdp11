@@ -35,8 +35,8 @@ func InitializeSystem(
 	// unibus
 	sys.unibus = unibus.New(&sys.psw, gui, &c)
 	sys.unibus.PdpCPU.Reset()
-	sys.unibus.WriteHello()
-	sys.unibus.WriteHello()
+	//sys.unibus.WriteHello()
+	//sys.unibus.WriteHello()
 
 	// mount drive
 	// TODO: clean it up!
@@ -106,6 +106,7 @@ func (sys *System) step() {
 		}
 	}
 	sys.unibus.Rk01.Step()
+	sys.unibus.TermEmulator.Step()
 }
 
 // encapsulate in method

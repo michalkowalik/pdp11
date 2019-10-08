@@ -6,4 +6,5 @@ type Teletype interface {
 	WriteTerm(address uint32, data uint16) (err error)
 	ReadTerm(address uint32) (d uint16, err error)
 	GetIncoming() chan Instruction
+	Step()
 }

@@ -169,6 +169,7 @@ func (c *CPU) tstOp(instruction uint16) {
 
 func (c *CPU) tstbOp(instruction uint16) {
 	dest := c.readByte(uint16(instruction & 077))
+
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x80) > 0)
 	c.SetFlag("V", false)
@@ -472,8 +473,16 @@ func (c *CPU) bitOp(instruction uint16) {
 }
 
 func (c *CPU) bitbOp(instruction uint16) {
-	panic("really no bitb specific implementation needed?")
-	// c.bitOp(instruction)
+	source := (instruction & 07700) >> 6
+	dest := instruction & 7
+
+	sourceVal := c.readByte(source)
+	destVal := c.readByte(dest)
+
+	res := sourceVal & destVal
+	c.SetFlag("V", false)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", (res&0x80) > 0)
 }
 
 // bit clear (4)
