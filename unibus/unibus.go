@@ -3,8 +3,6 @@ package unibus
 import (
 	"errors"
 	"fmt"
-	"log"
-	"os"
 	"pdp/console"
 	"pdp/interrupts"
 	"pdp/psw"
@@ -22,8 +20,6 @@ const (
 	SR0Addr     = 0777572
 	SR2Addr     = 0777576
 	RegAddr     = 0777700
-
-	DEBUG = true
 )
 
 // Unibus definition
@@ -46,6 +42,9 @@ type Unibus struct {
 	// console
 	controlConsole console.Console
 
+	// terminal emulator
+	TermEmulator teletype.Teletype
+
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	// TODO: change to array!
 	InterruptQueue [8]interrupts.Interrupt
@@ -61,11 +60,6 @@ type Unibus struct {
 	Rk01 *RK11
 }
 
-// attached devices (terminal is a special case so far..)
-var (
-	termEmulator teletype.Teletype
-)
-
 // New initializes and returns the Unibus variable
 func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
@@ -80,11 +74,9 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.Mmu = NewMMU(psw, &unibus)
 	unibus.PdpCPU = NewCPU(unibus.Mmu)
 
-	termEmulator = teletype.NewSimple(unibus.Interrupts) //gui, controlConsole, unibus.Interrupts)
-	termEmulator.Run()
-
-	//enable stdin:
-	go stdin()
+	// TODO: it needs to be modified, in order to allow the GUI!
+	unibus.TermEmulator = teletype.NewSimple(unibus.Interrupts) //gui, controlConsole, unibus.Interrupts)
+	unibus.TermEmulator.Run()
 
 	unibus.Rk01 = NewRK(&unibus)
 
@@ -98,6 +90,8 @@ func (u *Unibus) processInterruptQueue() {
 	go func() error {
 		for {
 			interrupt := <-u.Interrupts
+
+			fmt.Printf("new interrupt\n")
 
 			if interrupt.Vector&1 == 1 {
 				panic("Interrupt with Odd vector number")
@@ -145,34 +139,6 @@ func (u *Unibus) processTraps() {
 	}()
 }
 
-// WriteHello : temp function, just to see if it works at all:
-func (u *Unibus) WriteHello() {
-	helloStr := "0_1.2_3.4_5.6_7.8_9.A_B.C_D.E_F\n"
-	for _, c := range helloStr {
-		termEmulator.GetIncoming() <- teletype.Instruction{
-			Address: 0566,
-			Data:    uint16(c),
-			Read:    false}
-	}
-}
-
-// at least temporarily:
-func stdin() {
-	var b [1]byte
-	for {
-		n, err := os.Stdin.Read(b[:])
-		if n == 1 {
-			termEmulator.GetIncoming() <- teletype.Instruction{
-				Address: 0566,
-				Data:    uint16(b[0]),
-				Read:    false}
-		}
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // get Register value for address:
 func (u *Unibus) getRegisterValue(addr uint32) uint16 {
 	reg := (addr & 77) / 2
@@ -192,7 +158,7 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 	case physicalAddress&RegAddr == RegAddr:
 		return u.getRegisterValue(physicalAddress), nil
 	case physicalAddress&0777770 == ConsoleAddr:
-		return termEmulator.ReadTerm(physicalAddress)
+		return u.TermEmulator.ReadTerm(physicalAddress)
 	case physicalAddress == SR0Addr:
 		return u.Mmu.SR0, nil
 	case physicalAddress == SR2Addr:
@@ -220,10 +186,7 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 		u.setRegisterValue(physicalAddress, data)
 		return nil
 	case physicalAddress&0777770 == ConsoleAddr:
-		termEmulator.GetIncoming() <- teletype.Instruction{
-			Address: physicalAddress,
-			Data:    data,
-			Read:    false}
+		u.TermEmulator.WriteTerm(physicalAddress, data)
 		return nil
 	case physicalAddress == SR0Addr:
 		u.Mmu.SR0 = data
