@@ -169,6 +169,7 @@ func (c *CPU) tstOp(instruction uint16) {
 
 func (c *CPU) tstbOp(instruction uint16) {
 	dest := c.readByte(uint16(instruction & 077))
+
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x80) > 0)
 	c.SetFlag("V", false)

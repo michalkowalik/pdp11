@@ -136,10 +136,10 @@ func (t *Simple) addChar(char byte) {
 		t.TKB = uint16(char)
 	}
 
-	fmt.Printf("DEBUG: TKB: %x\n", t.TKB)
+	// fmt.Printf("DEBUG: TKB: %x\n", t.TKB)
 
 	t.TKS |= 0x80
-	fmt.Printf("DEBUG: TKS: %x\n", t.TKS)
+	// fmt.Printf("DEBUG: TKS: %x\n", t.TKS)
 	t.ready = false
 	if t.TKS&(1<<6) != 0 {
 		t.interrupts <- interrupts.Interrupt{
@@ -153,7 +153,7 @@ func (t *Simple) addChar(char byte) {
 // addresses and the 18 bit, DEC defined addresses for the devices.
 // TODO: this method can be private!
 func (t *Simple) WriteTerm(address uint32, data uint16) error {
-	fmt.Printf("DEBUG: Console Write to addr %o\n", address)
+	// fmt.Printf("DEBUG: Console Write to addr %o\n", address)
 
 	switch address & 0777 {
 
@@ -181,7 +181,7 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
 	// so I'm skipping that part.
 	case 0566:
-		fmt.Printf("DEBUG TELETYPE OUT: %v, TPS: %v\n", data, t.TPS)
+		//fmt.Printf("DEBUG TELETYPE OUT: %v, TPS: %v\n", data, t.TPS)
 
 		t.TPB = data & 0xFF
 		t.TPS &= 0xFF7F
