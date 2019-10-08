@@ -157,7 +157,7 @@ func (c *CPU) sbcbOp(instruction uint16) {
 	c.sbcOp(instruction)
 }
 
-// tst - sets the condition cods N and Z according to the contents
+// tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
 	dest := c.readWord(uint16(instruction & 077))

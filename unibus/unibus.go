@@ -3,6 +3,8 @@ package unibus
 import (
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"pdp/console"
 	"pdp/interrupts"
 	"pdp/psw"
@@ -81,6 +83,9 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	termEmulator = teletype.NewSimple(unibus.Interrupts) //gui, controlConsole, unibus.Interrupts)
 	termEmulator.Run()
 
+	//enable stdin:
+	go stdin()
+
 	unibus.Rk01 = NewRK(&unibus)
 
 	unibus.processInterruptQueue()
@@ -151,6 +156,23 @@ func (u *Unibus) WriteHello() {
 	}
 }
 
+// at least temporarily:
+func stdin() {
+	var b [1]byte
+	for {
+		n, err := os.Stdin.Read(b[:])
+		if n == 1 {
+			termEmulator.GetIncoming() <- teletype.Instruction{
+				Address: 0566,
+				Data:    uint16(b[0]),
+				Read:    false}
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
 // get Register value for address:
 func (u *Unibus) getRegisterValue(addr uint32) uint16 {
 	reg := (addr & 77) / 2
@@ -170,7 +192,6 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 	case physicalAddress&RegAddr == RegAddr:
 		return u.getRegisterValue(physicalAddress), nil
 	case physicalAddress&0777770 == ConsoleAddr:
-
 		return termEmulator.ReadTerm(physicalAddress)
 	case physicalAddress == SR0Addr:
 		return u.Mmu.SR0, nil
@@ -199,7 +220,6 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 		u.setRegisterValue(physicalAddress, data)
 		return nil
 	case physicalAddress&0777770 == ConsoleAddr:
-		fmt.Printf("Attempting to write to terminal")
 		termEmulator.GetIncoming() <- teletype.Instruction{
 			Address: physicalAddress,
 			Data:    data,

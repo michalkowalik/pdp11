@@ -21,6 +21,12 @@ type Simple struct {
 	// 7: XMT RDY, 6: XMIT INT ENB, 2: MAINT
 	TPS uint16
 
+	// ? -> is it a register holding incoming char?
+	TKB uint16
+
+	// ??
+	TPB uint16
+
 	// incoming and outgoing stream
 	// incoming for the events coming from the unibus:
 	// -> print char (and in this case it's probably everthing,
@@ -36,7 +42,6 @@ type Simple struct {
 	Outgoing chan uint16
 
 	// keystroke channel
-	// keystrokes chan byte
 	keystrokes chan rune
 
 	// terminal out channel -> required, as due to way gocui refreshes the
@@ -72,6 +77,8 @@ func NewSimple(
 func (t *Simple) GetIncoming() chan Instruction {
 	return t.Incoming
 }
+
+// add char ->
 
 // initOutput starts a goroutine reading from the consoleOut channel
 // and calling the gocui.gui.Update to modify the view.
@@ -110,15 +117,6 @@ func (t *Simple) Run() error {
 					return err
 				}
 			}
-		}
-	}()
-
-	go func() error {
-		for {
-			keystroke := <-t.keystrokes
-			// for now, let's just pretend and add a simple echo:
-			t.consoleOut <- string(keystroke)
-			<-t.done
 		}
 	}()
 	t.consoleOut <- "-Teletype Initialized-\n"
@@ -166,6 +164,7 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
 	// so I'm skipping that part.
 	case 0566:
+		fmt.Printf("DEBUG TELETYPE OUT: %v, TPS: %v\n", data, t.TPS)
 		data = data & 0xFF
 		if t.TPS&0x80 == 0 {
 			fmt.Printf("breaking! data: %d, tps: %x\n", data, t.TPS)

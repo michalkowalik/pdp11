@@ -116,10 +116,6 @@ func startPdp(g *gocui.Gui) error {
 	if g != nil {
 		updateRegisters(pdp, g)
 	}
-
-	// it may, or may be not a good idea.
-	// keep it marked for now!
-	//go pdp.Boot()
 	pdp.Boot()
 
 	// default return value -> no errors encoutered
