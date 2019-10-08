@@ -280,6 +280,11 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 	}
 
 	// at this point it can be only an invalid instruction:
+	fmt.Printf("\n----DEBUG---\n")
+	c.printState(instr)
+	fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instr))
+	fmt.Printf("\nInstruction : %o\n", instr)
+	fmt.Printf("\n----DEBUG---\n")
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
@@ -537,13 +542,10 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	case 3:
 		// autoincrement deferred
 		addressInc = 2
-		virtAddress = c.Registers[reg]
-		if reg < 5 {
-			c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
-		}
+		virtAddress = c.mmunit.ReadMemoryWord(c.Registers[reg])
+		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
 	case 4:
 		// autodecrement - step depends on which register is in use:
-		// are there still DRAGONS here?
 		addressInc = 2
 		if (reg < 6) && (accessMode&ByteMode > 0) {
 			addressInc = 1
@@ -552,15 +554,13 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 		virtAddress = c.Registers[reg] & 0xffff
 	case 5:
 		// autodecrement deferred
-		virtAddress = (c.Registers[reg] - 2) & 0xffff
+		virtAddress = c.mmunit.ReadMemoryWord((c.Registers[reg] - 2) & 0xffff)
 	case 6:
 		// index mode -> read next word to get the basis for address, add value in Register
-		//baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
-		//virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
 		offset := c.Fetch()
 		virtAddress = offset + c.Registers[reg]
 
-		// increment program counter register
+		// TODO: really not needed?
 		// c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	case 7:
 		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
