@@ -170,6 +170,8 @@ func (c *CPU) tstOp(instruction uint16) {
 func (c *CPU) tstbOp(instruction uint16) {
 	dest := c.readByte(uint16(instruction & 077))
 
+	//fmt.Printf("DEBUG: TSTB: dest: %o \n", dest)
+
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x80) > 0)
 	c.SetFlag("V", false)
@@ -530,12 +532,11 @@ func (c *CPU) bisbOp(instruction uint16) {
 func (c *CPU) jsrOp(instruction uint16) {
 	register := (instruction >> 6) & 7
 	destination := uint16(instruction & 077)
+	val, _ := c.GetVirtualByMode(destination, 0)
+
 	c.Push(uint16(c.Registers[register]))
 	c.Registers[register] = c.Registers[7]
-	c.Registers[7], _ = c.GetVirtualByMode(destination, 0)
-
-	// tmp only:
-	// c.mmunit.DumpMemory()
+	c.Registers[7] = val
 }
 
 // multiply (070) --> EIS option, but let's have it
@@ -671,7 +672,8 @@ func (c *CPU) rtsOp(instruction uint16) {
 	c.Registers[7] = c.Registers[register]
 
 	// load word popped from processor stack to "register"
-	c.Registers[register] = c.Pop()
+	val := c.Pop()
+	c.Registers[register] = val
 }
 
 // clear flag opcodes

@@ -30,6 +30,9 @@ type Simple struct {
 
 	// ready to receive next order
 	ready bool
+
+	// step delay
+	count uint8
 }
 
 // NewSimple returns new teletype object
@@ -68,7 +71,12 @@ func (t *Simple) Step() {
 		default:
 		}
 	}
-	// count == > do I need it at all?
+
+	t.count++
+	if t.count%32 != 0 {
+		return
+	}
+
 	if t.TPS&0x80 == 0 {
 		t.writeTerminal(int(t.TPB & 0x7F))
 		t.TPS |= 0x80
@@ -81,6 +89,10 @@ func (t *Simple) Step() {
 }
 
 func (t *Simple) stdin() {
+	for _, v := range []byte("unix\n") {
+		t.keyboardInput <- v
+	}
+
 	var b [1]byte
 	for {
 		n, err := os.Stdin.Read(b[:])
@@ -115,6 +127,7 @@ func (t *Simple) writeTerminal(char int) {
 
 //getChar - return char from keybuffer set registers accordingly
 func (t *Simple) getChar() uint16 {
+	fmt.Printf("GET CHAR: TKS:%x, TKB:%x\n", t.TKS, t.TKB)
 	if t.TKS&0x80 != 0 {
 		t.TKS &= 0xFF7E
 		t.ready = true
@@ -124,7 +137,6 @@ func (t *Simple) getChar() uint16 {
 }
 
 func (t *Simple) addChar(char byte) {
-	fmt.Printf("adding char %v\n", char)
 	switch char {
 	case 42:
 		t.TKB = 4
@@ -136,10 +148,7 @@ func (t *Simple) addChar(char byte) {
 		t.TKB = uint16(char)
 	}
 
-	// fmt.Printf("DEBUG: TKB: %x\n", t.TKB)
-
 	t.TKS |= 0x80
-	// fmt.Printf("DEBUG: TKS: %x\n", t.TKS)
 	t.ready = false
 	if t.TKS&(1<<6) != 0 {
 		t.interrupts <- interrupts.Interrupt{
@@ -153,11 +162,12 @@ func (t *Simple) addChar(char byte) {
 // addresses and the 18 bit, DEC defined addresses for the devices.
 // TODO: this method can be private!
 func (t *Simple) WriteTerm(address uint32, data uint16) error {
-	// fmt.Printf("DEBUG: Console Write to addr %o\n", address)
+	//fmt.Printf("DEBUG: Console Write to addr %o\n", address)
 
 	switch address & 0777 {
 
 	// keyboard control & status
+	// and why is it never called?
 	case 0560:
 		if data&(1<<6) != 0 {
 			t.TKS |= 1 << 6
@@ -182,7 +192,6 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	// so I'm skipping that part.
 	case 0566:
 		//fmt.Printf("DEBUG TELETYPE OUT: %v, TPS: %v\n", data, t.TPS)
-
 		t.TPB = data & 0xFF
 		t.TPS &= 0xFF7F
 	// any other address -> error

@@ -247,9 +247,10 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
 	physicalAddress := m.mapVirtualToPhysical(addr, true)
 	if (physicalAddress & 1) == 1 {
-		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
-			Msg:    "Write to odd address"})
+		panic("ERROR!! ODD ADDRESS\n")
+		//panic(interrupts.Trap{
+		//	Vector: interrupts.INTBus,
+		//	Msg:    "Write to odd address"})
 	}
 	if physicalAddress < MaxMemory {
 		m.Memory[physicalAddress>>1] = data
@@ -285,6 +286,9 @@ func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
 		wordData = (m.Memory[physicalAddress>>1] & 0xFF00) | uint16(data)
 	} else {
 		wordData = (m.Memory[physicalAddress>>1] & 0xFF) | (uint16(data) << 8)
+
+		// no odd addresses if WriteMemoryWord is to be used
+		addr--
 	}
 	m.WriteMemoryWord(addr, wordData)
 }

@@ -36,7 +36,6 @@ func InitializeSystem(
 	sys.unibus = unibus.New(&sys.psw, gui, &c)
 	sys.unibus.PdpCPU.Reset()
 	//sys.unibus.WriteHello()
-	//sys.unibus.WriteHello()
 
 	// mount drive
 	// TODO: clean it up!

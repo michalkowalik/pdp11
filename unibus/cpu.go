@@ -11,7 +11,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as while writing)
 const (
 	// add debug output to the console
-	debug = false
+	debug = true
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -95,6 +95,7 @@ var cpuFlags = map[string]struct {
 
 //NewCPU initializes and returns the CPU variable:
 func NewCPU(mmunit *MMU18Bit) *CPU {
+
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0
@@ -280,11 +281,9 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 	}
 
 	// at this point it can be only an invalid instruction:
-	fmt.Printf("\n----DEBUG---\n")
-	c.printState(instr)
+	fmt.Printf(c.printState(instr))
 	fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instr))
 	fmt.Printf("\nInstruction : %o\n", instr)
-	fmt.Printf("\n----DEBUG---\n")
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
@@ -295,8 +294,9 @@ func (c *CPU) Execute() {
 	opcode := c.Decode(instruction)
 
 	if debug {
-		c.printState(instruction)
+		fmt.Printf(c.printState(instruction))
 		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
+
 	}
 	opcode(instruction)
 }
@@ -314,6 +314,7 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			fmt.Printf("Triggering trap in readFromMemory")
 			c.Trap(t.Vector)
 		case nil:
 			// ignore
@@ -326,7 +327,7 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 	mode := (op >> 3) & 7
 	register := op & 7
 
-	if mode == 0 { //|| mode == 1 {
+	if mode == 0 {
 
 		//value directly in register
 		if length == 0 {
@@ -368,6 +369,7 @@ func (c *CPU) writeMemory(op, value, length uint16) error {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			fmt.Printf("Triggering trap in writeMemory")
 			c.Trap(t.Vector)
 		case nil:
 			// ignore
@@ -421,15 +423,17 @@ func (c *CPU) DumpRegisters() string {
 	return s[:(len(s) - 1)]
 }
 
-func (c *CPU) printState(instruction uint16) {
+func (c *CPU) printState(instruction uint16) string {
 	//registers
-	fmt.Printf("%s\n", c.DumpRegisters())
+	out := fmt.Sprintf("%s\n", c.DumpRegisters())
 
 	// flags
-	fmt.Printf("%s ", c.mmunit.unibus.psw.GetFlags())
+	out += fmt.Sprintf("%s ", c.mmunit.unibus.psw.GetFlags())
 
 	// instruction
-	fmt.Printf(" instr %06o: %06o   ", c.Registers[7]-2, instruction)
+	out += fmt.Sprintf(" instr %06o: %06o   ", c.Registers[7]-2, instruction)
+
+	return out
 }
 
 //SetFlag sets CPU carry flag in Processor Status Word
@@ -521,10 +525,15 @@ func (c *CPU) Trap(vector uint16) {
 // GetVirtualByMode returns virtual address extracted from the CPU instuction
 // access mode: 0 for Word, 1 for Byte
 func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
-	var addressInc uint16
+	addressInc := uint16(2)
 	reg := instruction & 7
 	addressMode := (instruction >> 3) & 7
 	var virtAddress uint16
+
+	// byte mode
+	if accessMode == 1 {
+		addressInc = 1
+	}
 
 	switch addressMode {
 	case 0:
@@ -536,14 +545,12 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)
 		// TODO: value should be incremented by 1 if byte instruction used.
-		addressInc = 2
 		virtAddress = c.Registers[reg]
 		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
 	case 3:
-		// autoincrement deferred
-		addressInc = 2
+		// autoincrement deferred --> it doesn't look like byte mode applies here?
 		virtAddress = c.mmunit.ReadMemoryWord(c.Registers[reg])
-		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
+		c.Registers[reg] = (c.Registers[reg] + 2) & 0xffff
 	case 4:
 		// autodecrement - step depends on which register is in use:
 		addressInc = 2
