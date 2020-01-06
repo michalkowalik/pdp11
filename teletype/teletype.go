@@ -7,4 +7,5 @@ type Teletype interface {
 	ReadTerm(address uint32) (d uint16, err error)
 	GetIncoming() chan Instruction
 	Step()
+	ClearTerminal()
 }

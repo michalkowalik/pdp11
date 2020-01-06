@@ -392,9 +392,10 @@ func (c *CPU) waitOp(instruction uint16) {
 }
 
 // Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
-// Implementation needs to wait for the unibus.
+// TODO: user mode?
 func (c *CPU) resetOp(instruction uint16) {
-	c.Reset()
+	c.mmunit.unibus.Rk01.Reset()
+	c.mmunit.unibus.TermEmulator.ClearTerminal()
 }
 
 // compare (2) - byte op included
@@ -562,15 +563,9 @@ func (c *CPU) divOp(instruction uint16) {
 
 	c.Registers[register] = uint16((val1 / val2) & 0xFFFF)
 	c.Registers[register|1] = uint16((val1 % val2) & 0xFFFF)
-	if c.Registers[register] == 0 {
-		c.SetFlag("Z", true)
-	}
-	if c.Registers[register]&0100000 == 0100000 {
-		c.SetFlag("N", true)
-	}
-	if val1 == 0 {
-		c.SetFlag("V", true)
-	}
+	c.SetFlag("Z", c.Registers[register] == 0)
+	c.SetFlag("N", c.Registers[register]&0100000 == 0100000)
+	c.SetFlag("V", val1 == 0)
 }
 
 // shift arithmetically

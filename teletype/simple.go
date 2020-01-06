@@ -54,7 +54,7 @@ func (t *Simple) GetIncoming() chan Instruction {
 // Run : Start the teletype
 // initialize the go routine to read from the incoming channel.
 func (t *Simple) Run() error {
-	t.clearTerminal()
+	t.ClearTerminal()
 	fmt.Printf("starting teletype terminal\n")
 	go t.stdin()
 	return nil
@@ -105,7 +105,8 @@ func (t *Simple) stdin() {
 	}
 }
 
-func (t *Simple) clearTerminal() {
+// ClearTerminal - reset terminal
+func (t *Simple) ClearTerminal() {
 	t.TKS = 0
 	t.TPS = 1 << 7
 	t.TKB = 0
