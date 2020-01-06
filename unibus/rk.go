@@ -297,7 +297,7 @@ func (r *RK11) Step() {
 
 	// RKWC == 0 -> transfer is completed. if bit 6 set in RKCS, interrupt should be sent.
 	if r.RKWC == 0 {
-		fmt.Printf("RKWC: 0, transfer complete, RKCS: %o\n", r.RKCS)
+		// fmt.Printf("RKWC: 0, transfer complete, RKCS: %o\n", r.RKCS)
 		r.running = false
 		r.rkReady()
 		if r.RKCS&(1<<6) != 0 {

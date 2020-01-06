@@ -127,7 +127,7 @@ func (t *Simple) writeTerminal(char int) {
 
 //getChar - return char from keybuffer set registers accordingly
 func (t *Simple) getChar() uint16 {
-	fmt.Printf("GET CHAR: TKS:%x, TKB:%x\n", t.TKS, t.TKB)
+	// fmt.Printf("GET CHAR: TKS:%x, TKB:%x\n", t.TKS, t.TKB)
 	if t.TKS&0x80 != 0 {
 		t.TKS &= 0xFF7E
 		t.ready = true

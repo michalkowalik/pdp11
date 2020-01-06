@@ -144,7 +144,7 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 	c.doubleOpOpcodes[010000] = c.movOp
 	c.doubleOpOpcodes[0110000] = c.movbOp
 	c.doubleOpOpcodes[020000] = c.cmpOp
-	c.doubleOpOpcodes[0120000] = c.cmpbOp
+	c.doubleOpOpcodes[0120000] = c.cmpOp
 	c.doubleOpOpcodes[030000] = c.bitOp
 	c.doubleOpOpcodes[0130000] = c.bitbOp
 	c.doubleOpOpcodes[040000] = c.bicOp

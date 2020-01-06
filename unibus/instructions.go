@@ -42,31 +42,26 @@ func (c *CPU) combOp(instruction uint16) {
 }
 
 // inc - increment dst
-// todo: make sure overflow is set properly
-// todo2: readWord should be able to handle reading operand with any addressing mode.
 func (c *CPU) incOp(instruction uint16) {
-	if addressMode := instruction & 070; addressMode == 0 {
-		dst := c.Registers[instruction&7]
-		result := dst + 1
-		c.Registers[instruction&7] = result & 0xffff
-		c.SetFlag("Z", result == 0)
-		c.SetFlag("N", int16(result) < 0)
-		c.SetFlag("V", dst == 0x7FFF)
-	} else {
-		dst := c.readWord(uint16(instruction & 077))
-		res := dst + 1
-		c.writeWord(uint16(instruction&077), res&0xffff)
-		c.SetFlag("Z", res == 0)
-		c.SetFlag("N", int16(res) < 0)
-		c.SetFlag("V", dst == 0x7FFF)
+	dest := instruction & 077
+	virtAddr, err := c.GetVirtualByMode(dest, 0)
+	if err != nil {
+		panic("INC: Can't obtain virtual address")
 	}
+
+	val := (c.mmunit.ReadMemoryWord(virtAddr) + 1) & 0xFFFF
+	c.mmunit.WriteMemoryWord(virtAddr, val)
+
+	c.SetFlag("Z", val == 0)
+	c.SetFlag("N", val&0x8000 == 0x8000)
 }
 
 func (c *CPU) incbOp(instruction uint16) {
-	c.incOp(instruction)
+	panic("INCB NOT IMPLEMENTED")
 }
 
 // dec - decrement dst
+// TODO: it should look like INC
 func (c *CPU) decOp(instruction uint16) {
 	if addressMode := instruction & 070; addressMode == 0 {
 		dst := c.Registers[instruction&7]
@@ -402,25 +397,30 @@ func (c *CPU) resetOp(instruction uint16) {
 	c.Reset()
 }
 
-// compare (2)
+// compare (2) - byte op included
 func (c *CPU) cmpOp(instruction uint16) {
+	byteOp := instruction&0100000 > 0
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 	msb := uint16(0100000)
 
-	sourceVal := c.readWord(uint16(source))
-	destVal := c.readWord(uint16(dest))
+	var sourceVal uint16
+	var destVal uint16
 
+	if byteOp {
+		msb = 0200
+		sourceVal = uint16(c.readByte(uint16(source)))
+		destVal = uint16(c.readByte(uint16(dest)))
+	} else {
+		sourceVal = c.readWord(uint16(source))
+		destVal = c.readWord(uint16(dest))
+	}
 	res := sourceVal + (^(destVal) + 1)
 
 	c.SetFlag("N", (res&msb) > 0)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("C", sourceVal < destVal)
 	c.SetFlag("V", (sourceVal^destVal)&msb == msb && !((destVal^res)&msb == msb))
-}
-
-func (c *CPU) cmpbOp(instruction uint16) {
-	c.cmpOp(instruction)
 }
 
 //add (6)
@@ -430,16 +430,13 @@ func (c *CPU) addOp(instruction uint16) {
 
 	sourceVal := c.readWord(uint16(source))
 	destVal := c.readWord(uint16(dest))
-
 	sum := sourceVal + destVal
-	c.SetFlag("N", sum < 0)
-	c.SetFlag("Z", sum == 0)
-	if sourceVal > 0 && destVal > 0 && sum < 0 {
-		c.SetFlag("V", true)
-	}
 
-	// this is possible, as type of sum is infered by compiler
-	c.SetFlag("C", sum > 0xffff)
+	c.SetFlag("N", sum&0x8000 == 0x8000)
+	c.SetFlag("Z", sum == 0)
+	c.SetFlag("V",
+		!((sourceVal^destVal)&0x8000 == 0x8000) && ((destVal^sourceVal)&0x8000 == 0x8000))
+	c.SetFlag("C", int(sourceVal)+int(destVal) > 0xffff)
 	c.writeWord(uint16(dest), uint16(sum)&0xffff)
 }
 
@@ -546,14 +543,44 @@ func (c *CPU) mulOp(instruction uint16) {
 
 // divide (071)
 func (c *CPU) divOp(instruction uint16) {
-	panic("div not implemented")
+	register := (instruction >> 6) & 7
+	source := uint16(instruction & 077)
+
+	// div operates on a 32 bit digit combined in Register + Register | 1
+	val1 := (uint32(c.Registers[register]) << 16) | uint32(c.Registers[register|1])
+	val2 := uint32(c.readWord(source))
+
+	if val2 == 0 {
+		c.SetFlag("C", true)
+		return
+	}
+
+	if val1/val2 >= 0x10000 {
+		c.SetFlag("V", true)
+		return
+	}
+
+	c.Registers[register] = uint16((val1 / val2) & 0xFFFF)
+	c.Registers[register|1] = uint16((val1 % val2) & 0xFFFF)
+	if c.Registers[register] == 0 {
+		c.SetFlag("Z", true)
+	}
+	if c.Registers[register]&0100000 == 0100000 {
+		c.SetFlag("N", true)
+	}
+	if val1 == 0 {
+		c.SetFlag("V", true)
+	}
 }
 
 // shift arithmetically
 func (c *CPU) ashOp(instruction uint16) {
 
 	register := (instruction >> 6) & 7
-	offset := uint16(instruction & 077)
+
+	// offset is the lower 6 bits of the source
+	offset := c.readWord(uint16(instruction&077)) & 077
+
 	if offset == 0 {
 		return
 	}
