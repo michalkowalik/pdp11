@@ -449,13 +449,14 @@ func (c *CPU) subOp(instruction uint16) {
 	sourceVal := c.readWord(uint16(source))
 	destVal := c.readWord(uint16(dest))
 
-	res := destVal - sourceVal
+	res := destVal + (^(sourceVal) + 1)
 	c.SetFlag("C", sourceVal > destVal)
 	c.SetFlag("Z", res == 0)
-	c.SetFlag("N", res < 0)
-	c.SetFlag("V", getSignWord((sourceVal^destVal)&(^destVal^res)) == 1)
+	c.SetFlag("N", res&0x8000 == 0x8000)
+	c.SetFlag("V",
+		((sourceVal^destVal)&0x8000 == 0x8000) && !((destVal^sourceVal)&0x8000 == 0x8000))
 
-	c.writeWord(uint16(dest), uint16(res)&0xffff)
+	c.writeWord(dest, res)
 }
 
 //bit (3)
@@ -570,41 +571,35 @@ func (c *CPU) divOp(instruction uint16) {
 
 // shift arithmetically
 func (c *CPU) ashOp(instruction uint16) {
+	var result uint16
 
 	register := (instruction >> 6) & 7
 
 	// offset is the lower 6 bits of the source
 	offset := c.readWord(uint16(instruction&077)) & 077
-
-	if offset == 0 {
-		return
-	}
-	result := uint16(c.Registers[register])
+	source := uint16(c.Registers[register])
 
 	// negative number -> shift right
-	if (offset & 040) > 0 {
-		offset = 64 - offset
-		if offset > 16 {
-			offset = 16
-		}
-
-		// set C flag:
-		c.SetFlag("C", (result&(0x8000>>(16-offset))) != 0)
-		result = result >> offset
-	} else {
-		if offset > 16 {
-			result = 0
+	if (offset & 040) != 0 {
+		offset = (077 ^ offset) + 1
+		if source&0x8000 == 0x8000 {
+			result = 0xFFFF ^ (0xFFFF >> offset)
+			result |= source >> offset
 		} else {
-			// set C flag:
-			c.SetFlag("C", (result&(1<<(16-offset))) != 0)
-			result = result << offset
+			result = source >> offset
 		}
+		shift := uint16(1) << (offset - 1)
+		c.SetFlag("C", source&shift == shift)
+	} else {
+		result = (source << offset) & 0xFFFF
+		shift := uint16(1) << (16 - offset)
+		c.SetFlag("C", source&shift == shift)
 	}
 
 	// V flag set if sign changed:
-	c.SetFlag("V", (c.Registers[register]&0x8000) != (result&0x8000))
+	c.SetFlag("V", (source&0x8000) != (result&0x8000))
 	c.SetFlag("Z", result == 0)
-	c.SetFlag("N", result < 0)
+	c.SetFlag("N", result&0x8000 == 0x8000)
 	c.Registers[register] = result
 }
 
