@@ -447,16 +447,19 @@ func (c *CPU) subOp(instruction uint16) {
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
-	destVal := c.readWord(uint16(dest))
+	virtAddr, err := c.GetVirtualByMode(dest, 0)
+	if err != nil {
+		panic("INC: Can't obtain virtual address")
+	}
+	destVal := c.mmunit.ReadMemoryWord(virtAddr) & 0xFFFF
 
 	res := destVal + (^(sourceVal) + 1)
 	c.SetFlag("C", sourceVal > destVal)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("N", res&0x8000 == 0x8000)
 	c.SetFlag("V",
-		((sourceVal^destVal)&0x8000 == 0x8000) && !((destVal^sourceVal)&0x8000 == 0x8000))
-
-	c.writeWord(dest, res)
+		((sourceVal^destVal)&0x8000 == 0x8000) && !((destVal^res)&0x8000 == 0x8000))
+	c.mmunit.WriteMemoryWord(virtAddr, res)
 }
 
 //bit (3)
