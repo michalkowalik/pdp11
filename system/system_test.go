@@ -36,14 +36,14 @@ var virtualAddressTests = []struct {
 	virtualAddress uint16
 	errorNil       bool
 }{
-	{0, 0, false},
+	{0, 0177700, true}, // <- Unibus register address
 	{010, 2, true},
 	{020, 2, true},
-	{030, 2, true},
-	//{040, 4, true}, // <- autodecrement! expect dragons! and re-test with byte mode
-	{050, 0, true},
-	//{061, 020, true}, // <- err!! err!!
-	//{071, 040, true},
+	{030, 1, true},
+	{040, 0, true},
+	{050, 4, true},
+	{061, 020, true},
+	{071, 040, true},
 }
 
 // check if an address in memory can be read
@@ -64,7 +64,7 @@ func TestGetVirtualAddress(t *testing.T) {
 
 		virtualAddress, err := sys.CPU.GetVirtualByMode(test.op, 0)
 		if virtualAddress != test.virtualAddress {
-			t.Error("Expected virtual address ", test.virtualAddress, " , got ", virtualAddress)
+			t.Errorf("T: %o : Expected virtual address %o got %o\n", test.op, test.virtualAddress, virtualAddress)
 		}
 		if (err == nil) != test.errorNil {
 			t.Errorf("Unexpected error value: %v. Expected: nil\n", err)
@@ -169,10 +169,3 @@ func TestTriggerTrap(t *testing.T) {
 		sys.CPU.Execute()
 	}
 }
-
-/* -- don't run it --
-   -- if at all, it requires another bootstrap code.
-func TestBoot(t *testing.T) {
-	sys.Boot()
-}
-*/

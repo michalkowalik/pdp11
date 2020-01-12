@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"pdp/console"
 	"pdp/psw"
 	"testing"
 )
@@ -18,6 +19,7 @@ type flags struct {
 
 // global shared resources: CPU, memory etc.
 var c *CPU
+var u *Unibus
 var memory [0x400000]byte // 64KB of memory is all everyone needs
 
 // TestMain to resucure -> initialize memory and CPU
@@ -26,6 +28,10 @@ func TestMain(m *testing.M) {
 	p := psw.PSW(0)
 	mmu.Psw = &p
 	c = NewCPU(mmu)
+
+	var cons console.Console
+	cons = console.NewSimple()
+	u = New(&p, nil, &cons)
 
 	os.Exit(m.Run())
 }
@@ -214,7 +220,7 @@ func TestCPU_incOp(t *testing.T) {
 	}{
 
 		{"INC on 0x7FFF should set V and N flag",
-			args{05200}, 0x7FFF, 0x8000, false, true, false, true},
+			args{05200}, 0x7FFF, 0x8000, false, false, false, true},
 		{"INC on 0x0000 should set no flags",
 			args{05200}, 0, 1, false, false, false, false},
 		{"INC on 0xffff should set Z flag",
@@ -223,11 +229,11 @@ func TestCPU_incOp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.Registers[0] = tt.regVal
-			instruction := c.Decode(uint16(tt.args.instruction))
+			u.PdpCPU.Registers[0] = tt.regVal
+			instruction := u.PdpCPU.Decode(uint16(tt.args.instruction))
 			instruction(tt.args.instruction)
 
-			d := c.readWord(uint16(tt.args.instruction & 077))
+			d := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
 			if d != tt.dst {
 				t.Errorf("Expected value: %x, got: %x\n", tt.dst, d)
 			}
@@ -455,9 +461,9 @@ func TestCPU_ashOp(t *testing.T) {
 		wantErr      bool
 	}{
 		{"left shift, no carry", args{072001}, 1, 2, false, false},
-		{"right shift, no carry", args{072077}, 2, 1, false, false},
+		{"right shift, no carry", args{072077}, 2, 8, false, false},
 		{"left shift, carry", args{072001}, 0x8000, 0, true, false},
-		{"right shift, carry", args{072077}, 1, 0, true, false},
+		{"right shift, carry", args{072077}, 1, 4, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -502,18 +508,18 @@ func TestCPU_subOp(t *testing.T) {
 		{"No flags set", 011111, 012345, 01234, flags{false, false, false, false}, false},
 	}
 	for _, tt := range tests {
-		c.Registers[0] = uint16(tt.r0Val)
-		c.Registers[1] = uint16(tt.r1Val)
+		u.PdpCPU.Registers[0] = uint16(tt.r0Val)
+		u.PdpCPU.Registers[1] = uint16(tt.r1Val)
 		t.Run(tt.name, func(t *testing.T) {
-			c.subOp(instruction)
+			u.PdpCPU.subOp(instruction)
 
 			// assert value
-			if c.Registers[1] != uint16(tt.res) {
+			if u.PdpCPU.Registers[1] != uint16(tt.res) {
 				t.Errorf("CPU.subOp result = %x, expected %x", c.Registers[1], tt.res)
 			}
 
 			// check flags
-			if err := assertFlags(tt.flags, c); err != nil {
+			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
 				t.Errorf(err.Error())
 			}
 		})

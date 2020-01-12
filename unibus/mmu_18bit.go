@@ -46,6 +46,9 @@ const MaxTotalMemory = 0777776
 // UnibusMemoryBegin in 16 bit mode
 const UnibusMemoryBegin = 0170000
 
+// RegisterAddressBegin in 18bit space
+const RegisterAddressBegin = 0777700
+
 // NewMMU returns the new MMU18Bit struct
 func NewMMU(psw *psw.PSW, unibus *Unibus) *MMU18Bit {
 	mmu := MMU18Bit{}
@@ -199,10 +202,11 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 }
 
 // ReadMemoryWord reads a word from virtual address addr
-// TODO: Why is ReadMemoryWord expecting address in bytes, not word??
+// Funny complication: A trap needs to be thrown if case it is an odd address
+// but not if it it is an register address -> then it's OK.
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
 	physicalAddress := m.mapVirtualToPhysical(addr, false)
-	if (physicalAddress & 1) == 1 {
+	if !(physicalAddress&RegisterAddressBegin == RegisterAddressBegin) && ((physicalAddress & 1) == 1) {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Reading from odd address: %o", physicalAddress)})
@@ -252,15 +256,11 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
 
 	physicalAddress := m.mapVirtualToPhysical(addr, true)
-	if (physicalAddress & 1) == 1 {
+	if !(physicalAddress&RegisterAddressBegin == RegisterAddressBegin) && ((physicalAddress & 1) == 1) {
 		panic("ERROR!! ODD ADDRESS\n")
 		//panic(interrupts.Trap{
 		//	Vector: interrupts.INTBus,
 		//	Msg:    "Write to odd address"})
-	}
-
-	if addr == 0177776 {
-		fmt.Printf("PSW ADDR IN MMU. Translated to %o\n", physicalAddress)
 	}
 
 	if physicalAddress < MaxMemory {

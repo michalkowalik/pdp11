@@ -142,13 +142,11 @@ func (u *Unibus) processTraps() {
 
 // get Register value for address:
 func (u *Unibus) getRegisterValue(addr uint32) uint16 {
-	reg := (addr & 77) / 2
-	return u.PdpCPU.Registers[reg]
+	return u.PdpCPU.Registers[addr&07]
 }
 
 func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
-	reg := (addr & 77) / 2
-	u.PdpCPU.Registers[reg] = data
+	u.PdpCPU.Registers[addr&07] = data
 }
 
 // ReadIOPage reads from unibus devices.

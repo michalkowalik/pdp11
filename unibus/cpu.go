@@ -1,7 +1,6 @@
 package unibus
 
 import (
-	"errors"
 	"fmt"
 	"pdp/interrupts"
 	"pdp/psw"
@@ -11,7 +10,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as while writing)
 const (
 	// add debug output to the console
-	debug = true
+	debug = false
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -537,8 +536,7 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 
 	switch addressMode {
 	case 0:
-		// TODO: REALLY throw a trap here.
-		return 0, errors.New("Wrong address mode - throw trap?")
+		virtAddress = 0177700 | reg
 	case 1:
 		// register keeps the address:
 		virtAddress = c.Registers[reg]
