@@ -37,6 +37,9 @@ type MMU18Bit struct {
 	unibus *Unibus
 }
 
+// MMUDebugMode - enables output of the MMU internals to the terminal
+const MMUDebugMode = true
+
 // MaxMemory - available for user, 248k
 const MaxMemory = 0760000
 
@@ -63,8 +66,8 @@ func (p pdr) write() bool    { return p&6 == 6 }
 func (p pdr) ed() bool       { return p&8 == 8 }
 func (p pdr) length() uint16 { return (uint16(p) >> 8) & 0x7F }
 
-// return true if MMU enabled - controlled by 1 bit in the SR0
-func (m *MMU18Bit) mmuEnabled() bool {
+// MmuEnabled returns true if MMU enabled - controlled by 1 bit in the SR0
+func (m *MMU18Bit) MmuEnabled() bool {
 	return m.SR0&1 == 1
 }
 
@@ -124,15 +127,20 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) uint32 {
 
 	if virtualAddress == 0177776 {
-		fmt.Printf("DEBUG: MMU: PSW VIRT ADDR. mmuEnabled: %v\n", m.mmuEnabled())
+		fmt.Printf("DEBUG: MMU: PSW VIRT ADDR. mmuEnabled: %v\n", m.MmuEnabled())
 	}
 
-	if !m.mmuEnabled() {
+	if !m.MmuEnabled() {
 		addr := uint32(virtualAddress)
 		if addr >= UnibusMemoryBegin {
 			addr += 0600000
 		}
 		return addr
+	}
+
+	if MMUDebugMode {
+		// just get me everything here.
+		fmt.Printf("MMU STATUS: SR0: %o, SR2: %o\n", m.SR0, m.SR2)
 	}
 
 	// if bits 14 and 15 in PSW are set -> system in kernel mode

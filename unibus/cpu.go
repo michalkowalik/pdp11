@@ -7,10 +7,10 @@ import (
 	"strings"
 )
 
-// memory related constans (by far not all needed -- figuring out as while writing)
+// memory related constans (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
-	debug = false
+	debug = true
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -41,11 +41,15 @@ type CPU struct {
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
+	// TODO: where are they used (if at all?)
+	// (probably - but otherwise it doesn't make any sense, they are first time used
+	// when the mode change happens for the first time. pdp boots with some stack value in R6,
+	// but those 2 are used to store and restore the values for when the mode is being changed
+	// between user and kernel)
 	KernelStackPointer uint16
 	UserStackPointer   uint16
 
 	// memory access is required:
-	// this should be actually managed by unibus, and not here.
 	mmunit *MMU18Bit
 
 	// original PSW while dealing with trap
@@ -295,7 +299,6 @@ func (c *CPU) Execute() {
 	if debug {
 		fmt.Printf(c.printState(instruction))
 		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
-
 	}
 	opcode(instruction)
 }
@@ -471,6 +474,7 @@ func (c *CPU) GetFlag(flag string) bool {
 // SwitchMode switches the kernel / user mode:
 // 0 for user, 3 for kernel, everything else is a mistake.
 // values are as they are used in the PSW
+// TODO: is the machine initialized with kernel stack?
 func (c *CPU) SwitchMode(m uint16) {
 	c.mmunit.Psw.SwitchMode(m)
 
@@ -601,6 +605,9 @@ func (c *CPU) Reset() {
 		c.mmunit.PAR[i] = 0
 		c.mmunit.PDR[i] = 0
 	}
+
+	c.KernelStackPointer = 0
+	c.UserStackPointer = 0
 	c.mmunit.SR0 = 0
 	c.ClockCounter = 0
 	c.mmunit.unibus.Rk01.Reset()
