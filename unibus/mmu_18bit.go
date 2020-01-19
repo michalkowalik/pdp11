@@ -38,7 +38,7 @@ type MMU18Bit struct {
 }
 
 // MMUDebugMode - enables output of the MMU internals to the terminal
-const MMUDebugMode = true
+var MMUDebugMode = false
 
 // MaxMemory - available for user, 248k
 const MaxMemory = 0760000
@@ -126,10 +126,6 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
 func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) uint32 {
 
-	if virtualAddress == 0177776 {
-		fmt.Printf("DEBUG: MMU: PSW VIRT ADDR. mmuEnabled: %v\n", m.MmuEnabled())
-	}
-
 	if !m.MmuEnabled() {
 		addr := uint32(virtualAddress)
 		if addr >= UnibusMemoryBegin {
@@ -138,10 +134,9 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 		return addr
 	}
 
-	if MMUDebugMode {
-		// just get me everything here.
-		fmt.Printf("MMU STATUS: SR0: %o, SR2: %o\n", m.SR0, m.SR2)
-	}
+	//if virtualAddress == 0177776 && m.MmuEnabled() == true {
+	//	MMUDebugMode = true
+	//}
 
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
@@ -149,11 +144,18 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 		currentUser += 8
 	}
 	offset := (virtualAddress >> 13) + currentUser
+	if MMUDebugMode {
+		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", writeMode, offset, m.PDR[offset])
+	}
 
 	// check page availability in PDR:
 	if writeMode && !m.PDR[offset].write() {
 		m.SR0 = (1 << 13) | 1
 		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
+
+		if MMUDebugMode {
+			fmt.Printf("modified SR0: %o\n", m.SR0)
+		}
 
 		// check for user mode
 		if m.unibus.psw.GetMode() == 3 {
@@ -185,6 +187,12 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 	block := (virtualAddress >> 6) & 0177
 	displacement := virtualAddress & 077
 
+	if MMUDebugMode {
+		fmt.Printf(
+			"MMU: block: %o, displacement: %o, currentPAR: %o\n",
+			block, displacement, currentPAR)
+	}
+
 	// check if page length not exceeded
 	if m.PDR[offset].ed() && block < m.PDR[offset].length() ||
 		!m.PDR[offset].ed() && block > m.PDR[offset].length() {
@@ -206,7 +214,14 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 		m.PDR[offset] |= 1 << 6
 	}
 
-	return uint32(uint32((block+currentPAR)<<6+displacement) & 0777777)
+	physAddress := ((uint32(block) + uint32(currentPAR)) << 6) + uint32(displacement)
+
+	if MMUDebugMode {
+		fmt.Printf("MMU: PSW VIRT ADDR. SR0: %o, SR2: %o, PHYS ADDR: %o\n", m.SR0, m.SR2, physAddress)
+	}
+
+	MMUDebugMode = false
+	return physAddress
 }
 
 // ReadMemoryWord reads a word from virtual address addr
