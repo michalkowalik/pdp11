@@ -2,9 +2,11 @@
 .idea/*
 pkg/*
 bin/*
+images/*
 **/*.min.*
 **/*.log
 *.ptap
+out.*.txt
 pdp
 pdp.exe
 src/*.com/*

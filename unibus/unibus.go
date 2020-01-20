@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"pdp/console"
-	"pdp/disk"
 	"pdp/interrupts"
 	"pdp/psw"
 	"pdp/teletype"
@@ -20,6 +19,7 @@ const (
 	PSWAddr     = 0777776
 	SR0Addr     = 0777572
 	SR2Addr     = 0777576
+	RegAddr     = 0777700
 )
 
 // Unibus definition
@@ -40,7 +40,10 @@ type Unibus struct {
 	Traps      chan interrupts.Trap
 
 	// console
-	controlConsole *console.Console
+	controlConsole console.Console
+
+	// terminal emulator
+	TermEmulator teletype.Teletype
 
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	// TODO: change to array!
@@ -53,41 +56,43 @@ type Unibus struct {
 	psw *psw.PSW
 
 	PdpCPU *CPU
+
+	Rk01 *RK11
 }
-
-// attached devices:
-var (
-	// 2. terminal:
-	termEmulator *teletype.Teletype
-
-	// 3. rk01 disk
-	rk01 *disk.RK
-)
 
 // New initializes and returns the Unibus variable
 func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
 	unibus.Interrupts = make(chan interrupts.Interrupt)
 	unibus.Traps = make(chan interrupts.Trap)
-	unibus.controlConsole = controlConsole
+
+	// todo: why does it fail on test?
+	unibus.controlConsole = *controlConsole
 	unibus.psw = psw
 
 	// initialize attached devices:
 	unibus.Mmu = NewMMU(psw, &unibus)
 	unibus.PdpCPU = NewCPU(unibus.Mmu)
 
-	termEmulator = teletype.New(gui, controlConsole, unibus.Interrupts)
-	termEmulator.Run()
+	// TODO: it needs to be modified, in order to allow the GUI!
+	unibus.TermEmulator = teletype.NewSimple(unibus.Interrupts) //gui, controlConsole, unibus.Interrupts)
+	unibus.TermEmulator.Run()
+
+	unibus.Rk01 = NewRK(&unibus)
+
 	unibus.processInterruptQueue()
 	unibus.processTraps()
 	return &unibus
 }
 
 // save incoming interrupt in a proper place
+// TODO: is this ever happening?
 func (u *Unibus) processInterruptQueue() {
 	go func() error {
 		for {
 			interrupt := <-u.Interrupts
+
+			fmt.Printf("new interrupt\n")
 
 			if interrupt.Vector&1 == 1 {
 				panic("Interrupt with Odd vector number")
@@ -128,37 +133,41 @@ func (u *Unibus) processTraps() {
 			fmt.Printf("Trap vector: %d, message: \"%s\"\n", trap.Vector, trap.Msg)
 			if trap.Vector > 0 {
 				u.ActiveTrap = trap
+				// TODO: is it actually finished?
 				// panic("IT'S A TRAP!!")
 			}
 		}
 	}()
 }
 
-// WriteHello : temp function, just to see if it works at all:
-func (u *Unibus) WriteHello() {
-	helloStr := "0_1.2_3.4_5.6_7.8_9.A_B.C_D.E_F\n"
-	for _, c := range helloStr {
-		termEmulator.Incoming <- teletype.Instruction{
-			Address: 0566,
-			Data:    uint16(c),
-			Read:    false}
-	}
+// get Register value for address:
+func (u *Unibus) getRegisterValue(addr uint32) uint16 {
+	return u.PdpCPU.Registers[addr&07]
+}
+
+func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
+	u.PdpCPU.Registers[addr&07] = data
 }
 
 // ReadIOPage reads from unibus devices.
+// TODO: add a breakoint on debug code: if address == 0562
+// I want to know what calls for the getChar
+// seems like DC gets the same.
 func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
 	switch {
 	case physicalAddress == PSWAddr:
 		return u.psw.Get(), nil
+	case physicalAddress&RegAddr == RegAddr:
+		return u.getRegisterValue(physicalAddress), nil
 	case physicalAddress&0777770 == ConsoleAddr:
-		return termEmulator.ReadTerm(physicalAddress)
+		return u.TermEmulator.ReadTerm(physicalAddress)
 	case physicalAddress == SR0Addr:
 		return u.Mmu.SR0, nil
 	case physicalAddress == SR2Addr:
 		return u.Mmu.SR2, nil
 	case physicalAddress&0777760 == RK11Addr:
-		// don't do any anything yet!
-		return 0, nil
+		v := u.Rk01.read(physicalAddress)
+		return v, nil
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
 		return u.Mmu.readPage(physicalAddress), nil
 	default:
@@ -172,11 +181,15 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 // TODO: that signature smells funny. better to resign from that error return type ?
 func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
 	switch {
+	case physicalAddress == PSWAddr:
+		fmt.Printf("DEBUG: WRITING TO PSW: %x\n", data)
+		u.psw.Set(data)
+		return nil
+	case physicalAddress&RegAddr == RegAddr:
+		u.setRegisterValue(physicalAddress, data)
+		return nil
 	case physicalAddress&0777770 == ConsoleAddr:
-		termEmulator.Incoming <- teletype.Instruction{
-			Address: physicalAddress,
-			Data:    data,
-			Read:    false}
+		u.TermEmulator.WriteTerm(physicalAddress, data)
 		return nil
 	case physicalAddress == SR0Addr:
 		u.Mmu.SR0 = data
@@ -185,7 +198,7 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 		u.Mmu.SR2 = data
 		return nil
 	case physicalAddress&0777760 == RK11Addr:
-		// don't do anything yet!
+		u.Rk01.write(physicalAddress, data)
 		return nil
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
 		u.Mmu.writePage(physicalAddress, data)
@@ -198,7 +211,6 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 }
 
 // SendInterrupt sends a new interrupts to the receiver
-// TODO: implementation!
 func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 	i := interrupts.Interrupt{
 		Priority: priority,

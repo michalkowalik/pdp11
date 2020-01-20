@@ -37,6 +37,9 @@ type MMU18Bit struct {
 	unibus *Unibus
 }
 
+// MMUDebugMode - enables output of the MMU internals to the terminal
+var MMUDebugMode = false
+
 // MaxMemory - available for user, 248k
 const MaxMemory = 0760000
 
@@ -45,6 +48,9 @@ const MaxTotalMemory = 0777776
 
 // UnibusMemoryBegin in 16 bit mode
 const UnibusMemoryBegin = 0170000
+
+// RegisterAddressBegin in 18bit space
+const RegisterAddressBegin = 0777700
 
 // NewMMU returns the new MMU18Bit struct
 func NewMMU(psw *psw.PSW, unibus *Unibus) *MMU18Bit {
@@ -60,8 +66,8 @@ func (p pdr) write() bool    { return p&6 == 6 }
 func (p pdr) ed() bool       { return p&8 == 8 }
 func (p pdr) length() uint16 { return (uint16(p) >> 8) & 0x7F }
 
-// return true if MMU enabled - controlled by 1 bit in the SR0
-func (m *MMU18Bit) mmuEnabled() bool {
+// MmuEnabled returns true if MMU enabled - controlled by 1 bit in the SR0
+func (m *MMU18Bit) MmuEnabled() bool {
 	return m.SR0&1 == 1
 }
 
@@ -119,7 +125,8 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
 func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) uint32 {
-	if !m.mmuEnabled() {
+
+	if !m.MmuEnabled() {
 		addr := uint32(virtualAddress)
 		if addr >= UnibusMemoryBegin {
 			addr += 0600000
@@ -127,17 +134,28 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 		return addr
 	}
 
+	//if virtualAddress == 0177776 && m.MmuEnabled() == true {
+	//	MMUDebugMode = true
+	//}
+
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
 	if m.Psw.GetMode() > 0 {
 		currentUser += 8
 	}
 	offset := (virtualAddress >> 13) + currentUser
+	if MMUDebugMode {
+		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", writeMode, offset, m.PDR[offset])
+	}
 
 	// check page availability in PDR:
 	if writeMode && !m.PDR[offset].write() {
 		m.SR0 = (1 << 13) | 1
 		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
+
+		if MMUDebugMode {
+			fmt.Printf("modified SR0: %o\n", m.SR0)
+		}
 
 		// check for user mode
 		if m.unibus.psw.GetMode() == 3 {
@@ -169,7 +187,13 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 	block := (virtualAddress >> 6) & 0177
 	displacement := virtualAddress & 077
 
-	// check if page lenght not exceeded
+	if MMUDebugMode {
+		fmt.Printf(
+			"MMU: block: %o, displacement: %o, currentPAR: %o\n",
+			block, displacement, currentPAR)
+	}
+
+	// check if page length not exceeded
 	if m.PDR[offset].ed() && block < m.PDR[offset].length() ||
 		!m.PDR[offset].ed() && block > m.PDR[offset].length() {
 		m.SR0 = (1 << 14) | 1
@@ -190,13 +214,22 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 		m.PDR[offset] |= 1 << 6
 	}
 
-	return uint32(uint32((block+currentPAR)<<6+displacement) & 0777777)
+	physAddress := ((uint32(block) + uint32(currentPAR)) << 6) + uint32(displacement)
+
+	if MMUDebugMode {
+		fmt.Printf("MMU: PSW VIRT ADDR. SR0: %o, SR2: %o, PHYS ADDR: %o\n", m.SR0, m.SR2, physAddress)
+	}
+
+	MMUDebugMode = false
+	return physAddress
 }
 
 // ReadMemoryWord reads a word from virtual address addr
+// Funny complication: A trap needs to be thrown if case it is an odd address
+// but not if it it is an register address -> then it's OK.
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
 	physicalAddress := m.mapVirtualToPhysical(addr, false)
-	if (physicalAddress & 1) == 1 {
+	if !(physicalAddress&RegisterAddressBegin == RegisterAddressBegin) && ((physicalAddress & 1) == 1) {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Reading from odd address: %o", physicalAddress)})
@@ -244,17 +277,17 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
+
 	physicalAddress := m.mapVirtualToPhysical(addr, true)
-	if (physicalAddress & 1) == 1 {
-		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
-			Msg:    "Write to odd address"})
+	if !(physicalAddress&RegisterAddressBegin == RegisterAddressBegin) && ((physicalAddress & 1) == 1) {
+		panic("ERROR!! ODD ADDRESS\n")
+		//panic(interrupts.Trap{
+		//	Vector: interrupts.INTBus,
+		//	Msg:    "Write to odd address"})
 	}
+
 	if physicalAddress < MaxMemory {
 		m.Memory[physicalAddress>>1] = data
-	} else if physicalAddress == MaxMemory {
-		// update PSW
-		*m.Psw = psw.PSW(data)
 	} else if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
 		m.unibus.WriteIOPage(physicalAddress, data, false)
 	} else {
@@ -284,6 +317,9 @@ func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
 		wordData = (m.Memory[physicalAddress>>1] & 0xFF00) | uint16(data)
 	} else {
 		wordData = (m.Memory[physicalAddress>>1] & 0xFF) | (uint16(data) << 8)
+
+		// no odd addresses if WriteMemoryWord is to be used
+		addr--
 	}
 	m.WriteMemoryWord(addr, wordData)
 }

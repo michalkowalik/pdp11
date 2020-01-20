@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"pdp/console"
 	"pdp/system"
@@ -12,20 +13,28 @@ import (
 )
 
 func main() {
-	g, err := gocui.NewGui(gocui.OutputNormal)
-	if err != nil {
-		log.Panicln("Couldn't create gui!")
-	}
-	defer g.Close()
+	plainMode := flag.Bool("gui", false, "Run program in gui mode")
+	flag.Parse()
 
-	g.SetManagerFunc(layout)
-	setKeyBindings(g)
+	if !*plainMode {
+		startPdp(nil)
+	} else {
+		g, err := gocui.NewGui(gocui.OutputNormal)
+		if err != nil {
+			log.Panicln("Couldn't create gui!")
+		}
+		defer g.Close()
 
-	// start emulation
-	g.Update(startPdp)
-	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		log.Panicln(err)
+		g.SetManagerFunc(layout)
+		setKeyBindings(g)
+
+		// start emulation
+		g.Update(startPdp)
+		if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+			log.Panicln(err)
+		}
 	}
+
 }
 
 func setKeyBindings(g *gocui.Gui) {
@@ -61,42 +70,53 @@ func setKeyBindings(g *gocui.Gui) {
 // start pdp11 --> output to either console or status line..
 // (btw -- will it provide the buffer to show the most recent lines?)
 func startPdp(g *gocui.Gui) error {
-	statusView, err := g.View("status")
-	if err != nil {
-		return err
-	}
-	statusView.Clear()
+	var (
+		c            console.Console
+		statusView   *gocui.View
+		terminalView *gocui.View
+		regView      *gocui.View
+		err          error
+	)
 
-	terminalView, err := g.View("terminal")
-	if err != nil {
-		return err
-	}
-	terminalView.Clear()
+	if g != nil {
+		statusView, err = g.View("status")
+		if err != nil {
+			return err
+		}
+		statusView.Clear()
 
-	regView, err := g.View("registers")
-	if err != nil {
-		return err
-	}
-	terminalView.Clear()
+		terminalView, err = g.View("terminal")
+		if err != nil {
+			return err
+		}
+		terminalView.Clear()
 
-	console := console.New(g)
-	console.WriteConsole("Starting PDP-11/70 emulator.")
+		regView, err = g.View("registers")
+		if err != nil {
+			return err
+		}
+		terminalView.Clear()
+		c = console.NewGui(g)
+
+		if _, err := g.SetCurrentView("status"); err != nil {
+			log.Panic(err)
+		}
+		g.Cursor = true
+		g.Highlight = true
+	} else {
+		c = console.NewSimple()
+	}
+
+	c.WriteConsole("Starting PDP-11/70 emulator.")
 
 	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
-	pdp := system.InitializeSystem(console, terminalView, regView, g)
-
-	if _, err := g.SetCurrentView("status"); err != nil {
-		log.Panic(err)
-	}
-	g.Cursor = true
-	g.Highlight = true
+	pdp := system.InitializeSystem(c, terminalView, regView, g)
 
 	// update registers:
-	updateRegisters(pdp, g)
-
-	// it may, or may be not a good idea.
-	// keep it marked for now!
-	go pdp.Boot()
+	if g != nil {
+		updateRegisters(pdp, g)
+	}
+	pdp.Boot()
 
 	// default return value -> no errors encoutered
 	return nil
@@ -117,7 +137,7 @@ func updateRegisters(pdp *system.System, g *gocui.Gui) {
 					return err
 				}
 				v.Clear()
-				fmt.Fprintf(v, pdp.CPU.DumpRegisters(v))
+				fmt.Fprintf(v, pdp.CPU.DumpRegisters())
 				return nil
 			})
 			i++

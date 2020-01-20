@@ -1,17 +1,17 @@
 package unibus
 
 import (
-	"errors"
 	"fmt"
 	"pdp/interrupts"
 	"pdp/psw"
 	"strings"
-
-	"github.com/jroimartin/gocui"
 )
 
-// memory related constans (by far not all needed -- figuring out as while writing)
+// memory related constans (by far not all needed -- figuring out as  writing)
 const (
+	// add debug output to the console
+	debug = true
+
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
 
@@ -41,11 +41,15 @@ type CPU struct {
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
+	// TODO: where are they used (if at all?)
+	// (probably - but otherwise it doesn't make any sense, they are first time used
+	// when the mode change happens for the first time. pdp boots with some stack value in R6,
+	// but those 2 are used to store and restore the values for when the mode is being changed
+	// between user and kernel)
 	KernelStackPointer uint16
 	UserStackPointer   uint16
 
 	// memory access is required:
-	// this should be actually managed by unibus, and not here.
 	mmunit *MMU18Bit
 
 	// original PSW while dealing with trap
@@ -65,12 +69,12 @@ type CPU struct {
 	// the opcode function should append to the following signature:
 	// param: instruction int16
 	// return: error -> nil if everything went OK
-	singleOpOpcodes       map[uint16](func(uint16) error)
-	doubleOpOpcodes       map[uint16](func(uint16) error)
-	rddOpOpcodes          map[uint16](func(uint16) error)
-	controlOpcodes        map[uint16](func(uint16) error)
-	singleRegisterOpcodes map[uint16](func(uint16) error)
-	otherOpcodes          map[uint16](func(uint16) error)
+	singleOpOpcodes       map[uint16](func(uint16))
+	doubleOpOpcodes       map[uint16](func(uint16))
+	rddOpOpcodes          map[uint16](func(uint16))
+	controlOpcodes        map[uint16](func(uint16))
+	singleRegisterOpcodes map[uint16](func(uint16))
+	otherOpcodes          map[uint16](func(uint16))
 }
 
 /**
@@ -94,17 +98,18 @@ var cpuFlags = map[string]struct {
 
 //NewCPU initializes and returns the CPU variable:
 func NewCPU(mmunit *MMU18Bit) *CPU {
+
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0
 
 	// single operand
-	c.singleOpOpcodes = make(map[uint16](func(uint16) error))
-	c.doubleOpOpcodes = make(map[uint16](func(uint16) error))
-	c.rddOpOpcodes = make(map[uint16](func(uint16) error))
-	c.controlOpcodes = make(map[uint16](func(uint16) error))
-	c.otherOpcodes = make(map[uint16](func(uint16) error))
-	c.singleRegisterOpcodes = make(map[uint16](func(uint16) error))
+	c.singleOpOpcodes = make(map[uint16](func(uint16)))
+	c.doubleOpOpcodes = make(map[uint16](func(uint16)))
+	c.rddOpOpcodes = make(map[uint16](func(uint16)))
+	c.controlOpcodes = make(map[uint16](func(uint16)))
+	c.otherOpcodes = make(map[uint16](func(uint16)))
+	c.singleRegisterOpcodes = make(map[uint16](func(uint16)))
 
 	// single opearnd:
 	c.singleOpOpcodes[0100] = c.jmpOp
@@ -142,7 +147,7 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 	c.doubleOpOpcodes[010000] = c.movOp
 	c.doubleOpOpcodes[0110000] = c.movbOp
 	c.doubleOpOpcodes[020000] = c.cmpOp
-	c.doubleOpOpcodes[0120000] = c.cmpbOp
+	c.doubleOpOpcodes[0120000] = c.cmpOp
 	c.doubleOpOpcodes[030000] = c.bitOp
 	c.doubleOpOpcodes[0130000] = c.bitbOp
 	c.doubleOpOpcodes[040000] = c.bicOp
@@ -229,7 +234,7 @@ func (c *CPU) Fetch() uint16 {
 // if instruction matching the mask not found in the opcodes map, fallback and try
 // to match anything lower.
 // Fail ultimately.
-func (c *CPU) Decode(instr uint16) func(uint16) error {
+func (c *CPU) Decode(instr uint16) func(uint16) {
 	// 2 operand instructions:
 	var opcode uint16
 
@@ -279,6 +284,9 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 	}
 
 	// at this point it can be only an invalid instruction:
+	fmt.Printf(c.printState(instr))
+	fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instr))
+	fmt.Printf("\nInstruction : %o\n", instr)
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
@@ -287,6 +295,11 @@ func (c *CPU) Decode(instr uint16) func(uint16) error {
 func (c *CPU) Execute() {
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
+
+	if debug {
+		fmt.Printf(c.printState(instruction))
+		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
+	}
 	opcode(instruction)
 }
 
@@ -303,6 +316,7 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			fmt.Printf("Triggering trap in readFromMemory")
 			c.Trap(t.Vector)
 		case nil:
 			// ignore
@@ -357,6 +371,7 @@ func (c *CPU) writeMemory(op, value, length uint16) error {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			fmt.Printf("Triggering trap in writeMemory")
 			c.Trap(t.Vector)
 		case nil:
 			// ignore
@@ -368,6 +383,8 @@ func (c *CPU) writeMemory(op, value, length uint16) error {
 	mode := (op >> 3) & 7
 	register := op & 7
 
+	// TODO: clean it up -> it is awful hack, and its
+	// not what DEC says!
 	if mode == 0 {
 		if length == 1 {
 			c.Registers[register] = (value & 0xFF)
@@ -399,12 +416,26 @@ func (c *CPU) writeByte(op, value uint16) error {
 }
 
 // DumpRegisters displays register values
-func (c *CPU) DumpRegisters(regView *gocui.View) string {
+func (c *CPU) DumpRegisters() string {
 	var res strings.Builder
 	for i, reg := range c.Registers {
-		fmt.Fprintf(&res, " |R%d: %#o | ", i, reg)
+		fmt.Fprintf(&res, "R%d %06o ", i, reg)
 	}
-	return res.String()
+	s := res.String()
+	return s[:(len(s) - 1)]
+}
+
+func (c *CPU) printState(instruction uint16) string {
+	//registers
+	out := fmt.Sprintf("%s\n", c.DumpRegisters())
+
+	// flags
+	out += fmt.Sprintf("%s ", c.mmunit.unibus.psw.GetFlags())
+
+	// instruction
+	out += fmt.Sprintf(" instr %06o: %06o   ", c.Registers[7]-2, instruction)
+
+	return out
 }
 
 //SetFlag sets CPU carry flag in Processor Status Word
@@ -443,6 +474,7 @@ func (c *CPU) GetFlag(flag string) bool {
 // SwitchMode switches the kernel / user mode:
 // 0 for user, 3 for kernel, everything else is a mistake.
 // values are as they are used in the PSW
+// TODO: is the machine initialized with kernel stack?
 func (c *CPU) SwitchMode(m uint16) {
 	c.mmunit.Psw.SwitchMode(m)
 
@@ -496,48 +528,49 @@ func (c *CPU) Trap(vector uint16) {
 // GetVirtualByMode returns virtual address extracted from the CPU instuction
 // access mode: 0 for Word, 1 for Byte
 func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
-	var addressInc uint16
+	addressInc := uint16(2)
 	reg := instruction & 7
 	addressMode := (instruction >> 3) & 7
 	var virtAddress uint16
 
+	// byte mode
+	if accessMode == 1 {
+		addressInc = 1
+	}
+
 	switch addressMode {
 	case 0:
-		// TODO: REALLY throw a trap here.
-		return 0, errors.New("Wrong address mode - throw trap?")
+		virtAddress = 0177700 | reg
 	case 1:
 		// register keeps the address:
 		virtAddress = c.Registers[reg]
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)
 		// TODO: value should be incremented by 1 if byte instruction used.
-		addressInc = 2
 		virtAddress = c.Registers[reg]
 		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
 	case 3:
-		// autoincrement deferred
-		// TODO: ADD special cases (R6 and R7)
-		addressInc = 2
-		virtAddress = c.Registers[reg]
-		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
+		// autoincrement deferred --> it doesn't look like byte mode applies here?
+		virtAddress = c.mmunit.ReadMemoryWord(c.Registers[reg])
+		c.Registers[reg] = (c.Registers[reg] + 2) & 0xffff
 	case 4:
 		// autodecrement - step depends on which register is in use:
 		addressInc = 2
 		if (reg < 6) && (accessMode&ByteMode > 0) {
 			addressInc = 1
 		}
-		virtAddress = (c.Registers[reg] + addressInc) & 0xffff
 		c.Registers[reg] = (c.Registers[reg] - addressInc) & 0xffff
+		virtAddress = c.Registers[reg] & 0xffff
 	case 5:
 		// autodecrement deferred
-		virtAddress = (c.Registers[reg] - 2) & 0xffff
+		virtAddress = c.mmunit.ReadMemoryWord((c.Registers[reg] - 2) & 0xffff)
 	case 6:
 		// index mode -> read next word to get the basis for address, add value in Register
-		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
-		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
+		offset := c.Fetch()
+		virtAddress = offset + c.Registers[reg]
 
-		// increment program counter register
-		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
+		// TODO: really not needed?
+		// c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	case 7:
 		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
 		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
@@ -560,4 +593,23 @@ func (c *CPU) Pop() uint16 {
 	val := c.mmunit.ReadMemoryWord(c.Registers[6])
 	c.Registers[6] += 2
 	return val
+}
+
+// Reset CPU
+// TODO: finish implementation
+func (c *CPU) Reset() {
+	for i := 0; i < 7; i++ {
+		c.Registers[i] = 0
+	}
+	for i := 0; i < 16; i++ {
+		c.mmunit.PAR[i] = 0
+		c.mmunit.PDR[i] = 0
+	}
+
+	c.KernelStackPointer = 0
+	c.UserStackPointer = 0
+	c.mmunit.SR0 = 0
+	c.ClockCounter = 0
+	c.mmunit.unibus.Rk01.Reset()
+	c.State = CPURUN
 }
