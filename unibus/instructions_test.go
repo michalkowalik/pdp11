@@ -461,9 +461,9 @@ func TestCPU_ashOp(t *testing.T) {
 		wantErr      bool
 	}{
 		{"left shift, no carry", args{072001}, 1, 2, false, false},
-		{"right shift, no carry", args{072077}, 2, 8, false, false},
+		{"right shift, no carry", args{072077}, 2, 2, true, false},
 		{"left shift, carry", args{072001}, 0x8000, 0, true, false},
-		{"right shift, carry", args{072077}, 1, 4, false, false},
+		{"right shift, carry", args{072077}, 1, 1, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -514,13 +514,14 @@ func (c *CPU) bisOp(instruction uint16) {
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
-	destVal := c.readWord(uint16(dest))
+	virtAddr, _ := c.GetVirtualByMode(dest, 0)
+	destVal := c.mmunit.ReadMemoryWord(virtAddr) & 0xFFFF
 
 	destVal = destVal | sourceVal
 	c.SetFlag("V", false)
 	c.SetFlag("N", (destVal&0x8000) > 0)
 	c.SetFlag("Z", destVal == 0)
-	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
+	c.mmunit.WriteMemoryWord(virtAddr, destVal)
 }
 
 func (c *CPU) bisbOp(instruction uint16) {
