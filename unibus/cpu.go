@@ -10,7 +10,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
-	debug = true
+	debug = false
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -568,15 +568,9 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 		// index mode -> read next word to get the basis for address, add value in Register
 		offset := c.Fetch()
 		virtAddress = offset + c.Registers[reg]
-
-		// TODO: really not needed?
-		// c.Registers[7] = (c.Registers[7] + 2) & 0xffff
 	case 7:
-		baseAddr := c.mmunit.ReadMemoryWord(c.Registers[7])
-		virtAddress = (baseAddr + c.Registers[reg]) & 0xffff
-		virtAddress = c.mmunit.ReadMemoryWord(virtAddress)
-		// increment program counter register
-		c.Registers[7] = (c.Registers[7] + 2) & 0xffff
+		offset := c.Fetch()
+		virtAddress = c.mmunit.ReadMemoryWord(offset + c.Registers[reg])
 	}
 	// all-catcher return
 	return virtAddress, nil
