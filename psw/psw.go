@@ -49,6 +49,7 @@ func (psw *PSW) GetPreviousMode() uint16 {
 // SwitchMode sets CPU into user or kernel mode and saves previous mode to
 // psw previous mode field (bits 12, 13)
 // short reminder: 00 means kernel, b11 means user
+// switch mode should also switch between user and kernel stacks!
 func (psw *PSW) SwitchMode(m uint16) {
 	currentMode := psw.GetMode()
 

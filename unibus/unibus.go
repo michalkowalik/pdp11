@@ -182,6 +182,8 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
 	switch {
 	case physicalAddress == PSWAddr:
+		// also : switch mode!
+		u.PdpCPU.SwitchMode(data >> 14)
 		u.psw.Set(data)
 		return nil
 	case physicalAddress&RegAddr == RegAddr:

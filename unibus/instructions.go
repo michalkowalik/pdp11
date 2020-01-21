@@ -1,5 +1,7 @@
 package unibus
 
+import "fmt"
+
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
@@ -299,11 +301,46 @@ func (c *CPU) markOp(instruction uint16) {
 
 // mfpi - move from previous instruction space
 func (c *CPU) mfpiOp(instruction uint16) {
-	panic("not implemented")
+	var val uint16
+	dest := c.readWord(instruction & 077)
+
+	curUser := c.mmunit.Psw.GetMode()
+	prevUser := c.mmunit.Psw.GetPreviousMode()
+
+	switch {
+	case dest == 0170006:
+		if curUser == prevUser {
+			val = c.Registers[6]
+		} else {
+			if curUser == 0 { // kernel
+				val = c.UserStackPointer
+			} else {
+				val = c.KernelStackPointer
+			}
+		}
+	// if register:
+	case dest&0177770 == 017000:
+		panic("MPFPI attended on Register address")
+	default:
+		val =
+			c.mmunit.Memory[uint16(c.mmunit.mapVirtualToPhysical(dest, false, prevUser)>>1)]
+	}
+
+	fmt.Printf("DEBUG: MFPI: dest: %o, curUser: %o, prevUser: %o, psw: %o, val: %o\n",
+		dest, curUser, prevUser, c.mmunit.Psw.Get(), val)
+
+	c.Push(val)
+	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFF0)
+	c.SetFlag("C", true)
+	c.SetFlag("N", val&0x8000 == 0x8000)
+	c.SetFlag("Z", val == 0)
 }
 
 // mtpi - move to previous instruction space
 func (c *CPU) mtpiOp(instruction uint16) {
+	//dest := c.readWord(instruction & 077)
+	//val := c.Pop()
+
 	panic("not implemented")
 }
 
