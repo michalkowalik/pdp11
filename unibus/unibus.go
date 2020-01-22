@@ -66,7 +66,6 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.Interrupts = make(chan interrupts.Interrupt)
 	unibus.Traps = make(chan interrupts.Trap)
 
-	// todo: why does it fail on test?
 	unibus.controlConsole = *controlConsole
 	unibus.psw = psw
 
@@ -184,6 +183,7 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 	case physicalAddress == PSWAddr:
 		// also : switch mode!
 		u.PdpCPU.SwitchMode(data >> 14)
+		// also: set flags:
 		u.psw.Set(data)
 		return nil
 	case physicalAddress&RegAddr == RegAddr:

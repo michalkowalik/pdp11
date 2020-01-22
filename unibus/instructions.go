@@ -1,7 +1,5 @@
 package unibus
 
-import "fmt"
-
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
@@ -319,15 +317,15 @@ func (c *CPU) mfpiOp(instruction uint16) {
 			}
 		}
 	// if register:
-	case dest&0177770 == 017000:
-		panic("MPFPI attended on Register address")
+	case dest&0177770 == 0170000:
+		panic("MFPI attended on Register address")
 	default:
 		val =
 			c.mmunit.Memory[uint16(c.mmunit.mapVirtualToPhysical(dest, false, prevUser)>>1)]
 	}
 
-	fmt.Printf("DEBUG: MFPI: dest: %o, curUser: %o, prevUser: %o, psw: %o, val: %o\n",
-		dest, curUser, prevUser, c.mmunit.Psw.Get(), val)
+	//fmt.Printf("DEBUG: MFPI: dest: %o, curUser: %o, prevUser: %o, psw: %o, val: %o\n",
+	//	dest, curUser, prevUser, c.mmunit.Psw.Get(), val)
 
 	c.Push(val)
 	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFF0)
@@ -338,10 +336,37 @@ func (c *CPU) mfpiOp(instruction uint16) {
 
 // mtpi - move to previous instruction space
 func (c *CPU) mtpiOp(instruction uint16) {
-	//dest := c.readWord(instruction & 077)
-	//val := c.Pop()
+	dest, err := c.GetVirtualByMode(instruction&077, 0)
+	if err != nil {
+		panic("INC: Can't obtain virtual address")
+	}
+	val := c.Pop()
 
-	panic("not implemented")
+	curUser := c.mmunit.Psw.GetMode()
+	prevUser := c.mmunit.Psw.GetPreviousMode()
+
+	switch {
+	case dest == 0170006:
+		if curUser == prevUser {
+			c.Registers[6] = val
+		} else {
+			if curUser == 0 {
+				c.UserStackPointer = val
+			} else {
+				c.KernelStackPointer = val
+			}
+		}
+	case dest&0177770 == 0170000:
+		panic("MTPI attended on Register address")
+	default:
+		sourceAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
+		c.mmunit.Memory[sourceAddress>>1] = val
+	}
+
+	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFFF)
+	c.SetFlag("C", true)
+	c.SetFlag("N", val&0x8000 == 0x8000)
+	c.SetFlag("Z", val == 0)
 }
 
 // sxt - sign extended
@@ -364,6 +389,9 @@ func (c *CPU) sxtOp(instruction uint16) {
 // double operand cpu instructions:
 
 // move (1)
+// There's a subtle problem: what if MOV is used to set the PSW?
+// because it will set the flags according to the value of the operand,
+// possibly rewriting the flags in the process.
 func (c *CPU) movOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
