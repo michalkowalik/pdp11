@@ -495,7 +495,8 @@ func (c *CPU) addOp(instruction uint16) {
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
-	destVal := c.readWord(uint16(dest))
+	virtAddr, _ := c.GetVirtualByMode(dest, 0)
+	destVal := c.mmunit.ReadMemoryWord(virtAddr)
 	sum := sourceVal + destVal
 
 	c.SetFlag("N", sum&0x8000 == 0x8000)
@@ -503,7 +504,7 @@ func (c *CPU) addOp(instruction uint16) {
 	c.SetFlag("V",
 		!((sourceVal^destVal)&0x8000 == 0x8000) && ((destVal^sourceVal)&0x8000 == 0x8000))
 	c.SetFlag("C", int(sourceVal)+int(destVal) > 0xffff)
-	c.writeWord(uint16(dest), uint16(sum)&0xffff)
+	c.mmunit.WriteMemoryWord(virtAddr, sum)
 }
 
 // substract (16)
