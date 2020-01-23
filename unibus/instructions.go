@@ -395,13 +395,13 @@ func (c *CPU) sxtOp(instruction uint16) {
 func (c *CPU) movOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
-
 	sourceVal := c.readWord(uint16(source))
-	c.writeWord(uint16(dest), sourceVal)
+
 	c.SetFlag("N", (sourceVal&0100000) > 0)
 	c.SetFlag("Z", sourceVal == 0)
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
+	c.writeWord(uint16(dest), sourceVal)
 }
 
 // movb
@@ -421,7 +421,6 @@ func (c *CPU) movbOp(instruction uint16) {
 // misc instructions (decode all bits)
 // halt
 func (c *CPU) haltOp(instruction uint16) {
-	// halt is an empty instruction. just stop CPU
 	c.State = HALT
 }
 
