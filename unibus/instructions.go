@@ -299,12 +299,28 @@ func (c *CPU) markOp(instruction uint16) {
 
 // mfpi - move from previous instruction space
 func (c *CPU) mfpiOp(instruction uint16) {
+
 	var val uint16
-	dest := c.readWord(instruction & 077)
+	dest, err := c.GetVirtualByMode(instruction&077, 0)
+	if err != nil {
+		panic("MFPI: could not resolve virtual address")
+	}
 
 	curUser := c.mmunit.Psw.GetMode()
 	prevUser := c.mmunit.Psw.GetPreviousMode()
-
+	/*
+		if c.Registers[4] == 04000 && c.Registers[5] == 0141774 && c.Registers[6] == 0141754 && c.Registers[7] == 002232 {
+			c.mmunit.DumpMemory()
+			fmt.Printf("Instruction : %o\n", instruction)
+			fmt.Printf("%s\n", c.DumpRegisters())
+			fmt.Printf("PSW: %o\n", c.mmunit.Psw.Get())
+			fmt.Printf("SR0: %o, SR2: %o\n", c.mmunit.SR0, c.mmunit.SR2)
+			pa := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
+			fmt.Printf("physical address for (R1): %o\n", pa)
+			fmt.Printf("val: %o\n", c.mmunit.Memory[(pa>>1)])
+			panic("WHOPSIE D@ISY!")
+		}
+	*/
 	switch {
 	case dest == 0170006:
 		if curUser == prevUser {
@@ -320,12 +336,10 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	case dest&0177770 == 0170000:
 		panic("MFPI attended on Register address")
 	default:
+		physicalAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
 		val =
-			c.mmunit.Memory[uint16(c.mmunit.mapVirtualToPhysical(dest, false, prevUser)>>1)]
+			c.mmunit.Memory[(physicalAddress >> 1)]
 	}
-
-	//fmt.Printf("DEBUG: MFPI: dest: %o, curUser: %o, prevUser: %o, psw: %o, val: %o\n",
-	//	dest, curUser, prevUser, c.mmunit.Psw.Get(), val)
 
 	c.Push(val)
 	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFF0)
@@ -360,7 +374,7 @@ func (c *CPU) mtpiOp(instruction uint16) {
 		panic("MTPI attended on Register address")
 	default:
 		sourceAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
-		c.mmunit.Memory[sourceAddress>>1] = val
+		c.mmunit.Memory[(sourceAddress >> 1)] = val
 	}
 
 	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFFF)
