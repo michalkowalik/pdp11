@@ -338,7 +338,7 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	default:
 		physicalAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
 		val =
-			c.mmunit.Memory[(physicalAddress >> 1)]
+			c.mmunit.ReadWordByPhysicalAddress(physicalAddress)
 	}
 
 	c.Push(val)

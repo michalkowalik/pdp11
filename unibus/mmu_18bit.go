@@ -231,22 +231,27 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 // but not if it it is an register address -> then it's OK.
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
 	physicalAddress := m.mapVirtualToPhysical(addr, false, m.Psw.GetMode())
-	if !(physicalAddress&RegisterAddressBegin == RegisterAddressBegin) && ((physicalAddress & 1) == 1) {
+	return m.ReadWordByPhysicalAddress(physicalAddress)
+}
+
+// ReadWordByPhysicalAddress - needed to read by physicall address
+func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
+	if !(addr&RegisterAddressBegin == RegisterAddressBegin) && ((addr & 1) == 1) {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
-			Msg:    fmt.Sprintf("Reading from odd address: %o", physicalAddress)})
+			Msg:    fmt.Sprintf("Reading from odd address: %o", addr)})
 	}
-	if physicalAddress > MaxTotalMemory {
+	if addr > MaxTotalMemory {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Read from invalid address")})
 	}
-	if physicalAddress < MaxMemory {
-		return m.Memory[physicalAddress>>1]
+	if addr < MaxMemory {
+		return m.Memory[addr>>1]
 	}
 
 	// IO Page:
-	data, err := m.unibus.ReadIOPage(physicalAddress, false)
+	data, err := m.unibus.ReadIOPage(addr, false)
 	if err != nil {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
