@@ -374,7 +374,7 @@ func (c *CPU) mtpiOp(instruction uint16) {
 		panic("MTPI attended on Register address")
 	default:
 		sourceAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
-		c.mmunit.Memory[(sourceAddress >> 1)] = val
+		c.mmunit.WriteWordByPhysicalAddress(sourceAddress, val)
 	}
 
 	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFFF)

@@ -284,19 +284,22 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
-
 	physicalAddress := m.mapVirtualToPhysical(addr, true, m.Psw.GetMode())
-	if !(physicalAddress&RegisterAddressBegin == RegisterAddressBegin) && ((physicalAddress & 1) == 1) {
-		panic("ERROR!! ODD ADDRESS\n")
-		//panic(interrupts.Trap{
-		//	Vector: interrupts.INTBus,
-		//	Msg:    "Write to odd address"})
+	m.WriteWordByPhysicalAddress(physicalAddress, data)
+}
+
+// WriteWordByPhysicalAddress - write word to physical address
+func (m *MMU18Bit) WriteWordByPhysicalAddress(addr uint32, data uint16) {
+	if !(addr&RegisterAddressBegin == RegisterAddressBegin) && ((addr & 1) == 1) {
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    "Write to odd address"})
 	}
 
-	if physicalAddress < MaxMemory {
-		m.Memory[physicalAddress>>1] = data
-	} else if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
-		m.unibus.WriteIOPage(physicalAddress, data, false)
+	if addr < MaxMemory {
+		m.Memory[addr>>1] = data
+	} else if addr > MaxMemory && addr <= MaxTotalMemory {
+		m.unibus.WriteIOPage(addr, data, false)
 	} else {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,

@@ -80,7 +80,6 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.Rk01 = NewRK(&unibus)
 
 	unibus.processInterruptQueue()
-	unibus.processTraps()
 	return &unibus
 }
 
@@ -120,21 +119,6 @@ func (u *Unibus) processInterruptQueue() {
 				u.InterruptQueue[j] = u.InterruptQueue[j-1]
 			}
 			u.InterruptQueue[i] = interrupt
-		}
-	}()
-}
-
-// TODO: is there any other way to handle traps actually?
-func (u *Unibus) processTraps() {
-	go func() error {
-		for {
-			trap := <-u.Traps
-			fmt.Printf("Trap vector: %d, message: \"%s\"\n", trap.Vector, trap.Msg)
-			if trap.Vector > 0 {
-				u.ActiveTrap = trap
-				// TODO: is it actually finished?
-				// panic("IT'S A TRAP!!")
-			}
 		}
 	}()
 }

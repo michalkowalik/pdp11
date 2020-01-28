@@ -10,6 +10,13 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
+const (
+	// KernelMode - kernel cpu mode const
+	KernelMode = 0
+	// UserMode - user cpu mode const
+	UserMode = 3
+)
+
 // System definition.
 type System struct {
 	CPU *unibus.CPU
@@ -64,7 +71,7 @@ func (sys *System) run() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			sys.unibus.Traps <- t
+			sys.processTrap(t)
 		case nil:
 			// ignore
 		default:
@@ -75,6 +82,41 @@ func (sys *System) run() {
 	for {
 		sys.step()
 	}
+}
+
+func (sys *System) processTrap(trap interrupts.Trap) {
+	fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+	fmt.Printf("DEBUG: 2 fake lines \n to keep diff line numbers equal\n")
+
+	vec := trap.Vector
+	var prevPSW uint16
+
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			fmt.Printf("RED STACK TRAP!")
+			sys.unibus.Mmu.Memory[0] = sys.unibus.PdpCPU.Registers[7]
+			sys.unibus.Mmu.Memory[1] = prevPSW
+			vec = 4
+			panic("FATAL")
+		case nil:
+			break
+		default:
+			panic(t)
+		}
+		sys.unibus.PdpCPU.Registers[7] =
+			sys.unibus.Mmu.ReadWordByPhysicalAddress(uint32(vec))
+		sys.psw.Set(sys.unibus.Mmu.ReadWordByPhysicalAddress(uint32(vec) + 2))
+	}()
+
+	if trap.Vector&1 == 1 {
+		panic("Trap called with odd vector number!")
+	}
+	prevPSW = sys.psw.Get()
+	sys.unibus.PdpCPU.SwitchMode(KernelMode)
+	sys.unibus.PdpCPU.Push(prevPSW)
+	sys.unibus.PdpCPU.Push(sys.unibus.PdpCPU.Registers[7])
 }
 
 //  single cpu step:
