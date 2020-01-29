@@ -452,10 +452,12 @@ func (c *CPU) iotOp(instruction uint16) {
 // rti - return from interrupt
 func (c *CPU) rtiOp(instruction uint16) {
 	c.Registers[7] = c.Pop()
-	//tempPsw := psw.PSW(c.Pop())
-	// TODO: add the psw modification if cpu in user mode
-	panic("PSW modification if cpu in user mode missing!")
-	//c.mmunit.Psw = &tempPsw
+	val := c.Pop()
+	if c.mmunit.Psw.GetMode() == UserMode {
+		val &= 047
+		val |= c.mmunit.Psw.Get() & 0177730
+	}
+	c.mmunit.Psw.Set(val)
 }
 
 // rtt - return from trap

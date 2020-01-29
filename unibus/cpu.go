@@ -10,7 +10,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
-	debug = true
+	debug = false
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -31,6 +31,11 @@ const (
 
 	// stack size:
 	StackOverflow = 0xff
+
+	// KernelMode - kernel cpu mode const
+	KernelMode = 0
+	// UserMode - user cpu mode const
+	UserMode = 3
 )
 
 // CPU type:
@@ -53,6 +58,7 @@ type CPU struct {
 	mmunit *MMU18Bit
 
 	// original PSW while dealing with trap
+	// TODO: ever used?
 	trapPsw psw.PSW
 
 	// trap mask
