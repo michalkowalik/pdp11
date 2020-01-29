@@ -46,20 +46,11 @@ type CPU struct {
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
-	// TODO: where are they used (if at all?)
-	// (probably - but otherwise it doesn't make any sense, they are first time used
-	// when the mode change happens for the first time. pdp boots with some stack value in R6,
-	// but those 2 are used to store and restore the values for when the mode is being changed
-	// between user and kernel)
 	KernelStackPointer uint16
 	UserStackPointer   uint16
 
 	// memory access is required:
 	mmunit *MMU18Bit
-
-	// original PSW while dealing with trap
-	// TODO: ever used?
-	trapPsw psw.PSW
 
 	// trap mask
 	trapMask uint16

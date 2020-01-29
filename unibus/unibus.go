@@ -25,10 +25,6 @@ const (
 // Unibus definition
 type Unibus struct {
 
-	// Unibus map registers
-	// todo: remove if not needed!
-	UnibusMap [32]int16
-
 	// LKS - KW11-L Clock status
 	LKS uint16
 
@@ -133,9 +129,6 @@ func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
 }
 
 // ReadIOPage reads from unibus devices.
-// TODO: add a breakoint on debug code: if address == 0562
-// I want to know what calls for the getChar
-// seems like DC gets the same.
 func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
 	switch {
 	case physicalAddress == PSWAddr:
