@@ -85,45 +85,11 @@ func (sys *System) run() {
 }
 
 func (sys *System) processTrap(trap interrupts.Trap) {
-	fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
-	fmt.Printf("DEBUG: 2 fake lines \n to keep diff line numbers equal\n")
-
-	vec := trap.Vector
-	var prevPSW uint16
-
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			fmt.Printf("RED STACK TRAP!")
-			sys.unibus.Mmu.Memory[0] = sys.unibus.PdpCPU.Registers[7]
-			sys.unibus.Mmu.Memory[1] = prevPSW
-			vec = 4
-			panic("FATAL")
-		case nil:
-			break
-		default:
-			panic(t)
-		}
-		sys.unibus.PdpCPU.Registers[7] =
-			sys.unibus.Mmu.ReadWordByPhysicalAddress(uint32(vec))
-		sys.psw.Set(sys.unibus.Mmu.ReadWordByPhysicalAddress(uint32(vec) + 2))
-	}()
-
-	if trap.Vector&1 == 1 {
-		panic("Trap called with odd vector number!")
-	}
-	prevPSW = sys.psw.Get()
-	sys.unibus.PdpCPU.SwitchMode(KernelMode)
-	sys.unibus.PdpCPU.Push(prevPSW)
-	sys.unibus.PdpCPU.Push(sys.unibus.PdpCPU.Registers[7])
+	sys.CPU.Trap(trap)
 }
 
 //  single cpu step:
 func (sys *System) step() {
-	// handle traps:
-	sys.handleTraps()
-
 	// handle interrupts
 	if sys.unibus.InterruptQueue[0].Vector > 0 &&
 		sys.unibus.InterruptQueue[0].Priority >= sys.psw.Priority() {
@@ -148,23 +114,6 @@ func (sys *System) step() {
 	}
 	sys.unibus.Rk01.Step()
 	sys.unibus.TermEmulator.Step()
-}
-
-// encapsulate in method
-// read from channel in case
-// handle trap by possibly calling the already implemented cpu method
-func (sys *System) handleTraps() {
-	if sys.unibus.ActiveTrap.Vector > 0 {
-		// handle trap
-		sys.console.WriteConsole(
-			fmt.Sprintf(
-				"TRAP AT: %d, MSG: %s",
-				sys.unibus.ActiveTrap.Vector, sys.unibus.ActiveTrap.Msg))
-		sys.CPU.Trap(sys.unibus.ActiveTrap.Vector)
-		// set active to nil:
-		sys.unibus.ActiveTrap.Vector = 0
-		sys.unibus.ActiveTrap.Msg = ""
-	}
 }
 
 // process interrupt in the cpu interrupt queue

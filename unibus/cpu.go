@@ -3,7 +3,6 @@ package unibus
 import (
 	"fmt"
 	"pdp/interrupts"
-	"pdp/psw"
 	"strings"
 )
 
@@ -214,7 +213,7 @@ func (c *CPU) Fetch() uint16 {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			c.Trap(t.Vector)
+			c.Trap(t)
 		case nil:
 			// ignore
 		default:
@@ -313,8 +312,7 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			fmt.Printf("Triggering trap in readFromMemory")
-			c.Trap(t.Vector)
+			c.Trap(t)
 		case nil:
 			// ignore
 		default:
@@ -368,8 +366,7 @@ func (c *CPU) writeMemory(op, value, length uint16) error {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			fmt.Printf("Triggering trap in writeMemory")
-			c.Trap(t.Vector)
+			c.Trap(t)
 		case nil:
 			// ignore
 		default:
@@ -491,34 +488,37 @@ func (c *CPU) SwitchMode(m uint16) {
 }
 
 // Trap handles all Trap / abort events.
-// strikingly similar to processInterrupt.
-func (c *CPU) Trap(vector uint16) {
-	prev := c.mmunit.Psw.Get()
-	defer func(prev uint16) {
+func (c *CPU) Trap(trap interrupts.Trap) {
+	fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+	fmt.Printf("DEBUG\nDEBUG\n")
+
+	vec := trap.Vector
+	var prevPSW uint16
+
+	defer func() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			panic("Red stack trap. Fatal.")
+			fmt.Printf("RED STACK TRAP!")
+			c.mmunit.Memory[0] = c.Registers[7]
+			c.mmunit.Memory[1] = prevPSW
+			vec = 4
+			panic("FATAL")
 		case nil:
 			break
 		default:
 			panic(t)
 		}
-		c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
-		intPSW := c.mmunit.ReadMemoryWord(vector + 2)
+		c.Registers[7] = c.mmunit.ReadWordByPhysicalAddress(uint32(vec))
+		c.mmunit.Psw.Set(c.mmunit.ReadWordByPhysicalAddress(uint32(vec) + 2))
+	}()
 
-		if (prev & (1 << 14)) > 0 {
-			intPSW |= (1 << 13) | (1 << 12)
-		}
-		c.mmunit.Psw.Set(intPSW)
-	}(prev)
-
-	if vector&1 == 1 {
-		panic("Odd vector number!")
+	if trap.Vector&1 == 1 {
+		panic("Trap called with odd vector number!")
 	}
-
-	c.SwitchMode(psw.KernelMode)
-	c.Push(prev)
+	prevPSW = c.mmunit.Psw.Get()
+	c.SwitchMode(KernelMode)
+	c.Push(prevPSW)
 	c.Push(c.Registers[7])
 }
 

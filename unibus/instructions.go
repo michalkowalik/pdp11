@@ -1,5 +1,7 @@
 package unibus
 
+import "pdp/interrupts"
+
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
@@ -441,12 +443,12 @@ func (c *CPU) haltOp(instruction uint16) {
 // bpt - breakpoint trap
 func (c *CPU) bptOp(instruction uint16) {
 	// 14 is breakpoint trap vector
-	c.Trap(014)
+	c.Trap(interrupts.Trap{Vector: 014, Msg: "Breakpoint"})
 }
 
 // iot - i/o trap
 func (c *CPU) iotOp(instruction uint16) {
-	c.Trap(020)
+	c.Trap(interrupts.Trap{Vector: 020, Msg: "i/o"})
 }
 
 // rti - return from interrupt
@@ -623,9 +625,25 @@ func (c *CPU) jsrOp(instruction uint16) {
 	c.Registers[7] = val
 }
 
-// multiply (070) --> EIS option, but let's have it
+// multiply (070), EIS option
 func (c *CPU) mulOp(instruction uint16) {
-	panic("mul not implemented")
+	sourceOp := instruction & 077
+	sourceReg := (instruction >> 6) & 7
+
+	val1 := c.Registers[sourceReg]
+	if val1&0x8000 == 0x8000 {
+		val1 = -((0xFFFF ^ val1) + 1)
+	}
+	val2 := c.readWord(sourceOp)
+	if val2&0x8000 == 0x8000 {
+		val2 = -((0xFFFF ^ val2) + 1)
+	}
+	res := int64(val1) * int64(val2)
+	c.Registers[sourceReg] = uint16(res >> 16)
+	c.Registers[sourceReg|1] = uint16(res & 0xFFFF)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res&0x80000000 == 0x80000000)
+	c.SetFlag("C", (res < (1<<15)) || (res >= (1<<15)-1))
 }
 
 // divide (071)
@@ -756,13 +774,13 @@ func (c *CPU) sobOp(instruction uint16) {
 // trap opcodes:
 // emt - emulator trap - trap vector hardcoded to location 32
 func (c *CPU) emtOp(instruction uint16) {
-	c.Trap(32)
+	c.Trap(interrupts.Trap{Vector: 32, Msg: "emt"})
 }
 
 // trap
 // trap vector for TRAP is hardcoded for all PDP11s to memory location 34
 func (c *CPU) trapOp(instruction uint16) {
-	c.Trap(34)
+	c.Trap(interrupts.Trap{Vector: 34, Msg: "TRAP"})
 }
 
 // Single Register opcodes
