@@ -1,6 +1,8 @@
 package unibus
 
-import "pdp/interrupts"
+import (
+	"pdp/interrupts"
+)
 
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
@@ -564,7 +566,8 @@ func (c *CPU) bitbOp(instruction uint16) {
 	dest := instruction & 7
 
 	sourceVal := c.readByte(source)
-	destVal := c.readByte(dest)
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
+	destVal := c.mmunit.ReadMemoryByte(destAddr)
 
 	res := sourceVal & destVal
 	c.SetFlag("V", false)

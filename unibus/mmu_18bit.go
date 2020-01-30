@@ -265,8 +265,6 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 	defer func() {
 		t := recover()
 		switch t := t.(type) {
-		case interrupts.Trap:
-			m.unibus.Traps <- t
 		case nil:
 			// ignore
 		default:
