@@ -531,7 +531,7 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	var virtAddress uint16
 
 	// byte mode
-	if accessMode == 1 {
+	if accessMode == 1 && reg < 6 {
 		addressInc = 1
 	}
 

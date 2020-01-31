@@ -236,6 +236,7 @@ func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
 
 // ReadWordByPhysicalAddress - needed to read by physicall address
 func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
+
 	if !(addr&RegisterAddressBegin == RegisterAddressBegin) && ((addr & 1) == 1) {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -262,22 +263,13 @@ func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
 
 // ReadMemoryByte reads a byte from virtual address addr
 func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case nil:
-			// ignore
-		default:
-			panic(t)
-		}
-	}()
 
-	// Zero the lowest byte, to avoid reading a word from odd address
-	val := m.ReadMemoryWord(addr & 0xFFFE)
+	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
+	memWord := m.ReadWordByPhysicalAddress(physicalAddress)
 	if addr&1 > 0 {
-		return byte(val >> 8)
+		return byte(memWord >> 8)
 	}
-	return byte(val & 0xFF)
+	return byte(memWord & 0xFF)
 }
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
@@ -307,17 +299,6 @@ func (m *MMU18Bit) WriteWordByPhysicalAddress(addr uint32, data uint16) {
 
 // WriteMemoryByte writes a byte to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			m.unibus.Traps <- t
-		case nil:
-			// ignore
-		default:
-			panic(t)
-		}
-	}()
 
 	physicalAddress := m.mapVirtualToPhysical(addr, true, m.Psw.GetMode())
 	var wordData uint16

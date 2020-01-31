@@ -428,12 +428,14 @@ func (c *CPU) movbOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
-	sourceVal := c.readByte(uint16(source))
-	c.writeByte(uint16(dest), uint16(sourceVal))
+	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
 
 	c.SetFlag("Z", sourceVal == 0)
 	c.SetFlag("V", false)
-	c.SetFlag("N", (sourceVal&0200) > 0)
+	c.SetFlag("N", (sourceVal&0x80) > 0)
+
+	c.writeByte(uint16(dest), uint16(sourceVal))
 }
 
 // misc instructions (decode all bits)

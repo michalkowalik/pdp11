@@ -138,6 +138,8 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 	// physical front console. Magic number that seems to do the job:
 	case physicalAddress == 0777570:
 		return 0173030, nil
+	case physicalAddress == LKSAddr:
+		return u.LKS, nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		return u.TermEmulator.ReadTerm(physicalAddress)
 	case physicalAddress == SR0Addr:
