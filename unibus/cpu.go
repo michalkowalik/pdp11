@@ -281,8 +281,6 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 
 	// at this point it can be only an invalid instruction:
 	fmt.Printf(c.printState(instr))
-	fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instr))
-	fmt.Printf("\nInstruction : %o\n", instr)
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
@@ -539,13 +537,12 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	case 0:
 		virtAddress = 0177700 | reg
 	case 1:
-		// register keeps the address:
+		// register keeps the address of the address:
 		virtAddress = c.Registers[reg]
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)
-		// TODO: value should be incremented by 1 if byte instruction used.
 		virtAddress = c.Registers[reg]
-		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
+		c.Registers[reg] = c.Registers[reg] + addressInc
 	case 3:
 		// autoincrement deferred --> it doesn't look like byte mode applies here?
 		virtAddress = c.mmunit.ReadMemoryWord(c.Registers[reg])

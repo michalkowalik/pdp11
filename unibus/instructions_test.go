@@ -542,19 +542,19 @@ func TestCPU_bicOp(t *testing.T) {
 		{"N flag set", 0x7fff, 0xffff, 0x8000, flags{false, false, false, true}, false},
 	}
 	for _, tt := range tests {
-		c.Registers[0] = tt.r0Val
-		c.Registers[1] = tt.r1Val
+		u.PdpCPU.Registers[0] = tt.r0Val
+		u.PdpCPU.Registers[1] = tt.r1Val
 		t.Run(tt.name, func(t *testing.T) {
-			c.bicOp(instruction)
+			u.PdpCPU.bicOp(instruction)
 
 			// assert value
-			if c.Registers[1] != tt.res {
+			if u.PdpCPU.Registers[1] != tt.res {
 				t.Errorf("CPU.bicOp() r1 = %x, r0 = %x, exp -> %x",
-					c.Registers[1], c.Registers[0], tt.res)
+					u.PdpCPU.Registers[1], u.PdpCPU.Registers[0], tt.res)
 			}
 
 			// check flags
-			if err := assertFlags(tt.flags, c); err != nil {
+			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
 				t.Errorf(err.Error())
 			}
 		})

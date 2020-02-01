@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"fmt"
 	"pdp/interrupts"
 )
 
@@ -581,19 +582,30 @@ func (c *CPU) bitbOp(instruction uint16) {
 func (c *CPU) bicOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
+	destAddr, _ := c.GetVirtualByMode(dest, 0)
 
 	sourceVal := c.readWord(uint16(source))
-	destVal := c.readWord(uint16(dest))
+	destVal := c.mmunit.ReadMemoryWord(destAddr)
 
 	destVal = destVal & (^sourceVal)
 	c.SetFlag("V", false)
 	c.SetFlag("N", (destVal&0x8000) > 0)
 	c.SetFlag("Z", destVal == 0)
-	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
+	c.writeWord(destAddr, destVal)
 }
 
 func (c *CPU) bicbOp(instruction uint16) {
-	c.bicOp(instruction)
+	source := (instruction >> 6) & 077
+	dest := instruction & 077
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
+
+	sourceVal := c.readByte(source)
+	destVal := c.mmunit.ReadMemoryByte(destAddr)
+	destVal = destVal & (^sourceVal)
+	c.SetFlag("V", false)
+	c.SetFlag("N", (destVal&0x80) == 0x80)
+	c.SetFlag("Z", destVal == 0)
+	c.mmunit.WriteMemoryByte(destAddr, destVal)
 }
 
 // bit inclusive or (5)
@@ -613,8 +625,32 @@ func (c *CPU) bisOp(instruction uint16) {
 }
 
 func (c *CPU) bisbOp(instruction uint16) {
-	panic("no byte bisb implementation needed?")
-	// c.bisOp(instruction)
+	source := (instruction >> 6) & 077
+	dest := instruction & 077
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
+
+	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+
+	fmt.Printf(
+		"source addr: %o, physical: %o\n",
+		sourceAddr,
+		c.mmunit.mapVirtualToPhysical(sourceAddr, false, 1))
+
+	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
+	destVal := c.mmunit.ReadMemoryByte(destAddr)
+
+	fmt.Printf("DEBUG BISB: dest addr: %o, s: %o, d: %o\n", destAddr, sourceVal, destVal)
+
+	destVal = sourceVal | destVal
+
+	fmt.Printf("BISB: d: %o\n", destVal)
+
+	c.SetFlag("V", false)
+	c.SetFlag("N", (destVal&0x80) == 0x80)
+	c.SetFlag("Z", destVal == 0)
+	c.mmunit.WriteMemoryByte(destAddr, destVal)
+	c.mmunit.DumpMemory()
+	panic("it's time to panic. now.")
 }
 
 // RDD opcodes:

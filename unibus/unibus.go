@@ -171,6 +171,9 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 	case physicalAddress&RegAddr == RegAddr:
 		u.setRegisterValue(physicalAddress, data)
 		return nil
+	case physicalAddress == LKSAddr:
+		u.LKS = data
+		return nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		u.TermEmulator.WriteTerm(physicalAddress, data)
 		return nil
