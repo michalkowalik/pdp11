@@ -546,18 +546,15 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	case 3:
 		// autoincrement deferred --> it doesn't look like byte mode applies here?
 		virtAddress = c.mmunit.ReadMemoryWord(c.Registers[reg])
-		c.Registers[reg] = (c.Registers[reg] + 2) & 0xffff
+		c.Registers[reg] = c.Registers[reg] + 2
 	case 4:
 		// autodecrement - step depends on which register is in use:
-		addressInc = 2
-		if (reg < 6) && (accessMode&ByteMode > 0) {
-			addressInc = 1
-		}
-		c.Registers[reg] = (c.Registers[reg] - addressInc) & 0xffff
-		virtAddress = c.Registers[reg] & 0xffff
+		c.Registers[reg] = c.Registers[reg] - addressInc
+		virtAddress = c.Registers[reg]
 	case 5:
 		// autodecrement deferred
-		virtAddress = c.mmunit.ReadMemoryWord((c.Registers[reg] - 2) & 0xffff)
+		c.Registers[reg] = c.Registers[reg] - 2
+		virtAddress = c.mmunit.ReadMemoryWord(c.Registers[reg])
 	case 6:
 		// index mode -> read next word to get the basis for address, add value in Register
 		offset := c.Fetch()

@@ -1,7 +1,6 @@
 package unibus
 
 import (
-	"fmt"
 	"pdp/interrupts"
 )
 
@@ -313,19 +312,7 @@ func (c *CPU) mfpiOp(instruction uint16) {
 
 	curUser := c.mmunit.Psw.GetMode()
 	prevUser := c.mmunit.Psw.GetPreviousMode()
-	/*
-		if c.Registers[4] == 04000 && c.Registers[5] == 0141774 && c.Registers[6] == 0141754 && c.Registers[7] == 002232 {
-			c.mmunit.DumpMemory()
-			fmt.Printf("Instruction : %o\n", instruction)
-			fmt.Printf("%s\n", c.DumpRegisters())
-			fmt.Printf("PSW: %o\n", c.mmunit.Psw.Get())
-			fmt.Printf("SR0: %o, SR2: %o\n", c.mmunit.SR0, c.mmunit.SR2)
-			pa := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
-			fmt.Printf("physical address for (R1): %o\n", pa)
-			fmt.Printf("val: %o\n", c.mmunit.Memory[(pa>>1)])
-			panic("WHOPSIE D@ISY!")
-		}
-	*/
+
 	switch {
 	case dest == 0170006:
 		if curUser == prevUser {
@@ -412,6 +399,7 @@ func (c *CPU) sxtOp(instruction uint16) {
 // because it will set the flags according to the value of the operand,
 // possibly rewriting the flags in the process.
 func (c *CPU) movOp(instruction uint16) {
+
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 	sourceVal := c.readWord(uint16(source))
@@ -426,16 +414,19 @@ func (c *CPU) movOp(instruction uint16) {
 // movb
 // TODO: Finish implementation
 func (c *CPU) movbOp(instruction uint16) {
+
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
 	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+	//destAddr, _ := c.GetVirtualByMode(dest, 1)
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
 
 	c.SetFlag("Z", sourceVal == 0)
 	c.SetFlag("V", false)
 	c.SetFlag("N", (sourceVal&0x80) > 0)
 
+	//c.mmunit.WriteMemoryByte(destAddr, sourceVal)
 	c.writeByte(uint16(dest), uint16(sourceVal))
 }
 
@@ -628,29 +619,18 @@ func (c *CPU) bisbOp(instruction uint16) {
 	source := (instruction >> 6) & 077
 	dest := instruction & 077
 	destAddr, _ := c.GetVirtualByMode(dest, 1)
-
 	sourceAddr, _ := c.GetVirtualByMode(source, 1)
-
-	fmt.Printf(
-		"source addr: %o, physical: %o\n",
-		sourceAddr,
-		c.mmunit.mapVirtualToPhysical(sourceAddr, false, 1))
-
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
 	destVal := c.mmunit.ReadMemoryByte(destAddr)
 
-	fmt.Printf("DEBUG BISB: dest addr: %o, s: %o, d: %o\n", destAddr, sourceVal, destVal)
-
 	destVal = sourceVal | destVal
-
-	fmt.Printf("BISB: d: %o\n", destVal)
-
 	c.SetFlag("V", false)
 	c.SetFlag("N", (destVal&0x80) == 0x80)
 	c.SetFlag("Z", destVal == 0)
 	c.mmunit.WriteMemoryByte(destAddr, destVal)
+
 	c.mmunit.DumpMemory()
-	panic("it's time to panic. now.")
+	panic("panicking at bisb")
 }
 
 // RDD opcodes:
