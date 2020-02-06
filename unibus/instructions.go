@@ -568,7 +568,7 @@ func (c *CPU) bitbOp(instruction uint16) {
 
 // bit clear (4)
 func (c *CPU) bicOp(instruction uint16) {
-	source := (instruction & 07700) >> 6
+	source := (instruction >> 6) & 077
 	dest := instruction & 077
 	sourceVal := c.readWord(uint16(source))
 	destAddr, _ := c.GetVirtualByMode(dest, 0)
@@ -578,7 +578,7 @@ func (c *CPU) bicOp(instruction uint16) {
 	c.SetFlag("V", false)
 	c.SetFlag("N", (destVal&0x8000) > 0)
 	c.SetFlag("Z", destVal == 0)
-	c.writeWord(destAddr, destVal)
+	c.mmunit.WriteMemoryWord(destAddr, destVal)
 }
 
 func (c *CPU) bicbOp(instruction uint16) {
