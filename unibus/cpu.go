@@ -209,20 +209,8 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			c.Trap(t)
-		case nil:
-			// ignore
-		default:
-			panic(t)
-		}
-	}()
-
 	instruction := c.mmunit.ReadMemoryWord(c.Registers[7])
-	c.Registers[7] = (c.Registers[7] + 2) & 0xffff
+	c.Registers[7] += 2
 	return instruction
 }
 

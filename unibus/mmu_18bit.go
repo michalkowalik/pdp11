@@ -263,9 +263,13 @@ func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
 
 // ReadMemoryByte reads a byte from virtual address addr
 func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
-
 	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
 	memWord := m.ReadWordByPhysicalAddress(physicalAddress)
+
+	if physicalAddress&RegisterAddressBegin == RegisterAddressBegin {
+		return byte(memWord & 0xFF)
+	}
+
 	if addr&1 > 0 {
 		return byte(memWord >> 8)
 	}
@@ -301,6 +305,14 @@ func (m *MMU18Bit) WriteWordByPhysicalAddress(addr uint32, data uint16) {
 func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
 	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
 	wordData := m.ReadWordByPhysicalAddress(physicalAddress)
+
+	if (physicalAddress & RegisterAddressBegin) == RegisterAddressBegin {
+		m.WriteWordByPhysicalAddress(
+			physicalAddress,
+			uint16(data))
+		return
+	}
+
 	if addr&1 == 0 {
 		wordData = (wordData & 0xFF00) | uint16(data)
 	} else {

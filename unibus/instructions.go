@@ -414,20 +414,17 @@ func (c *CPU) movOp(instruction uint16) {
 // movb
 // TODO: Finish implementation
 func (c *CPU) movbOp(instruction uint16) {
-
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
 	sourceAddr, _ := c.GetVirtualByMode(source, 1)
-	//destAddr, _ := c.GetVirtualByMode(dest, 1)
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
-
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
 	c.SetFlag("Z", sourceVal == 0)
 	c.SetFlag("V", false)
 	c.SetFlag("N", (sourceVal&0x80) > 0)
 
-	//c.mmunit.WriteMemoryByte(destAddr, sourceVal)
-	c.writeByte(uint16(dest), uint16(sourceVal))
+	c.mmunit.WriteMemoryByte(destAddr, sourceVal)
 }
 
 // misc instructions (decode all bits)
@@ -573,9 +570,8 @@ func (c *CPU) bitbOp(instruction uint16) {
 func (c *CPU) bicOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
-	destAddr, _ := c.GetVirtualByMode(dest, 0)
-
 	sourceVal := c.readWord(uint16(source))
+	destAddr, _ := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(destAddr)
 
 	destVal = destVal & (^sourceVal)
@@ -588,9 +584,9 @@ func (c *CPU) bicOp(instruction uint16) {
 func (c *CPU) bicbOp(instruction uint16) {
 	source := (instruction >> 6) & 077
 	dest := instruction & 077
-	destAddr, _ := c.GetVirtualByMode(dest, 1)
 
 	sourceVal := c.readByte(source)
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
 	destVal := c.mmunit.ReadMemoryByte(destAddr)
 	destVal = destVal & (^sourceVal)
 	c.SetFlag("V", false)
@@ -601,7 +597,7 @@ func (c *CPU) bicbOp(instruction uint16) {
 
 // bit inclusive or (5)
 func (c *CPU) bisOp(instruction uint16) {
-	source := (instruction & 07700) >> 6
+	source := (instruction >> 6) & 077
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
@@ -618,8 +614,8 @@ func (c *CPU) bisOp(instruction uint16) {
 func (c *CPU) bisbOp(instruction uint16) {
 	source := (instruction >> 6) & 077
 	dest := instruction & 077
-	destAddr, _ := c.GetVirtualByMode(dest, 1)
 	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
 	destVal := c.mmunit.ReadMemoryByte(destAddr)
 
@@ -628,9 +624,6 @@ func (c *CPU) bisbOp(instruction uint16) {
 	c.SetFlag("N", (destVal&0x80) == 0x80)
 	c.SetFlag("Z", destVal == 0)
 	c.mmunit.WriteMemoryByte(destAddr, destVal)
-
-	c.mmunit.DumpMemory()
-	panic("panicking at bisb")
 }
 
 // RDD opcodes:
