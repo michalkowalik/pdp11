@@ -61,7 +61,13 @@ func (c *CPU) incOp(instruction uint16) {
 }
 
 func (c *CPU) incbOp(instruction uint16) {
-	panic("INCB NOT IMPLEMENTED")
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	val := c.mmunit.ReadMemoryByte(dstAddr)
+	res := (val + 1) & 0xFF
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res&0x80 == 0x80)
+	c.SetFlag("V", val == 0x7F)
+	c.mmunit.WriteMemoryByte(dstAddr, val)
 }
 
 // dec - decrement dst
