@@ -512,7 +512,7 @@ func (c *CPU) addOp(instruction uint16) {
 	c.SetFlag("N", sum&0x8000 == 0x8000)
 	c.SetFlag("Z", sum == 0)
 	c.SetFlag("V",
-		!((sourceVal^destVal)&0x8000 == 0x8000) && ((destVal^sourceVal)&0x8000 == 0x8000))
+		!((sourceVal^destVal)&0x8000 == 0x8000) && ((destVal^sum)&0x8000 == 0x8000))
 	c.SetFlag("C", int(sourceVal)+int(destVal) > 0xffff)
 	c.mmunit.WriteMemoryWord(virtAddr, sum)
 }
@@ -640,23 +640,25 @@ func (c *CPU) jsrOp(instruction uint16) {
 }
 
 // multiply (070), EIS option
+// N and Z flags set as in other implementation
+// but as far as I can tell, not as described by Digital
 func (c *CPU) mulOp(instruction uint16) {
 	sourceOp := instruction & 077
 	sourceReg := (instruction >> 6) & 7
 
-	val1 := c.Registers[sourceReg]
+	val1 := int(c.Registers[sourceReg])
 	if val1&0x8000 == 0x8000 {
 		val1 = -((0xFFFF ^ val1) + 1)
 	}
-	val2 := c.readWord(sourceOp)
+	val2 := int(c.readWord(sourceOp))
 	if val2&0x8000 == 0x8000 {
 		val2 = -((0xFFFF ^ val2) + 1)
 	}
 	res := int64(val1) * int64(val2)
 	c.Registers[sourceReg] = uint16(res >> 16)
 	c.Registers[sourceReg|1] = uint16(res & 0xFFFF)
-	c.SetFlag("Z", res == 0)
-	c.SetFlag("N", res&0x80000000 == 0x80000000)
+	c.SetFlag("N", res&0xFFFFFFFF == 0)
+	c.SetFlag("Z", res&0x80000000 == 0x80000000)
 	c.SetFlag("C", (res < (1<<15)) || (res >= (1<<15)-1))
 }
 
