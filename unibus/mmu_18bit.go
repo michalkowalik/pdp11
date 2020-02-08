@@ -124,7 +124,8 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 }
 
 // mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
-func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) uint32 {
+// mode: 0 for kernel, 3 for user
+func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, mode uint16) uint32 {
 
 	if !m.MmuEnabled() {
 		addr := uint32(virtualAddress)
@@ -140,7 +141,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
-	if m.Psw.GetMode() > 0 {
+	if mode > 0 {
 		currentUser += 8
 	}
 	offset := (virtualAddress >> 13) + currentUser
@@ -204,9 +205,10 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
-		panic(interrupts.Trap{
-			Vector: interrupts.INTFault,
-			Msg:    "Page length exceeded"})
+		//panic(interrupts.Trap{
+		//	Vector: interrupts.INTFault,
+		//	Msg:    "Page length exceeded"})
+		panic("PAGE LENGTH EXCEEDED")
 	}
 
 	// set PDR W byte:
@@ -228,23 +230,29 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool) u
 // Funny complication: A trap needs to be thrown if case it is an odd address
 // but not if it it is an register address -> then it's OK.
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
-	physicalAddress := m.mapVirtualToPhysical(addr, false)
-	if !(physicalAddress&RegisterAddressBegin == RegisterAddressBegin) && ((physicalAddress & 1) == 1) {
+	physicalAddress := m.mapVirtualToPhysical(addr, false, m.Psw.GetMode())
+	return m.ReadWordByPhysicalAddress(physicalAddress)
+}
+
+// ReadWordByPhysicalAddress - needed to read by physicall address
+func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
+
+	if !(addr&RegisterAddressBegin == RegisterAddressBegin) && ((addr & 1) == 1) {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
-			Msg:    fmt.Sprintf("Reading from odd address: %o", physicalAddress)})
+			Msg:    fmt.Sprintf("Reading from odd address: %o", addr)})
 	}
-	if physicalAddress > MaxTotalMemory {
+	if addr > MaxTotalMemory {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Read from invalid address")})
 	}
-	if physicalAddress < MaxMemory {
-		return m.Memory[physicalAddress>>1]
+	if addr < MaxMemory {
+		return m.Memory[addr>>1]
 	}
 
 	// IO Page:
-	data, err := m.unibus.ReadIOPage(physicalAddress, false)
+	data, err := m.unibus.ReadIOPage(addr, false)
 	if err != nil {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
@@ -255,41 +263,37 @@ func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
 
 // ReadMemoryByte reads a byte from virtual address addr
 func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			m.unibus.Traps <- t
-		case nil:
-			// ignore
-		default:
-			panic(t)
-		}
-	}()
+	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
+	memWord := m.ReadWordByPhysicalAddress(physicalAddress)
 
-	// Zero the lowest byte, to avoid reading a word from odd address
-	val := m.ReadMemoryWord(addr & 0xFFFE)
-	if addr&1 > 0 {
-		return byte(val >> 8)
+	if physicalAddress&RegisterAddressBegin == RegisterAddressBegin {
+		return byte(memWord & 0xFF)
 	}
-	return byte(val & 0xFF)
+
+	if addr&1 > 0 {
+		return byte(memWord >> 8)
+	}
+	return byte(memWord & 0xFF)
 }
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
+	physicalAddress := m.mapVirtualToPhysical(addr, true, m.Psw.GetMode())
+	m.WriteWordByPhysicalAddress(physicalAddress, data)
+}
 
-	physicalAddress := m.mapVirtualToPhysical(addr, true)
-	if !(physicalAddress&RegisterAddressBegin == RegisterAddressBegin) && ((physicalAddress & 1) == 1) {
-		panic("ERROR!! ODD ADDRESS\n")
-		//panic(interrupts.Trap{
-		//	Vector: interrupts.INTBus,
-		//	Msg:    "Write to odd address"})
+// WriteWordByPhysicalAddress - write word to physical address
+func (m *MMU18Bit) WriteWordByPhysicalAddress(addr uint32, data uint16) {
+	if !(addr&RegisterAddressBegin == RegisterAddressBegin) && ((addr & 1) == 1) {
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    "Write to odd address"})
 	}
 
-	if physicalAddress < MaxMemory {
-		m.Memory[physicalAddress>>1] = data
-	} else if physicalAddress >= MaxMemory && physicalAddress <= MaxTotalMemory {
-		m.unibus.WriteIOPage(physicalAddress, data, false)
+	if addr < MaxMemory {
+		m.Memory[addr>>1] = data
+	} else if addr > MaxMemory && addr <= MaxTotalMemory {
+		m.unibus.WriteIOPage(addr, data, false)
 	} else {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -299,27 +303,21 @@ func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
 
 // WriteMemoryByte writes a byte to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			m.unibus.Traps <- t
-		case nil:
-			// ignore
-		default:
-			panic(t)
-		}
-	}()
+	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
+	wordData := m.ReadWordByPhysicalAddress(physicalAddress)
 
-	physicalAddress := m.mapVirtualToPhysical(addr, true)
-	var wordData uint16
-	if addr&1 == 0 {
-		wordData = (m.Memory[physicalAddress>>1] & 0xFF00) | uint16(data)
-	} else {
-		wordData = (m.Memory[physicalAddress>>1] & 0xFF) | (uint16(data) << 8)
-
-		// no odd addresses if WriteMemoryWord is to be used
-		addr--
+	if (physicalAddress & RegisterAddressBegin) == RegisterAddressBegin {
+		m.WriteWordByPhysicalAddress(
+			physicalAddress,
+			uint16(data))
+		return
 	}
-	m.WriteMemoryWord(addr, wordData)
+
+	if addr&1 == 0 {
+		wordData = (wordData & 0xFF00) | uint16(data)
+	} else {
+		wordData = (wordData & 0xFF) | (uint16(data) << 8)
+	}
+	physicalAddress = m.mapVirtualToPhysical(addr&0xFFFE, true, m.Psw.GetMode())
+	m.WriteWordByPhysicalAddress(physicalAddress, wordData)
 }

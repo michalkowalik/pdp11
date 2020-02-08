@@ -2,12 +2,21 @@ package system
 
 import (
 	"fmt"
+	"go/build"
+	"path/filepath"
 	"pdp/console"
 	"pdp/interrupts"
 	"pdp/psw"
 	"pdp/unibus"
 
 	"github.com/jroimartin/gocui"
+)
+
+const (
+	// KernelMode - kernel cpu mode const
+	KernelMode = 0
+	// UserMode - user cpu mode const
+	UserMode = 3
 )
 
 // System definition.
@@ -38,10 +47,7 @@ func InitializeSystem(
 	//sys.unibus.WriteHello()
 
 	// mount drive
-	// TODO: clean it up!
-	sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
-	// sys.unibus.Rk01.Attach(0, "/Users/mkowalik/src/pdp/images/rk0.img")
-	// sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rt11.iso")
+	sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp/rk0"))
 	sys.unibus.Rk01.Reset()
 
 	sys.console.WriteConsole("Initializing PDP11 CPU.\n")
@@ -64,7 +70,7 @@ func (sys *System) run() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			sys.unibus.Traps <- t
+			sys.processTrap(t)
 		case nil:
 			// ignore
 		default:
@@ -77,11 +83,12 @@ func (sys *System) run() {
 	}
 }
 
+func (sys *System) processTrap(trap interrupts.Trap) {
+	sys.CPU.Trap(trap)
+}
+
 //  single cpu step:
 func (sys *System) step() {
-	// handle traps:
-	sys.handleTraps()
-
 	// handle interrupts
 	if sys.unibus.InterruptQueue[0].Vector > 0 &&
 		sys.unibus.InterruptQueue[0].Priority >= sys.psw.Priority() {
@@ -106,23 +113,6 @@ func (sys *System) step() {
 	}
 	sys.unibus.Rk01.Step()
 	sys.unibus.TermEmulator.Step()
-}
-
-// encapsulate in method
-// read from channel in case
-// handle trap by possibly calling the already implemented cpu method
-func (sys *System) handleTraps() {
-	if sys.unibus.ActiveTrap.Vector > 0 {
-		// handle trap
-		sys.console.WriteConsole(
-			fmt.Sprintf(
-				"TRAP AT: %d, MSG: %s",
-				sys.unibus.ActiveTrap.Vector, sys.unibus.ActiveTrap.Msg))
-		sys.CPU.Trap(sys.unibus.ActiveTrap.Vector)
-		// set active to nil:
-		sys.unibus.ActiveTrap.Vector = 0
-		sys.unibus.ActiveTrap.Msg = ""
-	}
 }
 
 // process interrupt in the cpu interrupt queue

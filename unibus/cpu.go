@@ -3,7 +3,6 @@ package unibus
 import (
 	"fmt"
 	"pdp/interrupts"
-	"pdp/psw"
 	"strings"
 )
 
@@ -31,6 +30,11 @@ const (
 
 	// stack size:
 	StackOverflow = 0xff
+
+	// KernelMode - kernel cpu mode const
+	KernelMode = 0
+	// UserMode - user cpu mode const
+	UserMode = 3
 )
 
 // CPU type:
@@ -41,19 +45,11 @@ type CPU struct {
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
-	// TODO: where are they used (if at all?)
-	// (probably - but otherwise it doesn't make any sense, they are first time used
-	// when the mode change happens for the first time. pdp boots with some stack value in R6,
-	// but those 2 are used to store and restore the values for when the mode is being changed
-	// between user and kernel)
 	KernelStackPointer uint16
 	UserStackPointer   uint16
 
 	// memory access is required:
 	mmunit *MMU18Bit
-
-	// original PSW while dealing with trap
-	trapPsw psw.PSW
 
 	// trap mask
 	trapMask uint16
@@ -213,20 +209,8 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			c.Trap(t.Vector)
-		case nil:
-			// ignore
-		default:
-			panic(t)
-		}
-	}()
-
 	instruction := c.mmunit.ReadMemoryWord(c.Registers[7])
-	c.Registers[7] = (c.Registers[7] + 2) & 0xffff
+	c.Registers[7] += 2
 	return instruction
 }
 
@@ -285,8 +269,6 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 
 	// at this point it can be only an invalid instruction:
 	fmt.Printf(c.printState(instr))
-	fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instr))
-	fmt.Printf("\nInstruction : %o\n", instr)
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
@@ -316,8 +298,7 @@ func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			fmt.Printf("Triggering trap in readFromMemory")
-			c.Trap(t.Vector)
+			c.Trap(t)
 		case nil:
 			// ignore
 		default:
@@ -371,8 +352,7 @@ func (c *CPU) writeMemory(op, value, length uint16) error {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			fmt.Printf("Triggering trap in writeMemory")
-			c.Trap(t.Vector)
+			c.Trap(t)
 		case nil:
 			// ignore
 		default:
@@ -494,34 +474,37 @@ func (c *CPU) SwitchMode(m uint16) {
 }
 
 // Trap handles all Trap / abort events.
-// strikingly similar to processInterrupt.
-func (c *CPU) Trap(vector uint16) {
-	prev := c.mmunit.Psw.Get()
-	defer func(prev uint16) {
+func (c *CPU) Trap(trap interrupts.Trap) {
+	fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+	fmt.Printf("DEBUG\nDEBUG\n")
+
+	vec := trap.Vector
+	var prevPSW uint16
+
+	defer func() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			panic("Red stack trap. Fatal.")
+			fmt.Printf("RED STACK TRAP!")
+			c.mmunit.Memory[0] = c.Registers[7]
+			c.mmunit.Memory[1] = prevPSW
+			vec = 4
+			panic("FATAL")
 		case nil:
 			break
 		default:
 			panic(t)
 		}
-		c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
-		intPSW := c.mmunit.ReadMemoryWord(vector + 2)
+		c.Registers[7] = c.mmunit.ReadWordByPhysicalAddress(uint32(vec))
+		c.mmunit.Psw.Set(c.mmunit.ReadWordByPhysicalAddress(uint32(vec) + 2))
+	}()
 
-		if (prev & (1 << 14)) > 0 {
-			intPSW |= (1 << 13) | (1 << 12)
-		}
-		c.mmunit.Psw.Set(intPSW)
-	}(prev)
-
-	if vector&1 == 1 {
-		panic("Odd vector number!")
+	if trap.Vector&1 == 1 {
+		panic("Trap called with odd vector number!")
 	}
-
-	c.SwitchMode(psw.KernelMode)
-	c.Push(prev)
+	prevPSW = c.mmunit.Psw.Get()
+	c.SwitchMode(KernelMode)
+	c.Push(prevPSW)
 	c.Push(c.Registers[7])
 }
 
@@ -534,7 +517,7 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	var virtAddress uint16
 
 	// byte mode
-	if accessMode == 1 {
+	if accessMode == 1 && reg < 6 {
 		addressInc = 1
 	}
 
@@ -542,28 +525,24 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 	case 0:
 		virtAddress = 0177700 | reg
 	case 1:
-		// register keeps the address:
+		// register keeps the address of the address:
 		virtAddress = c.Registers[reg]
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)
-		// TODO: value should be incremented by 1 if byte instruction used.
 		virtAddress = c.Registers[reg]
-		c.Registers[reg] = (c.Registers[reg] + addressInc) & 0xffff
+		c.Registers[reg] = c.Registers[reg] + addressInc
 	case 3:
 		// autoincrement deferred --> it doesn't look like byte mode applies here?
 		virtAddress = c.mmunit.ReadMemoryWord(c.Registers[reg])
-		c.Registers[reg] = (c.Registers[reg] + 2) & 0xffff
+		c.Registers[reg] = c.Registers[reg] + 2
 	case 4:
 		// autodecrement - step depends on which register is in use:
-		addressInc = 2
-		if (reg < 6) && (accessMode&ByteMode > 0) {
-			addressInc = 1
-		}
-		c.Registers[reg] = (c.Registers[reg] - addressInc) & 0xffff
-		virtAddress = c.Registers[reg] & 0xffff
+		c.Registers[reg] = c.Registers[reg] - addressInc
+		virtAddress = c.Registers[reg]
 	case 5:
 		// autodecrement deferred
-		virtAddress = c.mmunit.ReadMemoryWord((c.Registers[reg] - 2) & 0xffff)
+		c.Registers[reg] = c.Registers[reg] - 2
+		virtAddress = c.mmunit.ReadMemoryWord(c.Registers[reg])
 	case 6:
 		// index mode -> read next word to get the basis for address, add value in Register
 		offset := c.Fetch()

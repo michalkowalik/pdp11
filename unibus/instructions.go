@@ -1,5 +1,9 @@
 package unibus
 
+import (
+	"pdp/interrupts"
+)
+
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
@@ -57,7 +61,13 @@ func (c *CPU) incOp(instruction uint16) {
 }
 
 func (c *CPU) incbOp(instruction uint16) {
-	panic("INCB NOT IMPLEMENTED")
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	val := c.mmunit.ReadMemoryByte(dstAddr)
+	res := (val + 1) & 0xFF
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res&0x80 == 0x80)
+	c.SetFlag("V", val == 0x7F)
+	c.mmunit.WriteMemoryByte(dstAddr, val)
 }
 
 // dec - decrement dst
@@ -294,17 +304,83 @@ func (c *CPU) swabOp(instruction uint16) {
 
 // mark - used as a part of subroutine return convention on pdp11
 func (c *CPU) markOp(instruction uint16) {
-	panic("not implemented!")
+	c.Registers[6] = c.Registers[7] + uint16(instruction&0xFFFF)<<1
+	c.Registers[7] = c.Registers[5]
+	c.Registers[5] = c.Pop()
 }
 
 // mfpi - move from previous instruction space
 func (c *CPU) mfpiOp(instruction uint16) {
-	panic("not implemented")
+
+	var val uint16
+	dest, err := c.GetVirtualByMode(instruction&077, 0)
+	if err != nil {
+		panic("MFPI: could not resolve virtual address")
+	}
+
+	curUser := c.mmunit.Psw.GetMode()
+	prevUser := c.mmunit.Psw.GetPreviousMode()
+
+	switch {
+	case dest == 0170006:
+		if curUser == prevUser {
+			val = c.Registers[6]
+		} else {
+			if curUser == 0 { // kernel
+				val = c.UserStackPointer
+			} else {
+				val = c.KernelStackPointer
+			}
+		}
+	// if register:
+	case dest&0177770 == 0170000:
+		panic("MFPI attended on Register address")
+	default:
+		physicalAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
+		val =
+			c.mmunit.ReadWordByPhysicalAddress(physicalAddress)
+	}
+
+	c.Push(val)
+	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFF0)
+	c.SetFlag("C", true)
+	c.SetFlag("N", val&0x8000 == 0x8000)
+	c.SetFlag("Z", val == 0)
 }
 
 // mtpi - move to previous instruction space
 func (c *CPU) mtpiOp(instruction uint16) {
-	panic("not implemented")
+	dest, err := c.GetVirtualByMode(instruction&077, 0)
+	if err != nil {
+		panic("INC: Can't obtain virtual address")
+	}
+	val := c.Pop()
+
+	curUser := c.mmunit.Psw.GetMode()
+	prevUser := c.mmunit.Psw.GetPreviousMode()
+
+	switch {
+	case dest == 0170006:
+		if curUser == prevUser {
+			c.Registers[6] = val
+		} else {
+			if curUser == 0 {
+				c.UserStackPointer = val
+			} else {
+				c.KernelStackPointer = val
+			}
+		}
+	case dest&0177770 == 0170000:
+		panic("MTPI attended on Register address")
+	default:
+		sourceAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
+		c.mmunit.WriteWordByPhysicalAddress(sourceAddress, val)
+	}
+
+	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFFF)
+	c.SetFlag("C", true)
+	c.SetFlag("N", val&0x8000 == 0x8000)
+	c.SetFlag("Z", val == 0)
 }
 
 // sxt - sign extended
@@ -327,16 +403,20 @@ func (c *CPU) sxtOp(instruction uint16) {
 // double operand cpu instructions:
 
 // move (1)
+// There's a subtle problem: what if MOV is used to set the PSW?
+// because it will set the flags according to the value of the operand,
+// possibly rewriting the flags in the process.
 func (c *CPU) movOp(instruction uint16) {
+
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
-
 	sourceVal := c.readWord(uint16(source))
-	c.writeWord(uint16(dest), sourceVal)
+
 	c.SetFlag("N", (sourceVal&0100000) > 0)
 	c.SetFlag("Z", sourceVal == 0)
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
+	c.writeWord(uint16(dest), sourceVal)
 }
 
 // movb
@@ -345,39 +425,42 @@ func (c *CPU) movbOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
-	sourceVal := c.readByte(uint16(source))
-	c.writeByte(uint16(dest), uint16(sourceVal))
-
+	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
 	c.SetFlag("Z", sourceVal == 0)
 	c.SetFlag("V", false)
-	c.SetFlag("N", (sourceVal&0200) > 0)
+	c.SetFlag("N", (sourceVal&0x80) > 0)
+
+	c.mmunit.WriteMemoryByte(destAddr, sourceVal)
 }
 
 // misc instructions (decode all bits)
 // halt
 func (c *CPU) haltOp(instruction uint16) {
-	// halt is an empty instruction. just stop CPU
 	c.State = HALT
 }
 
 // bpt - breakpoint trap
 func (c *CPU) bptOp(instruction uint16) {
 	// 14 is breakpoint trap vector
-	c.Trap(014)
+	c.Trap(interrupts.Trap{Vector: 014, Msg: "Breakpoint"})
 }
 
 // iot - i/o trap
 func (c *CPU) iotOp(instruction uint16) {
-	c.Trap(020)
+	c.Trap(interrupts.Trap{Vector: 020, Msg: "i/o"})
 }
 
 // rti - return from interrupt
 func (c *CPU) rtiOp(instruction uint16) {
 	c.Registers[7] = c.Pop()
-	//tempPsw := psw.PSW(c.Pop())
-	// TODO: add the psw modification if cpu in user mode
-	panic("PSW modification if cpu in user mode missing!")
-	//c.mmunit.Psw = &tempPsw
+	val := c.Pop()
+	if c.mmunit.Psw.GetMode() == UserMode {
+		val &= 047
+		val |= c.mmunit.Psw.Get() & 0177730
+	}
+	c.mmunit.Psw.Set(val)
 }
 
 // rtt - return from trap
@@ -430,15 +513,16 @@ func (c *CPU) addOp(instruction uint16) {
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
-	destVal := c.readWord(uint16(dest))
+	virtAddr, _ := c.GetVirtualByMode(dest, 0)
+	destVal := c.mmunit.ReadMemoryWord(virtAddr)
 	sum := sourceVal + destVal
 
 	c.SetFlag("N", sum&0x8000 == 0x8000)
 	c.SetFlag("Z", sum == 0)
 	c.SetFlag("V",
-		!((sourceVal^destVal)&0x8000 == 0x8000) && ((destVal^sourceVal)&0x8000 == 0x8000))
+		!((sourceVal^destVal)&0x8000 == 0x8000) && ((destVal^sum)&0x8000 == 0x8000))
 	c.SetFlag("C", int(sourceVal)+int(destVal) > 0xffff)
-	c.writeWord(uint16(dest), uint16(sum)&0xffff)
+	c.mmunit.WriteMemoryWord(virtAddr, sum)
 }
 
 // substract (16)
@@ -481,7 +565,8 @@ func (c *CPU) bitbOp(instruction uint16) {
 	dest := instruction & 7
 
 	sourceVal := c.readByte(source)
-	destVal := c.readByte(dest)
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
+	destVal := c.mmunit.ReadMemoryByte(destAddr)
 
 	res := sourceVal & destVal
 	c.SetFlag("V", false)
@@ -491,26 +576,36 @@ func (c *CPU) bitbOp(instruction uint16) {
 
 // bit clear (4)
 func (c *CPU) bicOp(instruction uint16) {
-	source := (instruction & 07700) >> 6
+	source := (instruction >> 6) & 077
 	dest := instruction & 077
-
 	sourceVal := c.readWord(uint16(source))
-	destVal := c.readWord(uint16(dest))
+	destAddr, _ := c.GetVirtualByMode(dest, 0)
+	destVal := c.mmunit.ReadMemoryWord(destAddr)
 
 	destVal = destVal & (^sourceVal)
 	c.SetFlag("V", false)
 	c.SetFlag("N", (destVal&0x8000) > 0)
 	c.SetFlag("Z", destVal == 0)
-	c.writeWord(uint16(dest), uint16(destVal)&0xffff)
+	c.mmunit.WriteMemoryWord(destAddr, destVal)
 }
 
 func (c *CPU) bicbOp(instruction uint16) {
-	c.bicOp(instruction)
+	source := (instruction >> 6) & 077
+	dest := instruction & 077
+
+	sourceVal := c.readByte(source)
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
+	destVal := c.mmunit.ReadMemoryByte(destAddr)
+	destVal = destVal & (^sourceVal)
+	c.SetFlag("V", false)
+	c.SetFlag("N", (destVal&0x80) == 0x80)
+	c.SetFlag("Z", destVal == 0)
+	c.mmunit.WriteMemoryByte(destAddr, destVal)
 }
 
 // bit inclusive or (5)
 func (c *CPU) bisOp(instruction uint16) {
-	source := (instruction & 07700) >> 6
+	source := (instruction >> 6) & 077
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
@@ -525,8 +620,18 @@ func (c *CPU) bisOp(instruction uint16) {
 }
 
 func (c *CPU) bisbOp(instruction uint16) {
-	panic("no byte bisb implementation needed?")
-	// c.bisOp(instruction)
+	source := (instruction >> 6) & 077
+	dest := instruction & 077
+	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+	destAddr, _ := c.GetVirtualByMode(dest, 1)
+	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
+	destVal := c.mmunit.ReadMemoryByte(destAddr)
+
+	destVal = sourceVal | destVal
+	c.SetFlag("V", false)
+	c.SetFlag("N", (destVal&0x80) == 0x80)
+	c.SetFlag("Z", destVal == 0)
+	c.mmunit.WriteMemoryByte(destAddr, destVal)
 }
 
 // RDD opcodes:
@@ -542,9 +647,27 @@ func (c *CPU) jsrOp(instruction uint16) {
 	c.Registers[7] = val
 }
 
-// multiply (070) --> EIS option, but let's have it
+// multiply (070), EIS option
+// N and Z flags set as in other implementation
+// but as far as I can tell, not as described by Digital
 func (c *CPU) mulOp(instruction uint16) {
-	panic("mul not implemented")
+	sourceOp := instruction & 077
+	sourceReg := (instruction >> 6) & 7
+
+	val1 := int(c.Registers[sourceReg])
+	if val1&0x8000 == 0x8000 {
+		val1 = -((0xFFFF ^ val1) + 1)
+	}
+	val2 := int(c.readWord(sourceOp))
+	if val2&0x8000 == 0x8000 {
+		val2 = -((0xFFFF ^ val2) + 1)
+	}
+	res := int64(val1) * int64(val2)
+	c.Registers[sourceReg] = uint16(res >> 16)
+	c.Registers[sourceReg|1] = uint16(res & 0xFFFF)
+	c.SetFlag("N", res&0xFFFFFFFF == 0)
+	c.SetFlag("Z", res&0x80000000 == 0x80000000)
+	c.SetFlag("C", (res < (1<<15)) || (res >= (1<<15)-1))
 }
 
 // divide (071)
@@ -675,13 +798,13 @@ func (c *CPU) sobOp(instruction uint16) {
 // trap opcodes:
 // emt - emulator trap - trap vector hardcoded to location 32
 func (c *CPU) emtOp(instruction uint16) {
-	c.Trap(32)
+	c.Trap(interrupts.Trap{Vector: 32, Msg: "emt"})
 }
 
 // trap
 // trap vector for TRAP is hardcoded for all PDP11s to memory location 34
 func (c *CPU) trapOp(instruction uint16) {
-	c.Trap(34)
+	c.Trap(interrupts.Trap{Vector: 34, Msg: "TRAP"})
 }
 
 // Single Register opcodes

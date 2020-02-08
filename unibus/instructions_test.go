@@ -84,20 +84,20 @@ func TestCPU_addOp(t *testing.T) {
 		{"dst in register, src memory value", args{061100}, false, 0x1fe},
 	}
 
-	c.Registers[0] = 0xff
-	c.Registers[1] = 0xfe
-	c.Registers[2] = 0
-	c.Registers[3] = 2
-	c.mmunit.Memory[0x7f] = 0xff
-	c.mmunit.Memory[0] = 2
-	c.mmunit.Memory[2] = 0x300
+	u.PdpCPU.Registers[0] = 0xff
+	u.PdpCPU.Registers[1] = 0xfe
+	u.PdpCPU.Registers[2] = 0
+	u.PdpCPU.Registers[3] = 2
+	u.PdpCPU.mmunit.Memory[0x7f] = 0xff
+	u.PdpCPU.mmunit.Memory[0] = 2
+	u.PdpCPU.mmunit.Memory[2] = 0x300
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.addOp(tt.args.instruction)
+			u.PdpCPU.addOp(tt.args.instruction)
 
 			//check value
-			w := c.readWord(uint16(tt.args.instruction & 077))
+			w := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
 			t.Logf("Value at dst: %x\n", w)
 			if int16(w) != tt.wantRes {
 				t.Errorf("expected %x, got %x", tt.wantRes, w)
@@ -542,19 +542,19 @@ func TestCPU_bicOp(t *testing.T) {
 		{"N flag set", 0x7fff, 0xffff, 0x8000, flags{false, false, false, true}, false},
 	}
 	for _, tt := range tests {
-		c.Registers[0] = tt.r0Val
-		c.Registers[1] = tt.r1Val
+		u.PdpCPU.Registers[0] = tt.r0Val
+		u.PdpCPU.Registers[1] = tt.r1Val
 		t.Run(tt.name, func(t *testing.T) {
-			c.bicOp(instruction)
+			u.PdpCPU.bicOp(instruction)
 
 			// assert value
-			if c.Registers[1] != tt.res {
+			if u.PdpCPU.Registers[1] != tt.res {
 				t.Errorf("CPU.bicOp() r1 = %x, r0 = %x, exp -> %x",
-					c.Registers[1], c.Registers[0], tt.res)
+					u.PdpCPU.Registers[1], u.PdpCPU.Registers[0], tt.res)
 			}
 
 			// check flags
-			if err := assertFlags(tt.flags, c); err != nil {
+			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
 				t.Errorf(err.Error())
 			}
 		})

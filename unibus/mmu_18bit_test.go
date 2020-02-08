@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// testing in kernel mode only
 func TestMMU18Bit_mapVirtualToPhysical(t *testing.T) {
 	type args struct {
 		virtualAddress uint16
@@ -20,7 +21,7 @@ func TestMMU18Bit_mapVirtualToPhysical(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.m.mapVirtualToPhysical(tt.args.virtualAddress, false)
+			got := tt.m.mapVirtualToPhysical(tt.args.virtualAddress, false, 0)
 			if got != tt.want {
 				t.Errorf("MMU18Bit.mapVirtualToPhysical() = %v, want %v", got, tt.want)
 			}

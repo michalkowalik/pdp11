@@ -25,10 +25,6 @@ const (
 // Unibus definition
 type Unibus struct {
 
-	// Unibus map registers
-	// todo: remove if not needed!
-	UnibusMap [32]int16
-
 	// LKS - KW11-L Clock status
 	LKS uint16
 
@@ -66,7 +62,6 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.Interrupts = make(chan interrupts.Interrupt)
 	unibus.Traps = make(chan interrupts.Trap)
 
-	// todo: why does it fail on test?
 	unibus.controlConsole = *controlConsole
 	unibus.psw = psw
 
@@ -81,7 +76,6 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.Rk01 = NewRK(&unibus)
 
 	unibus.processInterruptQueue()
-	unibus.processTraps()
 	return &unibus
 }
 
@@ -125,21 +119,6 @@ func (u *Unibus) processInterruptQueue() {
 	}()
 }
 
-// TODO: is there any other way to handle traps actually?
-func (u *Unibus) processTraps() {
-	go func() error {
-		for {
-			trap := <-u.Traps
-			fmt.Printf("Trap vector: %d, message: \"%s\"\n", trap.Vector, trap.Msg)
-			if trap.Vector > 0 {
-				u.ActiveTrap = trap
-				// TODO: is it actually finished?
-				// panic("IT'S A TRAP!!")
-			}
-		}
-	}()
-}
-
 // get Register value for address:
 func (u *Unibus) getRegisterValue(addr uint32) uint16 {
 	return u.PdpCPU.Registers[addr&07]
@@ -150,15 +129,17 @@ func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
 }
 
 // ReadIOPage reads from unibus devices.
-// TODO: add a breakoint on debug code: if address == 0562
-// I want to know what calls for the getChar
-// seems like DC gets the same.
 func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
 	switch {
 	case physicalAddress == PSWAddr:
 		return u.psw.Get(), nil
 	case physicalAddress&RegAddr == RegAddr:
 		return u.getRegisterValue(physicalAddress), nil
+	// physical front console. Magic number that seems to do the job:
+	case physicalAddress == 0777570:
+		return 0173030, nil
+	case physicalAddress == LKSAddr:
+		return u.LKS, nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		return u.TermEmulator.ReadTerm(physicalAddress)
 	case physicalAddress == SR0Addr:
@@ -182,10 +163,16 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
 	switch {
 	case physicalAddress == PSWAddr:
+		// also : switch mode!
+		u.PdpCPU.SwitchMode(data >> 14)
+		// also: set flags:
 		u.psw.Set(data)
 		return nil
 	case physicalAddress&RegAddr == RegAddr:
 		u.setRegisterValue(physicalAddress, data)
+		return nil
+	case physicalAddress == LKSAddr:
+		u.LKS = data
 		return nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		u.TermEmulator.WriteTerm(physicalAddress, data)

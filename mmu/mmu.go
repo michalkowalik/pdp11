@@ -49,7 +49,6 @@ type MMU struct {
 	MMUMode int
 
 	// MMU Page Address Registers
-	// TODO -> Why 16 per map? Shouldn't be 8?
 	// relying on zero-initialization
 	// 0 = kernel
 	// 1 = super
