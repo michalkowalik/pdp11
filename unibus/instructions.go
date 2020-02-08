@@ -7,42 +7,44 @@ import (
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
-//getSignWord is useful to calculate the overflow bit:
-func getSignWord(i uint16) uint16 {
-	return (i >> 0xf) & 1
-}
-
 // single operand cpu instructions:
+// clr Word / Byte
 func (c *CPU) clrOp(instruction uint16) {
-	// address mode 0 -> clear register
-	if addressMode := instruction & 0x38; addressMode == 0 {
-		c.Registers[instruction&7] = 0
+	if instruction&0100000 == 0100000 {
+		dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+		c.mmunit.WriteMemoryByte(dstAddr, 0)
 	} else {
-		c.writeWord(instruction, 0)
+		dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+		c.mmunit.WriteMemoryWord(dstAddr, 0)
 	}
-
-	// TODO: move all condition codes to psw kept by mmu
-	// set flags:
 	c.SetFlag("C", false)
 	c.SetFlag("N", false)
 	c.SetFlag("V", false)
 	c.SetFlag("Z", true)
 }
 
-// clr Byte
-func (c *CPU) clrbOp(instruction uint16) {
-	c.clrOp(instruction)
-}
-
 // com - complement dst -> replace the contents of the destination address
 // by their logical complement (each bit equal 0 is set to 1, each 1 is cleared)
 func (c *CPU) comOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
-	c.writeWord(uint16(instruction&077), ^dest)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dst := c.mmunit.ReadMemoryWord(dstAddr)
+
+	c.SetFlag("N", dst&0x8000 == 0x8000)
+	c.SetFlag("Z", dst == 0)
+	c.SetFlag("C", true)
+	c.SetFlag("V", false)
+	c.mmunit.WriteMemoryWord(dstAddr, ^dst)
 }
 
 func (c *CPU) combOp(instruction uint16) {
-	c.comOp(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dst := c.mmunit.ReadMemoryByte(dstAddr)
+
+	c.SetFlag("N", dst&0x80 == 0x80)
+	c.SetFlag("Z", dst == 0)
+	c.SetFlag("C", true)
+	c.SetFlag("V", false)
+	c.mmunit.WriteMemoryByte(dstAddr, ^dst)
 }
 
 // inc - increment dst
@@ -137,7 +139,7 @@ func (c *CPU) adcOp(instruction uint16) {
 }
 
 func (c *CPU) adcbOp(instruction uint16) {
-	c.adcOp(instruction)
+	panic("adcbOp not implemented")
 }
 
 // sbc - substract carry
@@ -159,7 +161,7 @@ func (c *CPU) sbcOp(instruction uint16) {
 }
 
 func (c *CPU) sbcbOp(instruction uint16) {
-	c.sbcOp(instruction)
+	panic("sbcb not implemented")
 }
 
 // tst - sets the condition codes N and Z according to the contents
@@ -174,8 +176,6 @@ func (c *CPU) tstOp(instruction uint16) {
 
 func (c *CPU) tstbOp(instruction uint16) {
 	dest := c.readByte(uint16(instruction & 077))
-
-	//fmt.Printf("DEBUG: TSTB: dest: %o \n", dest)
 
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x80) > 0)
@@ -202,7 +202,7 @@ func (c *CPU) asrOp(instruction uint16) {
 }
 
 func (c *CPU) asrbOp(instruction uint16) {
-	c.asrOp(instruction)
+	panic("asrb not implemented")
 }
 
 // asl - arithmetic shift left
@@ -223,7 +223,7 @@ func (c *CPU) aslOp(instruction uint16) {
 }
 
 func (c *CPU) aslbOp(instruction uint16) {
-	c.aslOp(instruction)
+	panic("aslb not implemented")
 }
 
 // ror - rotate right
@@ -245,7 +245,7 @@ func (c *CPU) rorOp(instruction uint16) {
 
 // TODO -- really? no byte op??
 func (c *CPU) rorbOp(instruction uint16) {
-	c.rorOp(instruction)
+	panic("rorb not implemented")
 }
 
 // rol - rorare left
@@ -268,7 +268,7 @@ func (c *CPU) rolOp(instruction uint16) {
 }
 
 func (c *CPU) rolbOp(instruction uint16) {
-	c.rolOp(instruction)
+	panic("rolb not implemented")
 }
 
 // jmp - jump to address:
@@ -773,15 +773,15 @@ func (c *CPU) ashcOp(instruction uint16) {
 // xor
 func (c *CPU) xorOp(instruction uint16) {
 	sourceVal := c.Registers[(instruction>>6)&7]
-	dest := instruction & 077
-	destVal := c.readWord(uint16(dest))
+	destAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	destVal := c.mmunit.ReadMemoryWord(destAddr)
 
 	res := sourceVal ^ destVal
 
 	c.SetFlag("N", res < 0)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("V", false)
-	c.writeWord(uint16(dest), uint16(res))
+	c.mmunit.WriteMemoryWord(destAddr, res)
 }
 
 // sob - substract one and branch (if not equal 0)

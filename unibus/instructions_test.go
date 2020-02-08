@@ -48,22 +48,22 @@ func TestCPU_clrOp(t *testing.T) {
 		{"value in register", args{05000}, false},
 		{"address in register", args{05011}, false},
 	}
-	c.Registers[0] = 0xff
-	c.Registers[1] = 0xfe
+	u.PdpCPU.Registers[0] = 0xff
+	u.PdpCPU.Registers[1] = 0xfe
 
 	// and let's give CPU stack some place to breath:
-	c.Registers[6] = 0xfe
+	u.PdpCPU.Registers[6] = 0xfe
 
 	// come back here!!
-	c.mmunit.Memory[0xfe] = 2
+	u.Mmu.Memory[0xfe] = 2
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.clrOp(tt.args.instruction)
+			u.PdpCPU.clrOp(tt.args.instruction)
 			// also: check if value is really 0:
 			op := uint16(tt.args.instruction) & 077
 			t.Logf("instruction: %x, op: %x\n", tt.args.instruction, op)
-			w := c.readWord(op)
+			w := u.PdpCPU.readWord(op)
 			if w != 0 {
 				t.Errorf("CPU.clrOp() -> destination for %v is set to %x", op, w)
 			}
@@ -187,14 +187,14 @@ func TestCPU_comOp(t *testing.T) {
 		{"complement dst on value in register", args{005100}, false, 0xff0f},
 	}
 
-	c.Registers[0] = 0xf0
-	c.mmunit.Memory[0xff] = uint16(4)
+	u.PdpCPU.Registers[0] = 0xf0
+	u.Mmu.Memory[0xff] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opcode := c.Decode(uint16(tt.args.instruction))
+			opcode := u.PdpCPU.Decode(uint16(tt.args.instruction))
 			opcode(tt.args.instruction)
-			d := c.readWord(uint16(tt.args.instruction & 077))
+			d := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
 
 			if d != tt.dst {
 				t.Logf("destination addr: %x\n", tt.args.instruction&077)
@@ -359,13 +359,13 @@ func TestCPU_xorOp(t *testing.T) {
 		{"dst value in REG", args{074002}, false, 000325},
 	}
 
-	c.Registers[0] = 001234
-	c.Registers[2] = 001111
+	u.PdpCPU.Registers[0] = 001234
+	u.PdpCPU.Registers[2] = 001111
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.xorOp(tt.args.instruction)
-			w := c.readWord(uint16(tt.args.instruction & 077))
+			u.PdpCPU.xorOp(tt.args.instruction)
+			w := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
 			t.Logf("Value at dst: %x \n", w)
 			if w != tt.wantRes {
 				t.Errorf("expected %x, got %x\n", tt.wantRes, w)
