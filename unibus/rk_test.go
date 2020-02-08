@@ -21,8 +21,8 @@ func TestRK11_Attach(t *testing.T) {
 		wantErr bool
 	}{
 		{"non existing file", args{0, "foo.bar.rk5"}, true},
-		{"exisiting file", args{0, "../images/rk0.img"}, false},
-		{"invalid drive number", args{8, "../images/rk0.img"}, true},
+		{"exisiting file", args{0, "../rk0.img"}, false},
+		{"invalid drive number", args{8, "../rk0.img"}, true},
 	}
 	rk11 = NewRK(nil)
 	wd, _ := os.Getwd()

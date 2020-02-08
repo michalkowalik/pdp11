@@ -146,18 +146,18 @@ func TestCPU_movbOp(t *testing.T) {
 		wantErr bool
 		dst     uint16
 	}{
-		{"MOV move from memory to register", args{0111001}, false, 4},
+		{"MOV move from memory to register", args{0111001}, false, 0},
 	}
 
-	c.Registers[0] = 0xfe
-	c.Registers[1] = 0
-	c.mmunit.Memory[0x7f] = uint16(4)
+	u.PdpCPU.Registers[0] = 0xfe
+	u.PdpCPU.Registers[1] = 0
+	u.Mmu.Memory[0x7f] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opcode := c.Decode(tt.args.instruction)
+			opcode := u.PdpCPU.Decode(tt.args.instruction)
 			opcode(tt.args.instruction)
-			d := c.readWord(tt.args.instruction & 077)
+			d := u.PdpCPU.readWord(tt.args.instruction & 077)
 
 			if d != tt.dst {
 				t.Logf("destination addr: %x\n", tt.args.instruction&077)
