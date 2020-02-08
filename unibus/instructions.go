@@ -304,7 +304,9 @@ func (c *CPU) swabOp(instruction uint16) {
 
 // mark - used as a part of subroutine return convention on pdp11
 func (c *CPU) markOp(instruction uint16) {
-	panic("not implemented!")
+	c.Registers[6] = c.Registers[7] + uint16(instruction&0xFFFF)<<1
+	c.Registers[7] = c.Registers[5]
+	c.Registers[5] = c.Pop()
 }
 
 // mfpi - move from previous instruction space
