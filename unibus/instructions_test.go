@@ -322,24 +322,24 @@ func TestCPU_adcOp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.Registers[0] = tt.regVal
-			c.SetFlag("C", tt.origCFlag)
-			instruction := c.Decode(uint16(tt.args.instruction))
+			u.PdpCPU.Registers[0] = tt.regVal
+			u.PdpCPU.SetFlag("C", tt.origCFlag)
+			instruction := u.PdpCPU.Decode(uint16(tt.args.instruction))
 			instruction(tt.args.instruction)
-			if c.Registers[0] != tt.dst {
+			if u.PdpCPU.Registers[0] != tt.dst {
 				t.Errorf("ADC returned unexpected result. expected %v, got %v\n",
-					tt.dst, c.Registers[0])
+					tt.dst, u.PdpCPU.Registers[0])
 			}
-			if z := c.GetFlag("Z"); z != tt.zFlag {
+			if z := u.PdpCPU.GetFlag("Z"); z != tt.zFlag {
 				t.Errorf("Z flag error. Expected %v, got %v\n", tt.zFlag, z)
 			}
-			if c := c.GetFlag("C"); c != tt.cFlag {
+			if c := u.PdpCPU.GetFlag("C"); c != tt.cFlag {
 				t.Errorf("C flag error. Expected %v, got %v\n", tt.cFlag, c)
 			}
-			if n := c.GetFlag("N"); n != tt.nFlag {
+			if n := u.PdpCPU.GetFlag("N"); n != tt.nFlag {
 				t.Errorf("N flag error. Expected %v, got %v\n", tt.nFlag, n)
 			}
-			if v := c.GetFlag("V"); v != tt.vFlag {
+			if v := u.PdpCPU.GetFlag("V"); v != tt.vFlag {
 				t.Errorf("V flag error. Expected %v, got %v\n", tt.vFlag, v)
 			}
 		})

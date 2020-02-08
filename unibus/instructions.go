@@ -121,47 +121,67 @@ func (c *CPU) negbOp(instruction uint16) {
 
 // adc - add cary
 func (c *CPU) adcOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	var dstAddr uint16
+	var dst uint16
+	var msb uint16 = 0x8000
+	var ov uint16 = 077777
+	var oc uint16 = 0xFFFF
 
-	result := dest
+	if instruction&0100000 == 0100000 {
+		dstAddr, _ = c.GetVirtualByMode(instruction&077, 1)
+		dst = uint16(c.mmunit.ReadMemoryByte(dstAddr))
+		msb = 0x80
+		ov = 0177
+		oc = 0xFF
+	} else {
+		dstAddr, _ = c.GetVirtualByMode(instruction&077, 0)
+		dst = c.mmunit.ReadMemoryWord(dstAddr)
+
+	}
+	result := dst
 	if c.GetFlag("C") {
-		result = dest + 1
+		result = dst + 1
+		if instruction&0100000 == 0100000 {
+			c.mmunit.WriteMemoryByte(dstAddr, byte(result&oc))
+		} else {
+			c.mmunit.WriteMemoryWord(dstAddr, result)
+		}
 	}
-
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
-	}
-
-	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("N", (result&msb) == msb)
 	c.SetFlag("Z", result == 0)
-	c.SetFlag("V", (dest == 077777) && c.GetFlag("C"))
-	c.SetFlag("C", (dest == 0xFFFF) && c.GetFlag("C"))
-}
-
-func (c *CPU) adcbOp(instruction uint16) {
-	panic("adcbOp not implemented")
+	c.SetFlag("V", (dst == ov) && c.GetFlag("C"))
+	c.SetFlag("C", (dst == oc) && c.GetFlag("C"))
 }
 
 // sbc - substract carry
 func (c *CPU) sbcOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := dest
 	if c.GetFlag("C") {
 		result = result - 1
-	}
-
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
+		c.mmunit.WriteMemoryWord(dstAddr, result)
 	}
 
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("V", dest == 0x8000)
-	c.SetFlag("V", (dest != 0) || c.GetFlag("C"))
+	c.SetFlag("C", (dest != 0) || c.GetFlag("C"))
 }
 
 func (c *CPU) sbcbOp(instruction uint16) {
-	panic("sbcb not implemented")
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(dstAddr)
+	result := dest
+	if c.GetFlag("C") {
+		result = result - 1
+		c.mmunit.WriteMemoryByte(dstAddr, result)
+	}
+
+	c.SetFlag("N", (result&0x80) == 0x80)
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("V", dest == 0x80)
+	c.SetFlag("C", (dest != 0) || c.GetFlag("C"))
 }
 
 // tst - sets the condition codes N and Z according to the contents
@@ -188,11 +208,11 @@ func (c *CPU) tstbOp(instruction uint16) {
 // is replicated. The C-bit is loaded from bit 0 of the destination.
 // ASR performs signed division of the destination by two.
 func (c *CPU) asrOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := (dest & 0x8000) | (dest >> 1)
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
-	}
+	c.mmunit.WriteMemoryWord(dstAddr, result)
+
 	c.SetFlag("C", (dest&1) == 1)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
@@ -202,7 +222,17 @@ func (c *CPU) asrOp(instruction uint16) {
 }
 
 func (c *CPU) asrbOp(instruction uint16) {
-	panic("asrb not implemented")
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(dstAddr)
+	result := (dest & 0x80) | (dest >> 1)
+	c.mmunit.WriteMemoryByte(dstAddr, result)
+
+	c.SetFlag("C", (dest&1) == 1)
+	c.SetFlag("N", (result&0x80) == 0x80)
+	c.SetFlag("Z", result == 0)
+
+	// V flag is a XOR on C and N flag, but golang doesn't provide boolean XOR
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
 }
 
 // asl - arithmetic shift left

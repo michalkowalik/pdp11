@@ -121,7 +121,7 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 	c.singleOpOpcodes[05400] = c.negOp
 	c.singleOpOpcodes[0105400] = c.negbOp
 	c.singleOpOpcodes[05500] = c.adcOp
-	c.singleOpOpcodes[0105500] = c.adcbOp
+	c.singleOpOpcodes[0105500] = c.adcOp
 	c.singleOpOpcodes[05600] = c.sbcOp
 	c.singleOpOpcodes[0105600] = c.sbcbOp
 	c.singleOpOpcodes[05700] = c.tstOp
