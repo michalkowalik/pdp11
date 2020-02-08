@@ -1,7 +1,6 @@
 package unibus
 
 import (
-	"errors"
 	"fmt"
 	"pdp/console"
 	"pdp/interrupts"
@@ -42,7 +41,6 @@ type Unibus struct {
 	TermEmulator teletype.Teletype
 
 	// InterruptQueue queue to keep incoming interrupts before processing them
-	// TODO: change to array!
 	InterruptQueue [8]interrupts.Interrupt
 
 	// ActiveTrap keeps the active trap in case the trap is being throw
@@ -213,25 +211,4 @@ func (u *Unibus) SendTrap(vector uint16, msg string) {
 		Msg:    msg}
 	go func() { u.Traps <- t }()
 
-}
-
-// InsertData updates a word with new byte or word data allowing
-// for odd addressing
-// original        : original value of the data at the address (though, really needed?)
-// physicalAddress : address of the value to be changed
-// data            : new data to write
-// byteFlag        : only access byte, not the complete word
-func (u *Unibus) InsertData(
-	original uint16, physicalAddres uint32, data uint16, byteFlag bool) error {
-
-	// if odd address:
-	if physicalAddres&1 != 0 {
-
-		// trying to access word on odd address
-		if !byteFlag {
-			return errors.New("Trap needed! -> odd adderss & word set")
-		}
-
-	}
-	return nil
 }

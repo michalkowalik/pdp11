@@ -73,25 +73,25 @@ func (c *CPU) incbOp(instruction uint16) {
 // dec - decrement dst
 // TODO: it should look like INC
 func (c *CPU) decOp(instruction uint16) {
-	if addressMode := instruction & 070; addressMode == 0 {
-		dst := c.Registers[instruction&7]
-		result := dst - 1
-		c.Registers[instruction&7] = result & 0xffff // <- this is not really necessary, isn't it?
-		c.SetFlag("Z", result == 0)
-		c.SetFlag("N", int16(result) < 0)
-		c.SetFlag("V", dst == 0x8000)
-	} else {
-		dst := c.readWord(uint16(instruction & 077))
-		result := dst - 1
-		c.writeWord(uint16(instruction&077), result&0xffff)
-		c.SetFlag("Z", result == 0)
-		c.SetFlag("N", int16(result) < 0)
-		c.SetFlag("V", dst == 0x7FFF)
-	}
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	val := c.mmunit.ReadMemoryWord(dstAddr)
+	res := (val - 1) & 0xFFFF
+
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res&0x8000 == 0x8000)
+	c.SetFlag("V", val == 0100000)
+	c.mmunit.WriteMemoryWord(dstAddr, res)
 }
 
 func (c *CPU) decbOp(instruction uint16) {
-	c.decOp(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	val := c.mmunit.ReadMemoryByte(dstAddr)
+	res := (val - 1) & 0xFF
+
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res&0x80 == 0x80)
+	c.SetFlag("V", val == 0x80)
+	c.mmunit.WriteMemoryByte(dstAddr, res)
 }
 
 // neg - negate dst
