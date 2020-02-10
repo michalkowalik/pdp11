@@ -276,23 +276,23 @@ func TestCPU_negOp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.Registers[0] = tt.regVal
-			instruction := c.Decode(uint16(tt.args.instruction))
+			u.PdpCPU.Registers[0] = tt.regVal
+			instruction := u.PdpCPU.Decode(uint16(tt.args.instruction))
 			instruction(tt.args.instruction)
-			if c.Registers[0] != tt.dst {
+			if u.PdpCPU.Registers[0] != tt.dst {
 				t.Errorf("\"%s\" ERROR: expected %v, got %v\n",
-					tt.name, tt.dst, c.Registers[0])
+					tt.name, tt.dst, u.PdpCPU.Registers[0])
 			}
-			if z := c.GetFlag("Z"); z != tt.zFlag {
+			if z := u.PdpCPU.GetFlag("Z"); z != tt.zFlag {
 				t.Errorf("Z flag error. Expected %v, got %v\n", tt.zFlag, z)
 			}
-			if c := c.GetFlag("C"); c != tt.cFlag {
+			if c := u.PdpCPU.GetFlag("C"); c != tt.cFlag {
 				t.Errorf("C flag error. Expected %v, got %v\n", tt.cFlag, c)
 			}
-			if n := c.GetFlag("N"); n != tt.nFlag {
+			if n := u.PdpCPU.GetFlag("N"); n != tt.nFlag {
 				t.Errorf("N flag error. Expected %v, got %v\n", tt.nFlag, n)
 			}
-			if v := c.GetFlag("V"); v != tt.vFlag {
+			if v := u.PdpCPU.GetFlag("V"); v != tt.vFlag {
 				t.Errorf("V flag error. Expected %v, got %v\n", tt.vFlag, v)
 			}
 		})
@@ -602,18 +602,18 @@ func TestCPU_swabOp(t *testing.T) {
 		{"swap bytes:low zero", 0x0022, 0x2200, flags{false, false, true, false}, false},
 	}
 	for _, tt := range tests {
-		c.Registers[0] = tt.r0Val
+		u.PdpCPU.Registers[0] = tt.r0Val
 		t.Run(tt.name, func(t *testing.T) {
-			swabOpcode := c.Decode(instruction)
+			swabOpcode := u.PdpCPU.Decode(instruction)
 			swabOpcode(instruction)
 
 			// assert value:
-			if c.Registers[0] != tt.swappedVal {
-				t.Errorf("cpu.swapbOp r0 = %x, exp -> %x", c.Registers[0], tt.swappedVal)
+			if u.PdpCPU.Registers[0] != tt.swappedVal {
+				t.Errorf("cpu.swapbOp r0 = %x, exp -> %x", u.PdpCPU.Registers[0], tt.swappedVal)
 			}
 
 			// assert flags
-			if err := assertFlags(tt.flags, c); err != nil {
+			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
 				t.Error(err.Error())
 			}
 		})
