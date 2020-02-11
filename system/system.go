@@ -1,7 +1,6 @@
 package system
 
 import (
-	"fmt"
 	"go/build"
 	"path/filepath"
 	"pdp/console"
@@ -98,7 +97,7 @@ func (sys *System) step() {
 		}
 		// empty interrupt struct
 		sys.unibus.InterruptQueue[len(sys.unibus.InterruptQueue)-1] = interrupts.Interrupt{}
-
+		return
 	}
 
 	// execute next CPU instruction
@@ -124,13 +123,14 @@ func (sys *System) step() {
 //    makes sure to set the stack and PSW back to where it belongs
 // TODO: wouldn't it make sense to move this method to CPU?
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
-	sys.console.WriteConsole(
-		fmt.Sprintf("Processing interrupt %v\n", interrupt))
+	//sys.console.WriteConsole(
+	//	fmt.Sprintf("Processing interrupt %v\n", interrupt))
 	prev := sys.psw.Get()
 	defer func(prev uint16) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			// this is wrong. that doesn't exist anymore.
 			sys.unibus.Traps <- t
 		case nil:
 			// ignore

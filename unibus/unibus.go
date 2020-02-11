@@ -84,7 +84,7 @@ func (u *Unibus) processInterruptQueue() {
 		for {
 			interrupt := <-u.Interrupts
 
-			fmt.Printf("new interrupt\n")
+			fmt.Printf("new interrupt: %v\n", interrupt)
 
 			if interrupt.Vector&1 == 1 {
 				panic("Interrupt with Odd vector number")
@@ -157,36 +157,27 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 }
 
 // WriteIOPage writes to the unibus connected device
-// TODO: that signature smells funny. better to resign from that error return type ?
-func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) error {
+func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) {
 	switch {
 	case physicalAddress == PSWAddr:
 		// also : switch mode!
 		u.PdpCPU.SwitchMode(data >> 14)
 		// also: set flags:
 		u.psw.Set(data)
-		return nil
 	case physicalAddress&RegAddr == RegAddr:
 		u.setRegisterValue(physicalAddress, data)
-		return nil
 	case physicalAddress == LKSAddr:
 		u.LKS = data
-		return nil
 	case physicalAddress&0777770 == ConsoleAddr:
 		u.TermEmulator.WriteTerm(physicalAddress, data)
-		return nil
 	case physicalAddress == SR0Addr:
 		u.Mmu.SR0 = data
-		return nil
 	case physicalAddress == SR2Addr:
 		u.Mmu.SR2 = data
-		return nil
 	case physicalAddress&0777760 == RK11Addr:
 		u.Rk01.write(physicalAddress, data)
-		return nil
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
 		u.Mmu.writePage(physicalAddress, data)
-		return nil
 	default:
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,

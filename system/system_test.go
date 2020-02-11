@@ -46,8 +46,6 @@ var virtualAddressTests = []struct {
 	{071, 040, true},
 }
 
-// check if an address in memory can be read
-// TODO: what is actually failing here? the test, or the addressing??
 func TestGetVirtualAddress(t *testing.T) {
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
@@ -114,7 +112,6 @@ func TestRunCode(t *testing.T) {
 // the instruction is to start at memory address 0xff
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
-// TODO: Does it work at all?
 func TestRunBranchCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 	code := []uint16{

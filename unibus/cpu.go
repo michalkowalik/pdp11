@@ -9,19 +9,10 @@ import (
 // memory related constans (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
-	debug = false
+	debug = true
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
-
-	// ReadMode -> Read from main memory (as opposed to what exactly? (MK))
-	ReadMode = 2
-
-	// WriteMode -> Write to main memory
-	WriteMode = 4
-
-	// ModifyWord ->  Read and write word in memory
-	ModifyWord = ReadMode | WriteMode
 
 	// CPU state: Run / Halt / Wait:
 	HALT   = 0
@@ -40,7 +31,6 @@ const (
 // CPU type:
 type CPU struct {
 	Registers                   [8]uint16
-	floatingPointStatusRegister byte
 	State                       int
 
 	// system stack pointers: kernel, super, illegal, user
@@ -50,12 +40,6 @@ type CPU struct {
 
 	// memory access is required:
 	mmunit *MMU18Bit
-
-	// trap mask
-	trapMask uint16
-
-	// PIR (Programmable Interrupt Register)
-	PIR uint16
 
 	// ClockCounter
 	ClockCounter uint16

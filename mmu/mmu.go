@@ -10,18 +10,6 @@ const (
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
 
-	// ReadMode -> Read from main memory
-	ReadMode = 2
-
-	// WriteMode -> Write from main memory
-	WriteMode = 4
-
-	// ModifyWord ->  Read and write word in memory
-	ModifyWord = ReadMode | WriteMode
-
-	// ModifyByte -> Read and write byte in memory
-	ModifyByte = ReadMode | WriteMode | ByteMode
-
 	//IO base UNIBUS adresses:
 	IObaseVirtual = 0160000
 	IObase18bit   = 0760000
