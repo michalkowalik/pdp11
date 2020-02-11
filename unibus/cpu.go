@@ -9,19 +9,10 @@ import (
 // memory related constans (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
-	debug = false
+	debug = true
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
-
-	// ReadMode -> Read from main memory (as opposed to what exactly? (MK))
-	ReadMode = 2
-
-	// WriteMode -> Write to main memory
-	WriteMode = 4
-
-	// ModifyWord ->  Read and write word in memory
-	ModifyWord = ReadMode | WriteMode
 
 	// CPU state: Run / Halt / Wait:
 	HALT   = 0
@@ -40,7 +31,6 @@ const (
 // CPU type:
 type CPU struct {
 	Registers                   [8]uint16
-	floatingPointStatusRegister byte
 	State                       int
 
 	// system stack pointers: kernel, super, illegal, user
@@ -50,12 +40,6 @@ type CPU struct {
 
 	// memory access is required:
 	mmunit *MMU18Bit
-
-	// trap mask
-	trapMask uint16
-
-	// PIR (Programmable Interrupt Register)
-	PIR uint16
 
 	// ClockCounter
 	ClockCounter uint16
@@ -111,7 +95,7 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 	c.singleOpOpcodes[0100] = c.jmpOp
 	c.singleOpOpcodes[0300] = c.swabOp
 	c.singleOpOpcodes[05000] = c.clrOp
-	c.singleOpOpcodes[0105000] = c.clrbOp
+	c.singleOpOpcodes[0105000] = c.clrOp
 	c.singleOpOpcodes[05100] = c.comOp
 	c.singleOpOpcodes[0105100] = c.combOp
 	c.singleOpOpcodes[05200] = c.incOp
@@ -121,7 +105,7 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 	c.singleOpOpcodes[05400] = c.negOp
 	c.singleOpOpcodes[0105400] = c.negbOp
 	c.singleOpOpcodes[05500] = c.adcOp
-	c.singleOpOpcodes[0105500] = c.adcbOp
+	c.singleOpOpcodes[0105500] = c.adcOp
 	c.singleOpOpcodes[05600] = c.sbcOp
 	c.singleOpOpcodes[0105600] = c.sbcbOp
 	c.singleOpOpcodes[05700] = c.tstOp

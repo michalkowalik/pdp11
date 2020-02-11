@@ -7,52 +7,50 @@ import (
 // Definition of all PDP-11 CPU instructions
 // All should follow the func (*CPU) (int16) signature
 
-//getSignWord is useful to calculate the overflow bit:
-func getSignWord(i uint16) uint16 {
-	return (i >> 0xf) & 1
-}
-
 // single operand cpu instructions:
+// clr Word / Byte
 func (c *CPU) clrOp(instruction uint16) {
-	// address mode 0 -> clear register
-	if addressMode := instruction & 0x38; addressMode == 0 {
-		c.Registers[instruction&7] = 0
+	if instruction&0100000 == 0100000 {
+		dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+		c.mmunit.WriteMemoryByte(dstAddr, 0)
 	} else {
-		c.writeWord(instruction, 0)
+		dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+		c.mmunit.WriteMemoryWord(dstAddr, 0)
 	}
-
-	// TODO: move all condition codes to psw kept by mmu
-	// set flags:
 	c.SetFlag("C", false)
 	c.SetFlag("N", false)
 	c.SetFlag("V", false)
 	c.SetFlag("Z", true)
 }
 
-// clr Byte
-func (c *CPU) clrbOp(instruction uint16) {
-	c.clrOp(instruction)
-}
-
 // com - complement dst -> replace the contents of the destination address
 // by their logical complement (each bit equal 0 is set to 1, each 1 is cleared)
 func (c *CPU) comOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
-	c.writeWord(uint16(instruction&077), ^dest)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dst := c.mmunit.ReadMemoryWord(dstAddr)
+
+	c.SetFlag("N", dst&0x8000 == 0x8000)
+	c.SetFlag("Z", dst == 0)
+	c.SetFlag("C", true)
+	c.SetFlag("V", false)
+	c.mmunit.WriteMemoryWord(dstAddr, ^dst)
 }
 
 func (c *CPU) combOp(instruction uint16) {
-	c.comOp(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dst := c.mmunit.ReadMemoryByte(dstAddr)
+
+	c.SetFlag("N", dst&0x80 == 0x80)
+	c.SetFlag("Z", dst == 0)
+	c.SetFlag("C", true)
+	c.SetFlag("V", false)
+	c.mmunit.WriteMemoryByte(dstAddr, ^dst)
 }
 
 // inc - increment dst
 func (c *CPU) incOp(instruction uint16) {
 	dest := instruction & 077
-	virtAddr, err := c.GetVirtualByMode(dest, 0)
-	if err != nil {
-		panic("INC: Can't obtain virtual address")
-	}
-
+	virtAddr, _ := c.GetVirtualByMode(dest, 0)
 	val := (c.mmunit.ReadMemoryWord(virtAddr) + 1) & 0xFFFF
 	c.mmunit.WriteMemoryWord(virtAddr, val)
 
@@ -73,93 +71,115 @@ func (c *CPU) incbOp(instruction uint16) {
 // dec - decrement dst
 // TODO: it should look like INC
 func (c *CPU) decOp(instruction uint16) {
-	if addressMode := instruction & 070; addressMode == 0 {
-		dst := c.Registers[instruction&7]
-		result := dst - 1
-		c.Registers[instruction&7] = result & 0xffff // <- this is not really necessary, isn't it?
-		c.SetFlag("Z", result == 0)
-		c.SetFlag("N", int16(result) < 0)
-		c.SetFlag("V", dst == 0x8000)
-	} else {
-		dst := c.readWord(uint16(instruction & 077))
-		result := dst - 1
-		c.writeWord(uint16(instruction&077), result&0xffff)
-		c.SetFlag("Z", result == 0)
-		c.SetFlag("N", int16(result) < 0)
-		c.SetFlag("V", dst == 0x7FFF)
-	}
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	val := c.mmunit.ReadMemoryWord(dstAddr)
+	res := (val - 1) & 0xFFFF
+
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res&0x8000 == 0x8000)
+	c.SetFlag("V", val == 0100000)
+	c.mmunit.WriteMemoryWord(dstAddr, res)
 }
 
 func (c *CPU) decbOp(instruction uint16) {
-	c.decOp(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	val := c.mmunit.ReadMemoryByte(dstAddr)
+	res := (val - 1) & 0xFF
+
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", res&0x80 == 0x80)
+	c.SetFlag("V", val == 0x80)
+	c.mmunit.WriteMemoryByte(dstAddr, res)
 }
 
 // neg - negate dst
 // replace the contents of the destination address
 // by it's 2 complement. 01000000 is replaced by itself
 func (c *CPU) negOp(instruction uint16) {
-	dest := c.readWord(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := ^dest + 1
-	c.writeWord(instruction, result)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", int16(result) < 0)
 	c.SetFlag("V", result == 0x8000)
 	c.SetFlag("C", result != 0)
+	c.mmunit.WriteMemoryWord(dstAddr, result)
 }
 
 func (c *CPU) negbOp(instruction uint16) {
-	dest := c.readByte(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(dstAddr)
 	result := ^dest + 1
-	c.writeByte(instruction, uint16(result))
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", result&0x80 > 0)
 	c.SetFlag("V", result == 0x80)
 	c.SetFlag("C", result != 0)
+	c.mmunit.WriteMemoryByte(dstAddr, result)
 }
 
 // adc - add cary
 func (c *CPU) adcOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	var dstAddr uint16
+	var dst uint16
+	var msb uint16 = 0x8000
+	var ov uint16 = 077777
+	var oc uint16 = 0xFFFF
 
-	result := dest
+	if instruction&0100000 == 0100000 {
+		dstAddr, _ = c.GetVirtualByMode(instruction&077, 1)
+		dst = uint16(c.mmunit.ReadMemoryByte(dstAddr))
+		msb = 0x80
+		ov = 0177
+		oc = 0xFF
+	} else {
+		dstAddr, _ = c.GetVirtualByMode(instruction&077, 0)
+		dst = c.mmunit.ReadMemoryWord(dstAddr)
+
+	}
+	result := dst
 	if c.GetFlag("C") {
-		result = dest + 1
+		result = dst + 1
+		if instruction&0100000 == 0100000 {
+			c.mmunit.WriteMemoryByte(dstAddr, byte(result&oc))
+		} else {
+			c.mmunit.WriteMemoryWord(dstAddr, result)
+		}
 	}
-
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
-	}
-
-	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("N", (result&msb) == msb)
 	c.SetFlag("Z", result == 0)
-	c.SetFlag("V", (dest == 077777) && c.GetFlag("C"))
-	c.SetFlag("C", (dest == 0xFFFF) && c.GetFlag("C"))
-}
-
-func (c *CPU) adcbOp(instruction uint16) {
-	c.adcOp(instruction)
+	c.SetFlag("V", (dst == ov) && c.GetFlag("C"))
+	c.SetFlag("C", (dst == oc) && c.GetFlag("C"))
 }
 
 // sbc - substract carry
 func (c *CPU) sbcOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := dest
 	if c.GetFlag("C") {
 		result = result - 1
-	}
-
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
+		c.mmunit.WriteMemoryWord(dstAddr, result)
 	}
 
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("V", dest == 0x8000)
-	c.SetFlag("V", (dest != 0) || c.GetFlag("C"))
+	c.SetFlag("C", (dest != 0) || c.GetFlag("C"))
 }
 
 func (c *CPU) sbcbOp(instruction uint16) {
-	c.sbcOp(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(dstAddr)
+	result := dest
+	if c.GetFlag("C") {
+		result = result - 1
+		c.mmunit.WriteMemoryByte(dstAddr, result)
+	}
+
+	c.SetFlag("N", (result&0x80) == 0x80)
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("V", dest == 0x80)
+	c.SetFlag("C", (dest != 0) || c.GetFlag("C"))
 }
 
 // tst - sets the condition codes N and Z according to the contents
@@ -175,8 +195,6 @@ func (c *CPU) tstOp(instruction uint16) {
 func (c *CPU) tstbOp(instruction uint16) {
 	dest := c.readByte(uint16(instruction & 077))
 
-	//fmt.Printf("DEBUG: TSTB: dest: %o \n", dest)
-
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x80) > 0)
 	c.SetFlag("V", false)
@@ -188,11 +206,11 @@ func (c *CPU) tstbOp(instruction uint16) {
 // is replicated. The C-bit is loaded from bit 0 of the destination.
 // ASR performs signed division of the destination by two.
 func (c *CPU) asrOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := (dest & 0x8000) | (dest >> 1)
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
-	}
+	c.mmunit.WriteMemoryWord(dstAddr, result)
+
 	c.SetFlag("C", (dest&1) == 1)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
@@ -202,7 +220,17 @@ func (c *CPU) asrOp(instruction uint16) {
 }
 
 func (c *CPU) asrbOp(instruction uint16) {
-	c.asrOp(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(dstAddr)
+	result := (dest & 0x80) | (dest >> 1)
+	c.mmunit.WriteMemoryByte(dstAddr, result)
+
+	c.SetFlag("C", (dest&1) == 1)
+	c.SetFlag("N", (result&0x80) == 0x80)
+	c.SetFlag("Z", result == 0)
+
+	// V flag is a XOR on C and N flag, but golang doesn't provide boolean XOR
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
 }
 
 // asl - arithmetic shift left
@@ -211,19 +239,25 @@ func (c *CPU) asrbOp(instruction uint16) {
 // the most significant bit of the destination. ASL performs a
 // signed multiplication of the destination by 2 with overflow indication.
 func (c *CPU) aslOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	destAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(destAddr)
 	result := dest << 1
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
-	}
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("C", (dest&0x8000) == 0x8000)
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.mmunit.WriteMemoryWord(destAddr, result)
 }
 
 func (c *CPU) aslbOp(instruction uint16) {
-	c.aslOp(instruction)
+	destAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(destAddr)
+	result := dest << 1
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("N", (result&0x80) == 0x80)
+	c.SetFlag("C", (dest&0x80) == 0x80)
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.mmunit.WriteMemoryByte(destAddr, result)
 }
 
 // ror - rotate right
@@ -231,21 +265,27 @@ func (c *CPU) aslbOp(instruction uint16) {
 // loaded into the C-bit and the previous contents of the C-bit
 // are loaded into bit 15 of the destination.
 func (c *CPU) rorOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	destAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(destAddr)
 	cBit := (dest & 1) << 15
 	result := (dest >> 1) | cBit
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
-	}
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("C", cBit > 0)
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.mmunit.WriteMemoryWord(destAddr, result)
 }
 
-// TODO -- really? no byte op??
 func (c *CPU) rorbOp(instruction uint16) {
-	c.rorOp(instruction)
+	destAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(destAddr)
+	cBit := (dest & 1) << 7
+	result := (dest >> 1) | cBit
+	c.SetFlag("N", (result&0x80) == 0x80)
+	c.SetFlag("Z", result == 0)
+	c.SetFlag("C", cBit > 0)
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.mmunit.WriteMemoryByte(destAddr, result)
 }
 
 // rol - rorare left
@@ -253,22 +293,33 @@ func (c *CPU) rorbOp(instruction uint16) {
 // is loaded into the C·bit of the status word and the previous
 // contents of the C-bit are loaded into Bit 0 of the destination.
 func (c *CPU) rolOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
-	c.SetFlag("C", (dest&0x8000) == 0x8000)
-	result := dest >> 1
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
+	res := dest << 1
+
 	if c.GetFlag("C") {
-		result = result | 1
+		res |= 1
 	}
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
-	}
-	c.SetFlag("Z", result == 0)
-	c.SetFlag("N", (result&0x8000) == 0x8000)
+	c.SetFlag("C", (dest&0x8000) == 0x8000)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", (res&0x8000) == 0x8000)
 	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.mmunit.WriteMemoryWord(dstAddr, res)
 }
 
 func (c *CPU) rolbOp(instruction uint16) {
-	c.rolOp(instruction)
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(dstAddr)
+	res := dest << 1
+
+	if c.GetFlag("C") {
+		res |= 1
+	}
+	c.SetFlag("C", (dest&0x80) == 0x80)
+	c.SetFlag("Z", res == 0)
+	c.SetFlag("N", (res&0x80) == 0x80)
+	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.mmunit.WriteMemoryByte(dstAddr, res)
 }
 
 // jmp - jump to address:
@@ -289,17 +340,15 @@ func (c *CPU) jmpOp(instruction uint16) {
 // V: cleared
 // C: cleared
 func (c *CPU) swabOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := (dest << 8) | (dest >> 8)
-
-	if err := c.writeWord(uint16(instruction&077), result); err != nil {
-		panic(err)
-	}
 
 	c.SetFlag("N", (result&0x80) == 0x80)
 	c.SetFlag("Z", (result&0xff) == 0)
 	c.SetFlag("V", false)
 	c.SetFlag("C", false)
+	c.mmunit.WriteMemoryWord(dstAddr, result)
 }
 
 // mark - used as a part of subroutine return convention on pdp11
@@ -773,15 +822,15 @@ func (c *CPU) ashcOp(instruction uint16) {
 // xor
 func (c *CPU) xorOp(instruction uint16) {
 	sourceVal := c.Registers[(instruction>>6)&7]
-	dest := instruction & 077
-	destVal := c.readWord(uint16(dest))
+	destAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	destVal := c.mmunit.ReadMemoryWord(destAddr)
 
 	res := sourceVal ^ destVal
 
 	c.SetFlag("N", res < 0)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("V", false)
-	c.writeWord(uint16(dest), uint16(res))
+	c.mmunit.WriteMemoryWord(destAddr, res)
 }
 
 // sob - substract one and branch (if not equal 0)
