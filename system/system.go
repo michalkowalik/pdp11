@@ -130,10 +130,9 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			// this is wrong. that doesn't exist anymore.
-			sys.unibus.Traps <- t
+			sys.CPU.Trap(t)
 		case nil:
-			// ignore
+			break
 		default:
 			panic(t)
 		}
