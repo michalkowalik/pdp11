@@ -288,12 +288,6 @@ func (c *CPU) writeWord(op, value uint16) {
 	c.mmunit.WriteMemoryWord(addr, value)
 }
 
-// writeByte writes byte value into specified memory location
-func (c *CPU) writeByte(op uint16, value byte) {
-	addr, _ := c.GetVirtualByMode(op, 1)
-	c.mmunit.WriteMemoryByte(addr, value)
-}
-
 // DumpRegisters displays register values
 func (c *CPU) DumpRegisters() string {
 	var res strings.Builder
