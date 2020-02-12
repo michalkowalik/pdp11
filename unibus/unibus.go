@@ -72,49 +72,44 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.TermEmulator.Run()
 
 	unibus.Rk01 = NewRK(&unibus)
-
-	unibus.processInterruptQueue()
 	return &unibus
 }
 
-// save incoming interrupt in a proper place
-// TODO: is this ever happening?
-func (u *Unibus) processInterruptQueue() {
-	go func() error {
-		for {
-			interrupt := <-u.Interrupts
+//SendInterrupt : save incoming interrupt in interrupt table
+func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
+	interrupt := interrupts.Interrupt{
+		Priority: priority,
+		Vector:   vector}
 
-			fmt.Printf("new interrupt: %v\n", interrupt)
+	fmt.Printf("new interrupt: %v\n", interrupt)
 
-			if interrupt.Vector&1 == 1 {
-				panic("Interrupt with Odd vector number")
-			}
+	if interrupt.Vector&1 == 1 {
+		panic("Interrupt with Odd vector number")
+	}
 
-			var i int
-			for ; i < len(u.InterruptQueue); i++ {
-				if u.InterruptQueue[i].Vector == 0 ||
-					u.InterruptQueue[i].Priority < interrupt.Priority {
-					break
-				}
-			}
-
-			for ; i < len(u.InterruptQueue); i++ {
-				if u.InterruptQueue[i].Vector == 0 ||
-					u.InterruptQueue[i].Vector >= interrupt.Vector {
-					break
-				}
-			}
-
-			if i == len(u.InterruptQueue) {
-				panic("Interrupt table full")
-			}
-
-			for j := len(u.InterruptQueue) - 1; j > i; j-- {
-				u.InterruptQueue[j] = u.InterruptQueue[j-1]
-			}
-			u.InterruptQueue[i] = interrupt
+	var i int
+	for ; i < len(u.InterruptQueue); i++ {
+		if u.InterruptQueue[i].Vector == 0 ||
+			u.InterruptQueue[i].Priority < interrupt.Priority {
+			break
 		}
-	}()
+	}
+
+	for ; i < len(u.InterruptQueue); i++ {
+		if u.InterruptQueue[i].Vector == 0 ||
+			u.InterruptQueue[i].Vector >= interrupt.Vector {
+			break
+		}
+	}
+
+	if i == len(u.InterruptQueue) {
+		panic("Interrupt table full")
+	}
+
+	for j := len(u.InterruptQueue) - 1; j > i; j-- {
+		u.InterruptQueue[j] = u.InterruptQueue[j-1]
+	}
+	u.InterruptQueue[i] = interrupt
 }
 
 // get Register value for address:
@@ -183,23 +178,4 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
-}
-
-// SendInterrupt sends a new interrupts to the receiver
-func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
-	i := interrupts.Interrupt{
-		Priority: priority,
-		Vector:   vector}
-
-	// send interrupt:
-	go func() { u.Interrupts <- i }()
-}
-
-// SendTrap sends a Trap to CPU the same way the interrupt is sent.
-func (u *Unibus) SendTrap(vector uint16, msg string) {
-	t := interrupts.Trap{
-		Vector: vector,
-		Msg:    msg}
-	go func() { u.Traps <- t }()
-
 }
