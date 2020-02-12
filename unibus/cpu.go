@@ -30,8 +30,8 @@ const (
 
 // CPU type:
 type CPU struct {
-	Registers                   [8]uint16
-	State                       int
+	Registers [8]uint16
+	State     int
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
@@ -270,113 +270,28 @@ func (c *CPU) Execute() {
 }
 
 // helper functions:
-
-// readMemory reads either a word or a byte from memory
-// mode: 1: byte, 0: word
-func (c *CPU) readFromMemory(op uint16, length uint16) uint16 {
-	var byteData byte
-	var data uint16
-	var err error
-
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			c.Trap(t)
-		case nil:
-			// ignore
-		default:
-			panic(t)
-		}
-	}()
-
-	// check mode:
-	mode := (op >> 3) & 7
-	register := op & 7
-
-	if mode == 0 {
-
-		//value directly in register
-		if length == 0 {
-			return c.Registers[register]
-		}
-
-		// and for the byte mode:
-		return c.Registers[register] & 0xFF
-	}
-	virtual, err := c.GetVirtualByMode(op, length)
-	if err != nil {
-		panic("Can't obtain virtual address")
-	}
-
-	if length == 0 {
-		data = c.mmunit.ReadMemoryWord(virtual)
-	} else {
-		byteData = c.mmunit.ReadMemoryByte(virtual)
-		data = uint16(byteData)
-	}
-	return data
-}
-
 // readWord returns value specified by source or destination part of the operand.
 func (c *CPU) readWord(op uint16) uint16 {
-	return c.readFromMemory(op, 0)
+	addr, _ := c.GetVirtualByMode(op, 0)
+	return c.mmunit.ReadMemoryWord(addr)
 }
 
 // read byte
 func (c *CPU) readByte(op uint16) byte {
-	return byte(c.readFromMemory(op, 1))
-}
-
-// writeMemory writes either byte or word,
-// complementary to read operations
-func (c *CPU) writeMemory(op, value, length uint16) error {
-
-	defer func() {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			c.Trap(t)
-		case nil:
-			// ignore
-		default:
-			panic(t)
-		}
-	}()
-
-	mode := (op >> 3) & 7
-	register := op & 7
-
-	// TODO: clean it up -> it is awful hack, and its
-	// not what DEC says!
-	if mode == 0 {
-		if length == 1 {
-			c.Registers[register] = (value & 0xFF)
-		} else {
-			c.Registers[register] = value
-		}
-		return nil
-	}
-	virtualAddr, err := c.GetVirtualByMode(op, length)
-	if err != nil {
-		return err
-	}
-	if length == 0 {
-		c.mmunit.WriteMemoryWord(virtualAddr, value)
-	} else {
-		c.mmunit.WriteMemoryByte(virtualAddr, byte(value))
-	}
-	return nil
+	addr, _ := c.GetVirtualByMode(op, 1)
+	return c.mmunit.ReadMemoryByte(addr)
 }
 
 // writeWord writes word value into specified memory address
-func (c *CPU) writeWord(op, value uint16) error {
-	return c.writeMemory(op, value, 0)
+func (c *CPU) writeWord(op, value uint16) {
+	addr, _ := c.GetVirtualByMode(op, 0)
+	c.mmunit.WriteMemoryWord(addr, value)
 }
 
 // writeByte writes byte value into specified memory location
-func (c *CPU) writeByte(op, value uint16) error {
-	return c.writeMemory(op, value, 1)
+func (c *CPU) writeByte(op uint16, value byte) {
+	addr, _ := c.GetVirtualByMode(op, 1)
+	c.mmunit.WriteMemoryByte(addr, value)
 }
 
 // DumpRegisters displays register values

@@ -441,11 +441,7 @@ func (c *CPU) sxtOp(instruction uint16) {
 	if c.GetFlag("N") {
 		res = -1
 	}
-
-	if err := c.writeWord(uint16(instruction&077), uint16(res)); err != nil {
-		panic(err)
-	}
-
+	c.writeWord(uint16(instruction&077), uint16(res))
 	c.SetFlag("Z", !c.GetFlag("N"))
 }
 
