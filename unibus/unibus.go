@@ -81,8 +81,6 @@ func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 		Priority: priority,
 		Vector:   vector}
 
-	fmt.Printf("new interrupt: %v\n", interrupt)
-
 	if interrupt.Vector&1 == 1 {
 		panic("Interrupt with Odd vector number")
 	}

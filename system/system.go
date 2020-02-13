@@ -1,6 +1,7 @@
 package system
 
 import (
+	"fmt"
 	"go/build"
 	"path/filepath"
 	"pdp/console"
@@ -123,8 +124,9 @@ func (sys *System) step() {
 //    makes sure to set the stack and PSW back to where it belongs
 // TODO: wouldn't it make sense to move this method to CPU?
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
-	//sys.console.WriteConsole(
-	//	fmt.Sprintf("Processing interrupt %v\n", interrupt))
+	sys.console.WriteConsole(
+		fmt.Sprintf("Processing interrupt: vector %o, priority: %o\n",
+			interrupt.Vector, interrupt.Priority))
 	prev := sys.psw.Get()
 	defer func(prev uint16) {
 		t := recover()

@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"fmt"
 	"pdp/interrupts"
 )
 
@@ -185,7 +186,7 @@ func (c *CPU) sbcbOp(instruction uint16) {
 // tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
-	dest := c.readWord(uint16(instruction & 077))
+	dest := c.readWord(instruction & 077)
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x8000) > 0)
 	c.SetFlag("V", false)
@@ -193,7 +194,16 @@ func (c *CPU) tstOp(instruction uint16) {
 }
 
 func (c *CPU) tstbOp(instruction uint16) {
-	dest := c.readByte(uint16(instruction & 077))
+	var debug bool = false
+	if c.Registers[6] == 0141622 && c.Registers[7] == 053774 {
+		debug = true
+	}
+	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryByte(dstAddr)
+
+	if debug {
+		fmt.Printf("DEBUG TSTB: ADDR: %o, VAL : %o\n", dstAddr, dest)
+	}
 
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x80) > 0)
