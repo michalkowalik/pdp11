@@ -266,8 +266,8 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
 	memWord := m.ReadWordByPhysicalAddress(physicalAddress)
 
-	if physicalAddress&RegisterAddressBegin == RegisterAddressBegin {
-		return byte(memWord & 0xFF)
+	if physicalAddress&0777770 == RegisterAddressBegin {
+		return byte(m.unibus.PdpCPU.Registers[addr&7] & 0xFF)
 	}
 
 	if addr&1 > 0 {
@@ -306,10 +306,12 @@ func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
 	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
 	wordData := m.ReadWordByPhysicalAddress(physicalAddress)
 
-	if (physicalAddress & RegisterAddressBegin) == RegisterAddressBegin {
-		m.WriteWordByPhysicalAddress(
-			physicalAddress,
-			uint16(data))
+	if (physicalAddress & 0777770) == RegisterAddressBegin {
+		val := (m.unibus.PdpCPU.Registers[addr&7] & 0xFF00) | uint16(data)
+		m.unibus.PdpCPU.Registers[addr&7] = val
+		//m.WriteWordByPhysicalAddress(
+		//	physicalAddress,
+		//		uint16(data))
 		return
 	}
 

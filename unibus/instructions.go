@@ -66,7 +66,7 @@ func (c *CPU) incbOp(instruction uint16) {
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("N", res&0x80 == 0x80)
 	c.SetFlag("V", val == 0x7F)
-	c.mmunit.WriteMemoryByte(dstAddr, val)
+	c.mmunit.WriteMemoryByte(dstAddr, res)
 }
 
 // dec - decrement dst
@@ -194,16 +194,8 @@ func (c *CPU) tstOp(instruction uint16) {
 }
 
 func (c *CPU) tstbOp(instruction uint16) {
-	var debug bool = false
-	if c.Registers[6] == 0141622 && c.Registers[7] == 053774 {
-		debug = true
-	}
 	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
 	dest := c.mmunit.ReadMemoryByte(dstAddr)
-
-	if debug {
-		fmt.Printf("DEBUG TSTB: ADDR: %o, VAL : %o\n", dstAddr, dest)
-	}
 
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x80) > 0)
@@ -456,11 +448,7 @@ func (c *CPU) sxtOp(instruction uint16) {
 }
 
 // double operand cpu instructions:
-
 // move (1)
-// There's a subtle problem: what if MOV is used to set the PSW?
-// because it will set the flags according to the value of the operand,
-// possibly rewriting the flags in the process.
 func (c *CPU) movOp(instruction uint16) {
 
 	source := (instruction & 07700) >> 6
@@ -475,14 +463,23 @@ func (c *CPU) movOp(instruction uint16) {
 }
 
 // movb
-// TODO: Finish implementation
 func (c *CPU) movbOp(instruction uint16) {
+	var debug bool = false
+	if c.Registers[6] == 0141734 && c.Registers[7] == 044016 {
+		debug = true
+	}
+
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
 	sourceAddr, _ := c.GetVirtualByMode(source, 1)
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
 	destAddr, _ := c.GetVirtualByMode(dest, 1)
+
+	if debug {
+		fmt.Printf("srcaddr: %o, dstAddr: %o, sourceVal: %o\n",
+			sourceAddr, destAddr, sourceVal)
+	}
 	c.SetFlag("Z", sourceVal == 0)
 	c.SetFlag("V", false)
 	c.SetFlag("N", (sourceVal&0x80) > 0)

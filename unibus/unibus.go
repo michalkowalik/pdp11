@@ -77,6 +77,8 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 
 //SendInterrupt : save incoming interrupt in interrupt table
 func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
+	fmt.Printf("Incoming interrupt. Vector: %o, priority: %o\n", vector, priority)
+
 	interrupt := interrupts.Interrupt{
 		Priority: priority,
 		Vector:   vector}
