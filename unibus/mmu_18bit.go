@@ -303,17 +303,14 @@ func (m *MMU18Bit) WriteWordByPhysicalAddress(addr uint32, data uint16) {
 
 // WriteMemoryByte writes a byte to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
-	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
-	wordData := m.ReadWordByPhysicalAddress(physicalAddress)
-
-	if (physicalAddress & 0777770) == RegisterAddressBegin {
-		val := (m.unibus.PdpCPU.Registers[addr&7] & 0xFF00) | uint16(data)
-		m.unibus.PdpCPU.Registers[addr&7] = val
-		//m.WriteWordByPhysicalAddress(
-		//	physicalAddress,
-		//		uint16(data))
+	// modify register directly:
+	if (addr & 0177770) == 0177700 {
+		m.unibus.PdpCPU.Registers[addr&7] = uint16(data)
 		return
 	}
+
+	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
+	wordData := m.ReadWordByPhysicalAddress(physicalAddress)
 
 	if addr&1 == 0 {
 		wordData = (wordData & 0xFF00) | uint16(data)

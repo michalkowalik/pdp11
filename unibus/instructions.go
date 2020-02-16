@@ -1,7 +1,6 @@
 package unibus
 
 import (
-	"fmt"
 	"pdp/interrupts"
 )
 
@@ -463,12 +462,10 @@ func (c *CPU) movOp(instruction uint16) {
 }
 
 // movb
+// The MOVB to a register (unique among byte instructions)
+// extends the most significant bit of the low order byte (sign extension).
+// Otherwise MOVB operates on bytes exactly as MOV operates on words.
 func (c *CPU) movbOp(instruction uint16) {
-	var debug bool = false
-	if c.Registers[6] == 0141734 && c.Registers[7] == 044016 {
-		debug = true
-	}
-
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
@@ -476,14 +473,17 @@ func (c *CPU) movbOp(instruction uint16) {
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
 	destAddr, _ := c.GetVirtualByMode(dest, 1)
 
-	if debug {
-		fmt.Printf("srcaddr: %o, dstAddr: %o, sourceVal: %o\n",
-			sourceAddr, destAddr, sourceVal)
-	}
 	c.SetFlag("Z", sourceVal == 0)
 	c.SetFlag("V", false)
 	c.SetFlag("N", (sourceVal&0x80) > 0)
 
+	// register destination is a special case in movb:
+	if dest&070 == 0 {
+		if sourceVal&0x80 == 0x80 {
+			c.Registers[dest&7] = uint16(0xFF00) | uint16(sourceVal)
+			return
+		}
+	}
 	c.mmunit.WriteMemoryByte(destAddr, sourceVal)
 }
 
@@ -614,9 +614,10 @@ func (c *CPU) bitOp(instruction uint16) {
 
 func (c *CPU) bitbOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
-	dest := instruction & 7
+	dest := instruction & 077
 
-	sourceVal := c.readByte(source)
+	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
 	destAddr, _ := c.GetVirtualByMode(dest, 1)
 	destVal := c.mmunit.ReadMemoryByte(destAddr)
 
