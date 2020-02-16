@@ -150,7 +150,7 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 	c.controlOpcodes[0400] = c.brOp
 	c.controlOpcodes[01000] = c.bneOp
 	c.controlOpcodes[01400] = c.beqOp
-	c.controlOpcodes[0100000] = c.bplOp // and what the heck happens here??
+	c.controlOpcodes[0100000] = c.bplOp
 	c.controlOpcodes[0100400] = c.bmiOp
 	c.controlOpcodes[0102000] = c.bvsOp
 	c.controlOpcodes[0103000] = c.bccOp
@@ -371,10 +371,9 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 	fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
 	fmt.Printf("DEBUG\nDEBUG\n")
 
-	vec := trap.Vector
 	var prevPSW uint16
 
-	defer func() {
+	defer func(vec uint16) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
@@ -390,7 +389,10 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 		}
 		c.Registers[7] = c.mmunit.ReadWordByPhysicalAddress(uint32(vec))
 		c.mmunit.Psw.Set(c.mmunit.ReadWordByPhysicalAddress(uint32(vec) + 2))
-	}()
+		if c.mmunit.Psw.GetPreviousMode() == 3 {
+			c.mmunit.Psw.Set(c.mmunit.Psw.Get() | (1 << 13) | (1 << 12))
+		}
+	}(trap.Vector)
 
 	if trap.Vector&1 == 1 {
 		panic("Trap called with odd vector number!")
