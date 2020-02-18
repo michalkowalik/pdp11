@@ -1,5 +1,7 @@
 package interrupts
 
+import "fmt"
+
 /**
  * Separate package exists mainly in order to avoid cyclic imports
  */
@@ -56,3 +58,43 @@ const INTClock = 0100
 
 // INTRK - RK disk drive (?) trap
 const INTRK = 0220
+
+// InterruptQueue - to avoid keeping the insert to the queue login in unibus:
+type InterruptQueue [8]Interrupt
+
+// SendInterrupt to the queue
+func (iq *InterruptQueue) SendInterrupt(priority, vector uint16) {
+	fmt.Printf("IRQ: %06o\n", vector)
+
+	interrupt := Interrupt{
+		Priority: priority,
+		Vector:   vector}
+
+	if interrupt.Vector&1 == 1 {
+		panic("Interrupt with Odd vector number")
+	}
+
+	var i int
+	for ; i < len(iq); i++ {
+		if iq[i].Vector == 0 ||
+			iq[i].Priority < interrupt.Priority {
+			break
+		}
+	}
+
+	for ; i < len(iq); i++ {
+		if iq[i].Vector == 0 ||
+			iq[i].Vector >= interrupt.Vector {
+			break
+		}
+	}
+
+	if i == len(iq) {
+		panic("Interrupt table full")
+	}
+
+	for j := len(iq) - 1; j > i; j-- {
+		iq[j] = iq[j-1]
+	}
+	iq[i] = interrupt
+}

@@ -26,19 +26,19 @@ type Simple struct {
 	// ??
 	TPB uint16
 
-	interrupts chan interrupts.Interrupt
-
 	// ready to receive next order
 	ready bool
 
 	// step delay
 	count uint8
+
+	interruptQueue *interrupts.InterruptQueue
 }
 
 // NewSimple returns new teletype object
-func NewSimple(interrupts chan interrupts.Interrupt) *Simple {
+func NewSimple(interruptQueue *interrupts.InterruptQueue) *Simple {
 	tele := Simple{}
-	tele.interrupts = interrupts
+	tele.interruptQueue = interruptQueue
 
 	// initialize channels
 	tele.keyboardInput = make(chan uint8)
@@ -81,9 +81,7 @@ func (t *Simple) Step() {
 		t.writeTerminal(int(t.TPB & 0x7F))
 		t.TPS |= 0x80
 		if t.TPS&(1<<6) != 0 {
-			t.interrupts <- interrupts.Interrupt{
-				Priority: 4,
-				Vector:   interrupts.TTYout}
+			t.interruptQueue.SendInterrupt(4, interrupts.TTYout)
 		}
 	}
 }
@@ -152,9 +150,7 @@ func (t *Simple) addChar(char byte) {
 	t.TKS |= 0x80
 	t.ready = false
 	if t.TKS&(1<<6) != 0 {
-		t.interrupts <- interrupts.Interrupt{
-			Priority: 4,
-			Vector:   interrupts.TTYin}
+		t.interruptQueue.SendInterrupt(4, interrupts.TTYin)
 	}
 }
 

@@ -30,10 +30,6 @@ type Unibus struct {
 	// Memory management Unit
 	Mmu *MMU18Bit
 
-	// Channel for interrupt communication
-	Interrupts chan interrupts.Interrupt
-	Traps      chan interrupts.Trap
-
 	// console
 	controlConsole console.Console
 
@@ -41,7 +37,7 @@ type Unibus struct {
 	TermEmulator teletype.Teletype
 
 	// InterruptQueue queue to keep incoming interrupts before processing them
-	InterruptQueue [8]interrupts.Interrupt
+	InterruptQueue interrupts.InterruptQueue
 
 	// ActiveTrap keeps the active trap in case the trap is being throw
 	// or nil otheriwse
@@ -57,8 +53,6 @@ type Unibus struct {
 // New initializes and returns the Unibus variable
 func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus {
 	unibus := Unibus{}
-	unibus.Interrupts = make(chan interrupts.Interrupt)
-	unibus.Traps = make(chan interrupts.Trap)
 
 	unibus.controlConsole = *controlConsole
 	unibus.psw = psw
@@ -68,7 +62,7 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	unibus.PdpCPU = NewCPU(unibus.Mmu)
 
 	// TODO: it needs to be modified, in order to allow the GUI!
-	unibus.TermEmulator = teletype.NewSimple(unibus.Interrupts) //gui, controlConsole, unibus.Interrupts)
+	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue)
 	unibus.TermEmulator.Run()
 
 	unibus.Rk01 = NewRK(&unibus)
