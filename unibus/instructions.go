@@ -851,13 +851,13 @@ func (c *CPU) sobOp(instruction uint16) {
 // trap opcodes:
 // emt - emulator trap - trap vector hardcoded to location 32
 func (c *CPU) emtOp(instruction uint16) {
-	c.Trap(interrupts.Trap{Vector: 32, Msg: "emt"})
+	c.Trap(interrupts.Trap{Vector: 030, Msg: "emt"})
 }
 
 // trap
 // trap vector for TRAP is hardcoded for all PDP11s to memory location 34
 func (c *CPU) trapOp(instruction uint16) {
-	c.Trap(interrupts.Trap{Vector: 34, Msg: "TRAP"})
+	c.Trap(interrupts.Trap{Vector: 034, Msg: "TRAP"})
 }
 
 // Single Register opcodes
