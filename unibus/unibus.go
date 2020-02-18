@@ -71,39 +71,7 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 
 //SendInterrupt : save incoming interrupt in interrupt table
 func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
-	fmt.Printf("IRQ: %06o\n", vector)
-
-	interrupt := interrupts.Interrupt{
-		Priority: priority,
-		Vector:   vector}
-
-	if interrupt.Vector&1 == 1 {
-		panic("Interrupt with Odd vector number")
-	}
-
-	var i int
-	for ; i < len(u.InterruptQueue); i++ {
-		if u.InterruptQueue[i].Vector == 0 ||
-			u.InterruptQueue[i].Priority < interrupt.Priority {
-			break
-		}
-	}
-
-	for ; i < len(u.InterruptQueue); i++ {
-		if u.InterruptQueue[i].Vector == 0 ||
-			u.InterruptQueue[i].Vector >= interrupt.Vector {
-			break
-		}
-	}
-
-	if i == len(u.InterruptQueue) {
-		panic("Interrupt table full")
-	}
-
-	for j := len(u.InterruptQueue) - 1; j > i; j-- {
-		u.InterruptQueue[j] = u.InterruptQueue[j-1]
-	}
-	u.InterruptQueue[i] = interrupt
+	u.InterruptQueue.SendInterrupt(priority, vector)
 }
 
 // get Register value for address:
