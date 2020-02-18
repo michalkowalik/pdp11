@@ -9,7 +9,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
-	debug = true
+	debug = false
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -212,7 +212,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 		}
 	}
 
-	// 2 operand instructixon in RDD format
+	// 2 operand instruction in RDD format
 	if opcode = instr & 0177000; opcode > 0 {
 		if val, ok := c.rddOpOpcodes[opcode]; ok {
 			return val

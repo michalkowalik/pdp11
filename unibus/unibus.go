@@ -40,7 +40,7 @@ type Unibus struct {
 	InterruptQueue interrupts.InterruptQueue
 
 	// ActiveTrap keeps the active trap in case the trap is being throw
-	// or nil otheriwse
+	// or nil otherwise
 	ActiveTrap interrupts.Trap
 
 	psw *psw.PSW
