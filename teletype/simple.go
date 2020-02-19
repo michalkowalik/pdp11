@@ -117,14 +117,14 @@ func (t *Simple) writeTerminal(char int) {
 
 	switch char {
 	case 13:
-		//skip
+		// skip
 	default:
 		outb[0] = byte(char)
 		os.Stdout.Write(outb[:])
 	}
 }
 
-//getChar - return char from keybuffer set registers accordingly
+// getChar - return char from keybuffer set registers accordingly
 func (t *Simple) getChar() uint16 {
 	// fmt.Printf("GET CHAR: TKS:%x, TKB:%x\n", t.TKS, t.TKB)
 	if t.TKS&0x80 != 0 {
@@ -159,8 +159,6 @@ func (t *Simple) addChar(char byte) {
 // addresses and the 18 bit, DEC defined addresses for the devices.
 // TODO: this method can be private!
 func (t *Simple) WriteTerm(address uint32, data uint16) error {
-	//fmt.Printf("DEBUG: Console Write to addr %o\n", address)
-
 	switch address & 0777 {
 
 	// keyboard control & status
@@ -188,7 +186,6 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
 	// so I'm skipping that part.
 	case 0566:
-		//fmt.Printf("DEBUG TELETYPE OUT: %v, TPS: %v\n", data, t.TPS)
 		t.TPB = data & 0xFF
 		t.TPS &= 0xFF7F
 	// any other address -> error
@@ -210,6 +207,6 @@ func (t *Simple) ReadTerm(address uint32) (uint16, error) {
 	case 0566:
 		return 0, nil
 	default:
-		return 0, fmt.Errorf("Read from invalid address: %o", address)
+		return 0, fmt.Errorf("read from invalid address: %o", address)
 	}
 }

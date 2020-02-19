@@ -115,7 +115,6 @@ func (sys *System) step() {
 // 4. if previous state mode was User, then set the corresponding bits in PSW
 // 5. Return from subprocedure cpu instruction at the end of interrupt procedure
 //    makes sure to set the stack and PSW back to where it belongs
-// TODO: wouldn't it make sense to move this method to CPU?
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	prev := sys.psw.Get()
 	defer func(prev uint16) {

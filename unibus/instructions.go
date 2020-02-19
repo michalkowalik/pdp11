@@ -354,7 +354,7 @@ func (c *CPU) swabOp(instruction uint16) {
 
 // mark - used as a part of subroutine return convention on pdp11
 func (c *CPU) markOp(instruction uint16) {
-	c.Registers[6] = c.Registers[7] + uint16(instruction&0xFFFF)<<1
+	c.Registers[6] = c.Registers[7] + (instruction&0xFFFF)<<1
 	c.Registers[7] = c.Registers[5]
 	c.Registers[5] = c.Pop()
 }
@@ -436,7 +436,7 @@ func (c *CPU) sxtOp(instruction uint16) {
 	if c.GetFlag("N") {
 		res = -1
 	}
-	c.writeWord(uint16(instruction&077), uint16(res))
+	c.writeWord(instruction&077, uint16(res))
 	c.SetFlag("Z", !c.GetFlag("N"))
 }
 
@@ -446,13 +446,13 @@ func (c *CPU) movOp(instruction uint16) {
 
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
-	sourceVal := c.readWord(uint16(source))
+	sourceVal := c.readWord(source)
 
 	c.SetFlag("N", (sourceVal&0100000) > 0)
 	c.SetFlag("Z", sourceVal == 0)
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
-	c.writeWord(uint16(dest), sourceVal)
+	c.writeWord(dest, sourceVal)
 }
 
 // movb
@@ -539,11 +539,11 @@ func (c *CPU) cmpOp(instruction uint16) {
 
 	if byteOp {
 		msb = 0200
-		sourceVal = uint16(c.readByte(uint16(source)))
-		destVal = uint16(c.readByte(uint16(dest)))
+		sourceVal = uint16(c.readByte(source))
+		destVal = uint16(c.readByte(dest))
 	} else {
-		sourceVal = c.readWord(uint16(source))
-		destVal = c.readWord(uint16(dest))
+		sourceVal = c.readWord(source)
+		destVal = c.readWord(dest)
 	}
 	res := sourceVal + (^(destVal) + 1)
 
@@ -553,12 +553,12 @@ func (c *CPU) cmpOp(instruction uint16) {
 	c.SetFlag("V", (sourceVal^destVal)&msb == msb && !((destVal^res)&msb == msb))
 }
 
-//add (6)
+// add (6)
 func (c *CPU) addOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
-	sourceVal := c.readWord(uint16(source))
+	sourceVal := c.readWord(source)
 	virtAddr := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(virtAddr)
 	sum := sourceVal + destVal
@@ -576,7 +576,7 @@ func (c *CPU) subOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
-	sourceVal := c.readWord(uint16(source))
+	sourceVal := c.readWord(source)
 	virtAddr := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(virtAddr) & 0xFFFF
 
@@ -589,13 +589,13 @@ func (c *CPU) subOp(instruction uint16) {
 	c.mmunit.WriteMemoryWord(virtAddr, res)
 }
 
-//bit (3)
+// bit (3)
 func (c *CPU) bitOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
-	sourceVal := c.readWord(uint16(source))
-	destVal := c.readWord(uint16(dest))
+	sourceVal := c.readWord(source)
+	destVal := c.readWord(dest)
 
 	res := sourceVal & destVal
 	c.SetFlag("V", false)
@@ -622,7 +622,7 @@ func (c *CPU) bitbOp(instruction uint16) {
 func (c *CPU) bicOp(instruction uint16) {
 	source := (instruction >> 6) & 077
 	dest := instruction & 077
-	sourceVal := c.readWord(uint16(source))
+	sourceVal := c.readWord(source)
 	destAddr := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(destAddr)
 
@@ -652,7 +652,7 @@ func (c *CPU) bisOp(instruction uint16) {
 	source := (instruction >> 6) & 077
 	dest := instruction & 077
 
-	sourceVal := c.readWord(uint16(source))
+	sourceVal := c.readWord(source)
 	virtAddr := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(virtAddr) & 0xFFFF
 
@@ -683,10 +683,10 @@ func (c *CPU) bisbOp(instruction uint16) {
 // jsr - jump to subroutine
 func (c *CPU) jsrOp(instruction uint16) {
 	register := (instruction >> 6) & 7
-	destination := uint16(instruction & 077)
+	destination := instruction & 077
 	val := c.GetVirtualByMode(destination, 0)
 
-	c.Push(uint16(c.Registers[register]))
+	c.Push(c.Registers[register])
 	c.Registers[register] = c.Registers[7]
 	c.Registers[7] = val
 }
@@ -717,7 +717,7 @@ func (c *CPU) mulOp(instruction uint16) {
 // divide (071)
 func (c *CPU) divOp(instruction uint16) {
 	register := (instruction >> 6) & 7
-	source := uint16(instruction & 077)
+	source := instruction & 077
 
 	// div operates on a 32 bit digit combined in Register + Register | 1
 	val1 := (uint32(c.Registers[register]) << 16) | uint32(c.Registers[register|1])
@@ -747,8 +747,8 @@ func (c *CPU) ashOp(instruction uint16) {
 	register := (instruction >> 6) & 7
 
 	// offset is the lower 6 bits of the source
-	offset := c.readWord(uint16(instruction&077)) & 077
-	source := uint16(c.Registers[register])
+	offset := c.readWord(instruction&077) & 077
+	source := c.Registers[register]
 
 	// negative number -> shift right
 	if (offset & 040) != 0 {
@@ -778,7 +778,7 @@ func (c *CPU) ashOp(instruction uint16) {
 func (c *CPU) ashcOp(instruction uint16) {
 
 	var result uint32
-	offset := uint16(instruction & 077)
+	offset := instruction & 077
 	if offset == 0 {
 		return
 	}
@@ -796,7 +796,6 @@ func (c *CPU) ashcOp(instruction uint16) {
 		c.SetFlag("C", (result&0x0001) != 0)
 		result = result >> 1
 		if (dst & 0x80000000) != 0 {
-			// TODO: Why???
 			result = result | (0xffffffff << (32 - offset))
 		}
 	} else {
@@ -835,7 +834,7 @@ func (c *CPU) sobOp(instruction uint16) {
 	sourceReg := (instruction >> 6) & 7
 	c.Registers[sourceReg] = (c.Registers[sourceReg] - 1) & 0xffff
 	if c.Registers[sourceReg] != 0 {
-		c.Registers[7] = (c.Registers[7] - ((uint16(instruction) & 077) << 1)) & 0xffff
+		c.Registers[7] = (c.Registers[7] - ((instruction & 077) << 1)) & 0xffff
 	}
 }
 

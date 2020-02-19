@@ -69,7 +69,7 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 	return &unibus
 }
 
-//SendInterrupt : save incoming interrupt in interrupt table
+// SendInterrupt : save incoming interrupt in interrupt table
 func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 	u.InterruptQueue.SendInterrupt(priority, vector)
 }
