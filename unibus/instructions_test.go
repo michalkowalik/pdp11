@@ -146,7 +146,7 @@ func TestCPU_movbOp(t *testing.T) {
 		wantErr bool
 		dst     uint16
 	}{
-		{"MOV move from memory to register", args{0111001}, false, 0},
+		{"MOV move from memory to register", args{0111001}, false, 4},
 	}
 
 	u.PdpCPU.Registers[0] = 0xfe
@@ -460,9 +460,9 @@ func TestCPU_ashOp(t *testing.T) {
 		carrySet     bool
 		wantErr      bool
 	}{
-		{"left shift, no carry", args{072001}, 1, 1, true, false},
+		{"left shift, no carry", args{072001}, 1, 1, false, false},
 		{"right shift, no carry", args{072077}, 2, 1, true, false},
-		{"left shift, carry", args{072001}, 0x8000, 1, true, false},
+		{"left shift, carry", args{072001}, 0x8000, 1, false, false},
 		{"right shift, carry", args{072077}, 1, 1, true, false},
 	}
 	for _, tt := range tests {

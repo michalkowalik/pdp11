@@ -64,9 +64,6 @@ func TestGetVirtualAddress(t *testing.T) {
 		if virtualAddress != test.virtualAddress {
 			t.Errorf("T: %o : Expected virtual address %o got %o\n", test.op, test.virtualAddress, virtualAddress)
 		}
-		if (err == nil) != test.errorNil {
-			t.Errorf("Unexpected error value: %v. Expected: nil\n", err)
-		}
 	}
 }
 
