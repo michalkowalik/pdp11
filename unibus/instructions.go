@@ -506,7 +506,7 @@ func (c *CPU) rtiOp(instruction uint16) {
 		val &= 047
 		val |= c.mmunit.Psw.Get() & 0177730
 	}
-	c.mmunit.Psw.Set(val)
+	c.mmunit.WriteMemoryWord(PSWVirtAddr, val)
 }
 
 // rtt - return from trap

@@ -16,6 +16,7 @@ const (
 	ConsoleAddr = 0777560
 	RK11Addr    = 0777400
 	PSWAddr     = 0777776
+	PSWVirtAddr = 0177776
 	SR0Addr     = 0777572
 	SR2Addr     = 0777576
 	RegAddr     = 0777700

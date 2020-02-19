@@ -9,7 +9,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
-	debug = false
+	debug = true
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -330,10 +330,8 @@ func (c *CPU) GetFlag(flag string) bool {
 // values are as they are used in the PSW
 // TODO: make sure the previous mode is set properly
 func (c *CPU) SwitchMode(m uint16) {
-	c.mmunit.Psw.SwitchMode(m)
-
 	// save processor stack pointers:
-	if m > 0 {
+	if c.mmunit.Psw.GetMode() == 3 {
 		c.UserStackPointer = c.Registers[6]
 	} else {
 		c.KernelStackPointer = c.Registers[6]
@@ -345,6 +343,8 @@ func (c *CPU) SwitchMode(m uint16) {
 	} else {
 		c.Registers[6] = c.KernelStackPointer
 	}
+
+	c.mmunit.Psw.SwitchMode(m)
 }
 
 // Trap handles all Trap / abort events.
