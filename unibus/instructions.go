@@ -11,10 +11,10 @@ import (
 // clr Word / Byte
 func (c *CPU) clrOp(instruction uint16) {
 	if instruction&0100000 == 0100000 {
-		dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+		dstAddr := c.GetVirtualByMode(instruction&077, 1)
 		c.mmunit.WriteMemoryByte(dstAddr, 0)
 	} else {
-		dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+		dstAddr := c.GetVirtualByMode(instruction&077, 0)
 		c.mmunit.WriteMemoryWord(dstAddr, 0)
 	}
 	c.SetFlag("C", false)
@@ -26,7 +26,7 @@ func (c *CPU) clrOp(instruction uint16) {
 // com - complement dst -> replace the contents of the destination address
 // by their logical complement (each bit equal 0 is set to 1, each 1 is cleared)
 func (c *CPU) comOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dst := c.mmunit.ReadMemoryWord(dstAddr)
 
 	c.SetFlag("N", dst&0x8000 == 0x8000)
@@ -37,7 +37,7 @@ func (c *CPU) comOp(instruction uint16) {
 }
 
 func (c *CPU) combOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dst := c.mmunit.ReadMemoryByte(dstAddr)
 
 	c.SetFlag("N", dst&0x80 == 0x80)
@@ -50,7 +50,7 @@ func (c *CPU) combOp(instruction uint16) {
 // inc - increment dst
 func (c *CPU) incOp(instruction uint16) {
 	dest := instruction & 077
-	virtAddr, _ := c.GetVirtualByMode(dest, 0)
+	virtAddr := c.GetVirtualByMode(dest, 0)
 	val := (c.mmunit.ReadMemoryWord(virtAddr) + 1) & 0xFFFF
 	c.mmunit.WriteMemoryWord(virtAddr, val)
 
@@ -59,7 +59,7 @@ func (c *CPU) incOp(instruction uint16) {
 }
 
 func (c *CPU) incbOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dstAddr := c.GetVirtualByMode(instruction&077, 1)
 	val := c.mmunit.ReadMemoryByte(dstAddr)
 	res := (val + 1) & 0xFF
 	c.SetFlag("Z", res == 0)
@@ -71,7 +71,7 @@ func (c *CPU) incbOp(instruction uint16) {
 // dec - decrement dst
 // TODO: it should look like INC
 func (c *CPU) decOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	val := c.mmunit.ReadMemoryWord(dstAddr)
 	res := (val - 1) & 0xFFFF
 
@@ -82,7 +82,7 @@ func (c *CPU) decOp(instruction uint16) {
 }
 
 func (c *CPU) decbOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dstAddr := c.GetVirtualByMode(instruction&077, 1)
 	val := c.mmunit.ReadMemoryByte(dstAddr)
 	res := (val - 1) & 0xFF
 
@@ -96,7 +96,7 @@ func (c *CPU) decbOp(instruction uint16) {
 // replace the contents of the destination address
 // by it's 2 complement. 01000000 is replaced by itself
 func (c *CPU) negOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := ^dest + 1
 	c.SetFlag("Z", result == 0)
@@ -107,7 +107,7 @@ func (c *CPU) negOp(instruction uint16) {
 }
 
 func (c *CPU) negbOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dstAddr := c.GetVirtualByMode(instruction&077, 1)
 	dest := c.mmunit.ReadMemoryByte(dstAddr)
 	result := ^dest + 1
 	c.SetFlag("Z", result == 0)
@@ -126,13 +126,13 @@ func (c *CPU) adcOp(instruction uint16) {
 	var oc uint16 = 0xFFFF
 
 	if instruction&0100000 == 0100000 {
-		dstAddr, _ = c.GetVirtualByMode(instruction&077, 1)
+		dstAddr = c.GetVirtualByMode(instruction&077, 1)
 		dst = uint16(c.mmunit.ReadMemoryByte(dstAddr))
 		msb = 0x80
 		ov = 0177
 		oc = 0xFF
 	} else {
-		dstAddr, _ = c.GetVirtualByMode(instruction&077, 0)
+		dstAddr = c.GetVirtualByMode(instruction&077, 0)
 		dst = c.mmunit.ReadMemoryWord(dstAddr)
 
 	}
@@ -153,7 +153,7 @@ func (c *CPU) adcOp(instruction uint16) {
 
 // sbc - substract carry
 func (c *CPU) sbcOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := dest
 	if c.GetFlag("C") {
@@ -168,7 +168,7 @@ func (c *CPU) sbcOp(instruction uint16) {
 }
 
 func (c *CPU) sbcbOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dstAddr := c.GetVirtualByMode(instruction&077, 1)
 	dest := c.mmunit.ReadMemoryByte(dstAddr)
 	result := dest
 	if c.GetFlag("C") {
@@ -193,7 +193,7 @@ func (c *CPU) tstOp(instruction uint16) {
 }
 
 func (c *CPU) tstbOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dstAddr := c.GetVirtualByMode(instruction&077, 1)
 	dest := c.mmunit.ReadMemoryByte(dstAddr)
 
 	c.SetFlag("Z", dest == 0)
@@ -207,7 +207,7 @@ func (c *CPU) tstbOp(instruction uint16) {
 // is replicated. The C-bit is loaded from bit 0 of the destination.
 // ASR performs signed division of the destination by two.
 func (c *CPU) asrOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := (dest & 0x8000) | (dest >> 1)
 	c.mmunit.WriteMemoryWord(dstAddr, result)
@@ -221,7 +221,7 @@ func (c *CPU) asrOp(instruction uint16) {
 }
 
 func (c *CPU) asrbOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dstAddr := c.GetVirtualByMode(instruction&077, 1)
 	dest := c.mmunit.ReadMemoryByte(dstAddr)
 	result := (dest & 0x80) | (dest >> 1)
 	c.mmunit.WriteMemoryByte(dstAddr, result)
@@ -240,7 +240,7 @@ func (c *CPU) asrbOp(instruction uint16) {
 // the most significant bit of the destination. ASL performs a
 // signed multiplication of the destination by 2 with overflow indication.
 func (c *CPU) aslOp(instruction uint16) {
-	destAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	destAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(destAddr)
 	result := dest << 1
 	c.SetFlag("Z", result == 0)
@@ -251,7 +251,7 @@ func (c *CPU) aslOp(instruction uint16) {
 }
 
 func (c *CPU) aslbOp(instruction uint16) {
-	destAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	destAddr := c.GetVirtualByMode(instruction&077, 1)
 	dest := c.mmunit.ReadMemoryByte(destAddr)
 	result := dest << 1
 	c.SetFlag("Z", result == 0)
@@ -266,7 +266,7 @@ func (c *CPU) aslbOp(instruction uint16) {
 // loaded into the C-bit and the previous contents of the C-bit
 // are loaded into bit 15 of the destination.
 func (c *CPU) rorOp(instruction uint16) {
-	destAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	destAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(destAddr)
 	cBit := (dest & 1) << 15
 	result := (dest >> 1) | cBit
@@ -278,7 +278,7 @@ func (c *CPU) rorOp(instruction uint16) {
 }
 
 func (c *CPU) rorbOp(instruction uint16) {
-	destAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	destAddr := c.GetVirtualByMode(instruction&077, 1)
 	dest := c.mmunit.ReadMemoryByte(destAddr)
 	cBit := (dest & 1) << 7
 	result := (dest >> 1) | cBit
@@ -294,7 +294,7 @@ func (c *CPU) rorbOp(instruction uint16) {
 // is loaded into the C·bit of the status word and the previous
 // contents of the C-bit are loaded into Bit 0 of the destination.
 func (c *CPU) rolOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	res := dest << 1
 
@@ -309,7 +309,7 @@ func (c *CPU) rolOp(instruction uint16) {
 }
 
 func (c *CPU) rolbOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 1)
+	dstAddr := c.GetVirtualByMode(instruction&077, 1)
 	dest := c.mmunit.ReadMemoryByte(dstAddr)
 	res := dest << 1
 
@@ -325,7 +325,7 @@ func (c *CPU) rolbOp(instruction uint16) {
 
 // jmp - jump to address:
 func (c *CPU) jmpOp(instruction uint16) {
-	dest, _ := c.GetVirtualByMode(instruction&077, 0) // c.readWord(uint16(instruction & 077))
+	dest := c.GetVirtualByMode(instruction&077, 0) // c.readWord(uint16(instruction & 077))
 	if instruction&070 == 0 {
 		panic("JMP: Can't jump to register")
 	}
@@ -341,7 +341,7 @@ func (c *CPU) jmpOp(instruction uint16) {
 // V: cleared
 // C: cleared
 func (c *CPU) swabOp(instruction uint16) {
-	dstAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(dstAddr)
 	result := (dest << 8) | (dest >> 8)
 
@@ -363,10 +363,7 @@ func (c *CPU) markOp(instruction uint16) {
 func (c *CPU) mfpiOp(instruction uint16) {
 
 	var val uint16
-	dest, err := c.GetVirtualByMode(instruction&077, 0)
-	if err != nil {
-		panic("MFPI: could not resolve virtual address")
-	}
+	dest := c.GetVirtualByMode(instruction&077, 0)
 
 	curUser := c.mmunit.Psw.GetMode()
 	prevUser := c.mmunit.Psw.GetPreviousMode()
@@ -400,10 +397,7 @@ func (c *CPU) mfpiOp(instruction uint16) {
 
 // mtpi - move to previous instruction space
 func (c *CPU) mtpiOp(instruction uint16) {
-	dest, err := c.GetVirtualByMode(instruction&077, 0)
-	if err != nil {
-		panic("INC: Can't obtain virtual address")
-	}
+	dest := c.GetVirtualByMode(instruction&077, 0)
 	val := c.Pop()
 
 	curUser := c.mmunit.Psw.GetMode()
@@ -469,9 +463,9 @@ func (c *CPU) movbOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
-	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+	sourceAddr := c.GetVirtualByMode(source, 1)
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
-	destAddr, _ := c.GetVirtualByMode(dest, 1)
+	destAddr := c.GetVirtualByMode(dest, 1)
 
 	c.SetFlag("Z", sourceVal == 0)
 	c.SetFlag("V", false)
@@ -565,7 +559,7 @@ func (c *CPU) addOp(instruction uint16) {
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
-	virtAddr, _ := c.GetVirtualByMode(dest, 0)
+	virtAddr := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(virtAddr)
 	sum := sourceVal + destVal
 
@@ -583,10 +577,7 @@ func (c *CPU) subOp(instruction uint16) {
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
-	virtAddr, err := c.GetVirtualByMode(dest, 0)
-	if err != nil {
-		panic("INC: Can't obtain virtual address")
-	}
+	virtAddr := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(virtAddr) & 0xFFFF
 
 	res := destVal + (^(sourceVal) + 1)
@@ -616,9 +607,9 @@ func (c *CPU) bitbOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
-	sourceAddr, _ := c.GetVirtualByMode(source, 1)
+	sourceAddr := c.GetVirtualByMode(source, 1)
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
-	destAddr, _ := c.GetVirtualByMode(dest, 1)
+	destAddr := c.GetVirtualByMode(dest, 1)
 	destVal := c.mmunit.ReadMemoryByte(destAddr)
 
 	res := sourceVal & destVal
@@ -632,7 +623,7 @@ func (c *CPU) bicOp(instruction uint16) {
 	source := (instruction >> 6) & 077
 	dest := instruction & 077
 	sourceVal := c.readWord(uint16(source))
-	destAddr, _ := c.GetVirtualByMode(dest, 0)
+	destAddr := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(destAddr)
 
 	destVal = destVal & (^sourceVal)
@@ -647,7 +638,7 @@ func (c *CPU) bicbOp(instruction uint16) {
 	dest := instruction & 077
 
 	sourceVal := c.readByte(source)
-	destAddr, _ := c.GetVirtualByMode(dest, 1)
+	destAddr := c.GetVirtualByMode(dest, 1)
 	destVal := c.mmunit.ReadMemoryByte(destAddr)
 	destVal = destVal & (^sourceVal)
 	c.SetFlag("V", false)
@@ -662,7 +653,7 @@ func (c *CPU) bisOp(instruction uint16) {
 	dest := instruction & 077
 
 	sourceVal := c.readWord(uint16(source))
-	virtAddr, _ := c.GetVirtualByMode(dest, 0)
+	virtAddr := c.GetVirtualByMode(dest, 0)
 	destVal := c.mmunit.ReadMemoryWord(virtAddr) & 0xFFFF
 
 	destVal = destVal | sourceVal
@@ -675,8 +666,8 @@ func (c *CPU) bisOp(instruction uint16) {
 func (c *CPU) bisbOp(instruction uint16) {
 	source := (instruction >> 6) & 077
 	dest := instruction & 077
-	sourceAddr, _ := c.GetVirtualByMode(source, 1)
-	destAddr, _ := c.GetVirtualByMode(dest, 1)
+	sourceAddr := c.GetVirtualByMode(source, 1)
+	destAddr := c.GetVirtualByMode(dest, 1)
 	sourceVal := c.mmunit.ReadMemoryByte(sourceAddr)
 	destVal := c.mmunit.ReadMemoryByte(destAddr)
 
@@ -693,7 +684,7 @@ func (c *CPU) bisbOp(instruction uint16) {
 func (c *CPU) jsrOp(instruction uint16) {
 	register := (instruction >> 6) & 7
 	destination := uint16(instruction & 077)
-	val, _ := c.GetVirtualByMode(destination, 0)
+	val := c.GetVirtualByMode(destination, 0)
 
 	c.Push(uint16(c.Registers[register]))
 	c.Registers[register] = c.Registers[7]
@@ -826,7 +817,7 @@ func (c *CPU) ashcOp(instruction uint16) {
 // xor
 func (c *CPU) xorOp(instruction uint16) {
 	sourceVal := c.Registers[(instruction>>6)&7]
-	destAddr, _ := c.GetVirtualByMode(instruction&077, 0)
+	destAddr := c.GetVirtualByMode(instruction&077, 0)
 	destVal := c.mmunit.ReadMemoryWord(destAddr)
 
 	res := sourceVal ^ destVal

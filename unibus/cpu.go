@@ -49,34 +49,15 @@ type CPU struct {
 	// the opcode function should append to the following signature:
 	// param: instruction int16
 	// return: error -> nil if everything went OK
-	singleOpOpcodes       map[uint16](func(uint16))
-	doubleOpOpcodes       map[uint16](func(uint16))
-	rddOpOpcodes          map[uint16](func(uint16))
-	controlOpcodes        map[uint16](func(uint16))
-	singleRegisterOpcodes map[uint16](func(uint16))
-	otherOpcodes          map[uint16](func(uint16))
+	singleOpOpcodes       map[uint16]func(uint16)
+	doubleOpOpcodes       map[uint16]func(uint16)
+	rddOpOpcodes          map[uint16]func(uint16)
+	controlOpcodes        map[uint16]func(uint16)
+	singleRegisterOpcodes map[uint16]func(uint16)
+	otherOpcodes          map[uint16]func(uint16)
 }
 
-/**
-* processor flags (or Condition Codes, as PDP-11 Processor Handbook wants it)
-* C -> Carry flag
-* V -> Overflow
-* Z -> Zero
-* N -> Negative
-* T -> Trap
- */
-var cpuFlags = map[string]struct {
-	setMask   uint16
-	unsetMask uint16
-}{
-	"C": {1, 0xfffe},
-	"V": {2, 0xfffd},
-	"Z": {4, 0xfffb},
-	"N": {8, 0xfff7},
-	"T": {0x10, 0xffef},
-}
-
-//NewCPU initializes and returns the CPU variable:
+// NewCPU initializes and returns the CPU variable:
 func NewCPU(mmunit *MMU18Bit) *CPU {
 
 	c := CPU{}
@@ -84,12 +65,12 @@ func NewCPU(mmunit *MMU18Bit) *CPU {
 	c.ClockCounter = 0
 
 	// single operand
-	c.singleOpOpcodes = make(map[uint16](func(uint16)))
-	c.doubleOpOpcodes = make(map[uint16](func(uint16)))
-	c.rddOpOpcodes = make(map[uint16](func(uint16)))
-	c.controlOpcodes = make(map[uint16](func(uint16)))
-	c.otherOpcodes = make(map[uint16](func(uint16)))
-	c.singleRegisterOpcodes = make(map[uint16](func(uint16)))
+	c.singleOpOpcodes = make(map[uint16]func(uint16))
+	c.doubleOpOpcodes = make(map[uint16]func(uint16))
+	c.rddOpOpcodes = make(map[uint16]func(uint16))
+	c.controlOpcodes = make(map[uint16]func(uint16))
+	c.otherOpcodes = make(map[uint16]func(uint16))
+	c.singleRegisterOpcodes = make(map[uint16]func(uint16))
 
 	// single opearnd:
 	c.singleOpOpcodes[0100] = c.jmpOp
@@ -246,7 +227,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 		}
 	}
 
-	// haltOp has optcode of 0, easiest to treat it separately
+	// haltOp has opcode of 0, easiest to treat it separately
 	if instr == 0 {
 		return c.otherOpcodes[0]
 	}
@@ -272,19 +253,19 @@ func (c *CPU) Execute() {
 // helper functions:
 // readWord returns value specified by source or destination part of the operand.
 func (c *CPU) readWord(op uint16) uint16 {
-	addr, _ := c.GetVirtualByMode(op, 0)
+	addr := c.GetVirtualByMode(op, 0)
 	return c.mmunit.ReadMemoryWord(addr)
 }
 
 // read byte
 func (c *CPU) readByte(op uint16) byte {
-	addr, _ := c.GetVirtualByMode(op, 1)
+	addr := c.GetVirtualByMode(op, 1)
 	return c.mmunit.ReadMemoryByte(addr)
 }
 
 // writeWord writes word value into specified memory address
 func (c *CPU) writeWord(op, value uint16) {
-	addr, _ := c.GetVirtualByMode(op, 0)
+	addr := c.GetVirtualByMode(op, 0)
 	c.mmunit.WriteMemoryWord(addr, value)
 }
 
@@ -299,7 +280,7 @@ func (c *CPU) DumpRegisters() string {
 }
 
 func (c *CPU) printState(instruction uint16) string {
-	//registers
+	// registers
 	out := fmt.Sprintf("%s\n", c.DumpRegisters())
 
 	// flags
@@ -311,7 +292,7 @@ func (c *CPU) printState(instruction uint16) string {
 	return out
 }
 
-//SetFlag sets CPU carry flag in Processor Status Word
+// SetFlag sets CPU carry flag in Processor Status Word
 func (c *CPU) SetFlag(flag string, set bool) {
 	switch flag {
 	case "C":
@@ -327,7 +308,7 @@ func (c *CPU) SetFlag(flag string, set bool) {
 	}
 }
 
-//GetFlag returns carry flag
+// GetFlag returns carry flag
 func (c *CPU) GetFlag(flag string) bool {
 	switch flag {
 	case "C":
@@ -347,7 +328,7 @@ func (c *CPU) GetFlag(flag string) bool {
 // SwitchMode switches the kernel / user mode:
 // 0 for user, 3 for kernel, everything else is a mistake.
 // values are as they are used in the PSW
-// TODO: is the machine initialized with kernel stack?
+// TODO: make sure the previous mode is set properly
 func (c *CPU) SwitchMode(m uint16) {
 	c.mmunit.Psw.SwitchMode(m)
 
@@ -403,9 +384,9 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 	c.Push(c.Registers[7])
 }
 
-// GetVirtualByMode returns virtual address extracted from the CPU instuction
+// GetVirtualByMode returns virtual address extracted from the CPU instruction
 // access mode: 0 for Word, 1 for Byte
-func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
+func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 	addressInc := uint16(2)
 	reg := instruction & 7
 	addressMode := (instruction >> 3) & 7
@@ -447,7 +428,7 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) (uint16, error) {
 		virtAddress = c.mmunit.ReadMemoryWord(offset + c.Registers[reg])
 	}
 	// all-catcher return
-	return virtAddress, nil
+	return virtAddress
 }
 
 // Push to processor stack
@@ -464,7 +445,6 @@ func (c *CPU) Pop() uint16 {
 }
 
 // Reset CPU
-// TODO: finish implementation
 func (c *CPU) Reset() {
 	for i := 0; i < 7; i++ {
 		c.Registers[i] = 0
