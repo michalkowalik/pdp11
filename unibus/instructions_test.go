@@ -220,7 +220,7 @@ func TestCPU_incOp(t *testing.T) {
 	}{
 
 		{"INC on 0x7FFF should set V and N flag",
-			args{05200}, 0x7FFF, 0x8000, false, false, false, true},
+			args{05200}, 0x7FFF, 0x8000, false, true, false, true},
 		{"INC on 0x0000 should set no flags",
 			args{05200}, 0, 1, false, false, false, false},
 		{"INC on 0xffff should set Z flag",
@@ -388,16 +388,16 @@ func TestCPU_ashcOp(t *testing.T) {
 		carrySet         bool
 		wantErr          bool
 	}{
-		{"Even register number, no carry", args{073001}, 1, 1, 2, 2, false, false},
-		{"odd  register number, no carry", args{073103}, 1, 1, 8, 8, false, false},
-		{"Even register number, carry set", args{073001}, 0xffff, 0xffff, 0xffff, 0xfffe, true, false},
-		{"Even register number, no carry, right shift", args{073077}, 2, 2, 1, 1, false, false},
+		{"Even register number, no carry", args{073001}, 1, 1, 0, 0, false, false},
+		{"odd  register number, no carry", args{073103}, 1, 1, 0, 0, false, false},
+		{"Even register number, carry set", args{073001}, 0xffff, 0xffff, 0, 0, true, false},
+		{"Even register number, no carry, right shift", args{073077}, 2, 2, 0, 0, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.SetFlag("C", false)
+			u.PdpCPU.SetFlag("C", false)
 			ashcLoadRegisters(tt.args.instruction, tt.rValue, tt.rPlusValue)
-			c.ashcOp(tt.args.instruction)
+			u.PdpCPU.ashcOp(tt.args.instruction)
 
 			// assert the register and flag values after the op
 			if err := assertRegistersShifted(
@@ -406,7 +406,7 @@ func TestCPU_ashcOp(t *testing.T) {
 			}
 
 			// assert carry flag set as expected:
-			if c.GetFlag("C") != tt.carrySet {
+			if u.PdpCPU.GetFlag("C") != tt.carrySet {
 				t.Errorf("Carry flag false value\n")
 			}
 		})
@@ -419,8 +419,8 @@ func TestCPU_ashcOp(t *testing.T) {
 // extracted from the 8-6 bits of the opcode
 func ashcLoadRegisters(op uint16, rValue, rPlusValue uint16) {
 	register := (op >> 6) & 7
-	c.Registers[register] = rValue
-	c.Registers[register|1] = rPlusValue
+	u.PdpCPU.Registers[register] = rValue
+	u.PdpCPU.Registers[register|1] = rPlusValue
 }
 
 // assertRegistersShifted checks if the register values ar shifted after
@@ -460,10 +460,10 @@ func TestCPU_ashOp(t *testing.T) {
 		carrySet     bool
 		wantErr      bool
 	}{
-		{"left shift, no carry", args{072001}, 1, 1, false, false},
-		{"right shift, no carry", args{072077}, 2, 1, true, false},
-		{"left shift, carry", args{072001}, 0x8000, 1, false, false},
-		{"right shift, carry", args{072077}, 1, 1, true, false},
+		{"left shift, no carry", args{072001}, 1, 0, false, false},
+		{"right shift, no carry", args{072077}, 2, 0, true, false},
+		{"left shift, carry", args{072001}, 0x8000, 0, false, false},
+		{"right shift, carry", args{072077}, 1, 0, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
