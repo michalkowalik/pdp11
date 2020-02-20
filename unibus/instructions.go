@@ -56,6 +56,7 @@ func (c *CPU) incOp(instruction uint16) {
 
 	c.SetFlag("Z", val == 0)
 	c.SetFlag("N", val&0x8000 == 0x8000)
+	c.SetFlag("V", val&0x8000 == 0x8000)
 }
 
 func (c *CPU) incbOp(instruction uint16) {
@@ -775,7 +776,8 @@ func (c *CPU) ashOp(instruction uint16) {
 func (c *CPU) ashcOp(instruction uint16) {
 
 	var result uint32
-	offset := instruction & 077
+	destAddr := c.GetVirtualByMode(instruction&077, 0)
+	offset := uint8(c.mmunit.ReadMemoryWord(destAddr) & 077)
 	if offset == 0 {
 		return
 	}
