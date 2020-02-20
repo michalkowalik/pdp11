@@ -11,13 +11,6 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-const (
-	// KernelMode - kernel cpu mode const
-	KernelMode = 0
-	// UserMode - user cpu mode const
-	UserMode = 3
-)
-
 // System definition.
 type System struct {
 	CPU *unibus.CPU
@@ -43,12 +36,13 @@ func InitializeSystem(
 	// unibus
 	sys.unibus = unibus.New(&sys.psw, gui, &c)
 	sys.unibus.PdpCPU.Reset()
-	//sys.unibus.WriteHello()
 
 	// mount drive
-	sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp/rk0"))
-	sys.unibus.Rk01.Reset()
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp/rk0")); err != nil {
+		panic("Can't mount the drive")
+	}
 
+	sys.unibus.Rk01.Reset()
 	sys.console.WriteConsole("Initializing PDP11 CPU.\n")
 
 	sys.CPU = sys.unibus.PdpCPU
@@ -105,7 +99,7 @@ func (sys *System) step() {
 	sys.CPU.ClockCounter++
 	if sys.CPU.ClockCounter >= 40000 {
 		sys.CPU.ClockCounter = 0
-		sys.unibus.LKS |= (1 << 7)
+		sys.unibus.LKS |= 1 << 7
 		if sys.unibus.LKS&(1<<6) != 0 {
 			sys.unibus.SendInterrupt(6, interrupts.INTClock)
 		}
@@ -121,19 +115,15 @@ func (sys *System) step() {
 // 4. if previous state mode was User, then set the corresponding bits in PSW
 // 5. Return from subprocedure cpu instruction at the end of interrupt procedure
 //    makes sure to set the stack and PSW back to where it belongs
-// TODO: wouldn't it make sense to move this method to CPU?
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
-	//sys.console.WriteConsole(
-	//	fmt.Sprintf("Processing interrupt %v\n", interrupt))
 	prev := sys.psw.Get()
 	defer func(prev uint16) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			// this is wrong. that doesn't exist anymore.
-			sys.unibus.Traps <- t
+			sys.CPU.Trap(t)
 		case nil:
-			// ignore
+			break
 		default:
 			panic(t)
 		}

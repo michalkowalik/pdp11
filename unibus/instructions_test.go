@@ -119,14 +119,14 @@ func TestCPU_movOp(t *testing.T) {
 		{"move from memory to register", args{011001}, false, 4},
 	}
 
-	c.Registers[0] = 0xfe
-	c.Registers[1] = 0
-	c.mmunit.Memory[0x7f] = uint16(4)
+	u.PdpCPU.Registers[0] = 0xfe
+	u.PdpCPU.Registers[1] = 0
+	u.Mmu.Memory[0x7f] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.movOp(tt.args.instruction)
-			d := c.readWord(uint16(tt.args.instruction & 077))
+			u.PdpCPU.movOp(tt.args.instruction)
+			d := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
 
 			if int16(d) != tt.dst {
 				t.Logf("destination addr: %x\n", tt.args.instruction&077)
@@ -146,7 +146,7 @@ func TestCPU_movbOp(t *testing.T) {
 		wantErr bool
 		dst     uint16
 	}{
-		{"MOV move from memory to register", args{0111001}, false, 0},
+		{"MOV move from memory to register", args{0111001}, false, 4},
 	}
 
 	u.PdpCPU.Registers[0] = 0xfe
@@ -460,17 +460,17 @@ func TestCPU_ashOp(t *testing.T) {
 		carrySet     bool
 		wantErr      bool
 	}{
-		{"left shift, no carry", args{072001}, 1, 2, false, false},
-		{"right shift, no carry", args{072077}, 2, 2, true, false},
-		{"left shift, carry", args{072001}, 0x8000, 0, true, false},
+		{"left shift, no carry", args{072001}, 1, 1, false, false},
+		{"right shift, no carry", args{072077}, 2, 1, true, false},
+		{"left shift, carry", args{072001}, 0x8000, 1, false, false},
 		{"right shift, carry", args{072077}, 1, 1, true, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c.SetFlag("C", false)
+			u.PdpCPU.SetFlag("C", false)
 			register := (tt.args.instruction >> 6) & 7
-			c.Registers[register] = tt.rValue
-			c.ashOp(tt.args.instruction)
+			u.PdpCPU.Registers[register] = tt.rValue
+			u.PdpCPU.ashOp(tt.args.instruction)
 
 			// assert values of shifted register:
 			if c.Registers[register] != tt.rExpectedVal {
@@ -480,8 +480,8 @@ func TestCPU_ashOp(t *testing.T) {
 					c.Registers[register])
 			}
 			// assert carry flag set
-			if c.GetFlag("C") != tt.carrySet {
-				t.Errorf("CPU.ashOp() carry flag = %v, expected %v", c.GetFlag("C"), tt.carrySet)
+			if u.PdpCPU.GetFlag("C") != tt.carrySet {
+				t.Errorf("CPU.ashOp() carry flag = %v, expected %v", u.PdpCPU.GetFlag("C"), tt.carrySet)
 			}
 		})
 	}

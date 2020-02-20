@@ -60,12 +60,9 @@ func TestGetVirtualAddress(t *testing.T) {
 		sys.CPU.Registers[7] = 010
 		sys.CPU.Registers[1] = 010
 
-		virtualAddress, err := sys.CPU.GetVirtualByMode(test.op, 0)
+		virtualAddress := sys.CPU.GetVirtualByMode(test.op, 0)
 		if virtualAddress != test.virtualAddress {
 			t.Errorf("T: %o : Expected virtual address %o got %o\n", test.op, test.virtualAddress, virtualAddress)
-		}
-		if (err == nil) != test.errorNil {
-			t.Errorf("Unexpected error value: %v. Expected: nil\n", err)
 		}
 	}
 }

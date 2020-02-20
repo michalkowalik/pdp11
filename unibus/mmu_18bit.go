@@ -135,10 +135,6 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 		return addr
 	}
 
-	//if virtualAddress == 0177776 && m.MmuEnabled() == true {
-	//	MMUDebugMode = true
-	//}
-
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
 	if mode > 0 {
@@ -266,8 +262,8 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
 	memWord := m.ReadWordByPhysicalAddress(physicalAddress)
 
-	if physicalAddress&RegisterAddressBegin == RegisterAddressBegin {
-		return byte(memWord & 0xFF)
+	if physicalAddress&0777770 == RegisterAddressBegin {
+		return byte(m.unibus.PdpCPU.Registers[addr&7] & 0xFF)
 	}
 
 	if addr&1 > 0 {
@@ -303,15 +299,14 @@ func (m *MMU18Bit) WriteWordByPhysicalAddress(addr uint32, data uint16) {
 
 // WriteMemoryByte writes a byte to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
-	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
-	wordData := m.ReadWordByPhysicalAddress(physicalAddress)
-
-	if (physicalAddress & RegisterAddressBegin) == RegisterAddressBegin {
-		m.WriteWordByPhysicalAddress(
-			physicalAddress,
-			uint16(data))
+	// modify register directly:
+	if (addr & 0177770) == 0177700 {
+		m.unibus.PdpCPU.Registers[addr&7] = uint16(data)
 		return
 	}
+
+	physicalAddress := m.mapVirtualToPhysical(addr&0xFFFE, false, m.Psw.GetMode())
+	wordData := m.ReadWordByPhysicalAddress(physicalAddress)
 
 	if addr&1 == 0 {
 		wordData = (wordData & 0xFF00) | uint16(data)

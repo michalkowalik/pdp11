@@ -76,20 +76,20 @@ var disasmtable = []struct {
 	{0170000, 0170000, "FP", 0, false},
 }
 
-func (c *Unibus) disasmaddr(m uint16, a uint16) string {
+func (u *Unibus) disasmaddr(m uint16, a uint16) string {
 	if (m & 7) == 7 {
 		switch m {
 		case 027:
 			a += 2
-			return fmt.Sprintf("$%06o", c.Mmu.ReadMemoryWord(a))
+			return fmt.Sprintf("$%06o", u.Mmu.ReadMemoryWord(a))
 		case 037:
 			a += 2
-			return fmt.Sprintf("*%06o", c.Mmu.ReadMemoryWord(a))
+			return fmt.Sprintf("*%06o", u.Mmu.ReadMemoryWord(a))
 		case 067:
 			a += 2
-			return fmt.Sprintf("*%06o", (a+2+uint16(c.Mmu.ReadMemoryWord(a)))&0xFFFF)
+			return fmt.Sprintf("*%06o", (a+2+uint16(u.Mmu.ReadMemoryWord(a)))&0xFFFF)
 		case 077:
-			return fmt.Sprintf("**%06o", (a+2+uint16(c.Mmu.ReadMemoryWord(a)))&0xFFFF)
+			return fmt.Sprintf("**%06o", (a+2+uint16(u.Mmu.ReadMemoryWord(a)))&0xFFFF)
 		}
 	}
 	r := rs[m&7]
@@ -108,18 +108,18 @@ func (c *Unibus) disasmaddr(m uint16, a uint16) string {
 		return "*-(" + r + ")"
 	case 060:
 		a += 2
-		return fmt.Sprintf("%06o (%s)", c.Mmu.ReadMemoryWord(a), r)
+		return fmt.Sprintf("%06o (%s)", u.Mmu.ReadMemoryWord(a), r)
 	case 070:
 		a += 2
-		return fmt.Sprintf("*%06o (%s)", c.Mmu.ReadMemoryWord(a), r)
+		return fmt.Sprintf("*%06o (%s)", u.Mmu.ReadMemoryWord(a), r)
 	}
 	panic(fmt.Sprintf("disasmaddr: unknown addressing mode, register %v, mode %o", r, m&070))
 }
 
 // Disasm produces disassemled symbols out of 16 bit instruction
-func (c *Unibus) Disasm(a uint16) string {
+func (u *Unibus) Disasm(a uint16) string {
 	ins := a
-	a = c.PdpCPU.Registers[7] - 2
+	a = u.PdpCPU.Registers[7] - 2
 	l := disasmtable[0]
 
 	for i := 0; i < len(disasmtable); i++ {
@@ -140,10 +140,10 @@ found:
 	o := byte(ins & 0377)
 	switch l.flag {
 	case flagS | flagD:
-		msg += " " + c.disasmaddr(source, a) + ","
+		msg += " " + u.disasmaddr(source, a) + ","
 		fallthrough
 	case flagD:
-		msg += " " + c.disasmaddr(destination, a)
+		msg += " " + u.disasmaddr(destination, a)
 	case flagR | flagO:
 		msg += " " + rs[(ins&0700)>>6] + ","
 		o &= 077
@@ -155,7 +155,7 @@ found:
 			msg += fmt.Sprintf(" +%#o", (2 * o))
 		}
 	case flagR | flagD:
-		msg += " " + rs[(ins&0700)>>6] + ", " + c.disasmaddr(destination, a)
+		msg += " " + rs[(ins&0700)>>6] + ", " + u.disasmaddr(destination, a)
 	case flagR:
 		msg += " " + rs[ins&7]
 	}

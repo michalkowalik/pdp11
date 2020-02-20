@@ -26,19 +26,19 @@ type Simple struct {
 	// ??
 	TPB uint16
 
-	interrupts chan interrupts.Interrupt
-
 	// ready to receive next order
 	ready bool
 
 	// step delay
 	count uint8
+
+	interruptQueue *interrupts.InterruptQueue
 }
 
 // NewSimple returns new teletype object
-func NewSimple(interrupts chan interrupts.Interrupt) *Simple {
+func NewSimple(interruptQueue *interrupts.InterruptQueue) *Simple {
 	tele := Simple{}
-	tele.interrupts = interrupts
+	tele.interruptQueue = interruptQueue
 
 	// initialize channels
 	tele.keyboardInput = make(chan uint8)
@@ -81,9 +81,7 @@ func (t *Simple) Step() {
 		t.writeTerminal(int(t.TPB & 0x7F))
 		t.TPS |= 0x80
 		if t.TPS&(1<<6) != 0 {
-			t.interrupts <- interrupts.Interrupt{
-				Priority: 4,
-				Vector:   interrupts.TTYout}
+			t.interruptQueue.SendInterrupt(4, interrupts.TTYout)
 		}
 	}
 }
@@ -119,14 +117,14 @@ func (t *Simple) writeTerminal(char int) {
 
 	switch char {
 	case 13:
-		//skip
+		// skip
 	default:
 		outb[0] = byte(char)
 		os.Stdout.Write(outb[:])
 	}
 }
 
-//getChar - return char from keybuffer set registers accordingly
+// getChar - return char from keybuffer set registers accordingly
 func (t *Simple) getChar() uint16 {
 	// fmt.Printf("GET CHAR: TKS:%x, TKB:%x\n", t.TKS, t.TKB)
 	if t.TKS&0x80 != 0 {
@@ -152,9 +150,7 @@ func (t *Simple) addChar(char byte) {
 	t.TKS |= 0x80
 	t.ready = false
 	if t.TKS&(1<<6) != 0 {
-		t.interrupts <- interrupts.Interrupt{
-			Priority: 4,
-			Vector:   interrupts.TTYin}
+		t.interruptQueue.SendInterrupt(4, interrupts.TTYin)
 	}
 }
 
@@ -163,8 +159,6 @@ func (t *Simple) addChar(char byte) {
 // addresses and the 18 bit, DEC defined addresses for the devices.
 // TODO: this method can be private!
 func (t *Simple) WriteTerm(address uint32, data uint16) error {
-	//fmt.Printf("DEBUG: Console Write to addr %o\n", address)
-
 	switch address & 0777 {
 
 	// keyboard control & status
@@ -192,7 +186,6 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
 	// so I'm skipping that part.
 	case 0566:
-		//fmt.Printf("DEBUG TELETYPE OUT: %v, TPS: %v\n", data, t.TPS)
 		t.TPB = data & 0xFF
 		t.TPS &= 0xFF7F
 	// any other address -> error
@@ -214,6 +207,6 @@ func (t *Simple) ReadTerm(address uint32) (uint16, error) {
 	case 0566:
 		return 0, nil
 	default:
-		return 0, fmt.Errorf("Read from invalid address: %o", address)
+		return 0, fmt.Errorf("read from invalid address: %o", address)
 	}
 }
