@@ -361,19 +361,17 @@ func (c *CPU) markOp(instruction uint16) {
 
 // mfpi - move from previous instruction space
 func (c *CPU) mfpiOp(instruction uint16) {
-
 	var val uint16
 	dest := c.GetVirtualByMode(instruction&077, 0)
-
-	curUser := c.mmunit.Psw.GetMode()
-	prevUser := c.mmunit.Psw.GetPreviousMode()
+	currentMode := c.mmunit.Psw.GetMode()
+	prevMode := c.mmunit.Psw.GetPreviousMode()
 
 	switch {
-	case dest == 0170006:
-		if curUser == prevUser {
+	case dest == 0177706:
+		if currentMode == prevMode {
 			val = c.Registers[6]
 		} else {
-			if curUser == 0 { // kernel
+			if prevMode == 3 { // user
 				val = c.UserStackPointer
 			} else {
 				val = c.KernelStackPointer
@@ -383,9 +381,8 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	case dest&0177770 == 0170000:
 		panic("MFPI attended on Register address")
 	default:
-		physicalAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
-		val =
-			c.mmunit.ReadWordByPhysicalAddress(physicalAddress)
+		physicalAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevMode)
+		val = c.mmunit.ReadWordByPhysicalAddress(physicalAddress)
 	}
 
 	c.Push(val)

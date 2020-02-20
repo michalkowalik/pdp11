@@ -352,9 +352,9 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 	fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
 	fmt.Printf("DEBUG\nDEBUG\n")
 
-	var prevPSW uint16
+	prevPSW := c.mmunit.Psw.Get()
 
-	defer func(vec uint16) {
+	defer func(vec, prevPSW uint16) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
@@ -370,15 +370,15 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 		}
 		c.Registers[7] = c.mmunit.ReadWordByPhysicalAddress(uint32(vec))
 		c.mmunit.Psw.Set(c.mmunit.ReadWordByPhysicalAddress(uint32(vec) + 2))
-		if c.mmunit.Psw.GetPreviousMode() == 3 {
+		if prevPSW>>14 == 3 {
 			c.mmunit.Psw.Set(c.mmunit.Psw.Get() | (1 << 13) | (1 << 12))
 		}
-	}(trap.Vector)
+	}(trap.Vector, prevPSW)
 
 	if trap.Vector&1 == 1 {
 		panic("Trap called with odd vector number!")
 	}
-	prevPSW = c.mmunit.Psw.Get()
+
 	c.SwitchMode(KernelMode)
 	c.Push(prevPSW)
 	c.Push(c.Registers[7])

@@ -135,10 +135,6 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 		return addr
 	}
 
-	//if virtualAddress == 0177776 && m.MmuEnabled() == true {
-	//	MMUDebugMode = true
-	//}
-
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
 	if mode > 0 {
