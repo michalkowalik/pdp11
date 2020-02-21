@@ -165,7 +165,7 @@ func (c *CPU) sbcOp(instruction uint16) {
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("V", dest == 0x8000)
-	c.SetFlag("C", (dest != 0) || c.GetFlag("C"))
+	c.SetFlag("C", !((dest == 0) && c.GetFlag("C")))
 }
 
 func (c *CPU) sbcbOp(instruction uint16) {
@@ -180,7 +180,7 @@ func (c *CPU) sbcbOp(instruction uint16) {
 	c.SetFlag("N", (result&0x80) == 0x80)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("V", dest == 0x80)
-	c.SetFlag("C", (dest != 0) || c.GetFlag("C"))
+	c.SetFlag("C", !((dest == 0) && c.GetFlag("C")))
 }
 
 // tst - sets the condition codes N and Z according to the contents

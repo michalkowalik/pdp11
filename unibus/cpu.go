@@ -9,7 +9,7 @@ import (
 // memory related constans (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
-	debug = false
+	debug = true
 
 	// ByteMode -> Read addresses by byte, not by word (?)
 	ByteMode = 1
@@ -343,7 +343,6 @@ func (c *CPU) SwitchMode(m uint16) {
 	} else {
 		c.Registers[6] = c.KernelStackPointer
 	}
-
 	c.mmunit.Psw.SwitchMode(m)
 }
 
