@@ -201,9 +201,6 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
-		//panic(interrupts.Trap{
-		//	Vector: interrupts.INTFault,
-		//	Msg:    "Page length exceeded"})
 		panic("PAGE LENGTH EXCEEDED")
 	}
 

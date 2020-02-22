@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"fmt"
 	"pdp/interrupts"
 )
 
@@ -395,27 +396,27 @@ func (c *CPU) mfpiOp(instruction uint16) {
 
 // mtpi - move to previous instruction space
 func (c *CPU) mtpiOp(instruction uint16) {
-	dest := c.GetVirtualByMode(instruction&077, 0)
+	destAddr := c.GetVirtualByMode(instruction&077, 0)
 	val := c.Pop()
 
-	curUser := c.mmunit.Psw.GetMode()
-	prevUser := c.mmunit.Psw.GetPreviousMode()
+	currentMode := c.mmunit.Psw.GetMode()
+	prevMode := c.mmunit.Psw.GetPreviousMode()
 
 	switch {
-	case dest == 0170006:
-		if curUser == prevUser {
+	case destAddr == 0177706:
+		if currentMode == prevMode {
 			c.Registers[6] = val
 		} else {
-			if curUser == 0 {
+			if prevMode == 3 {
 				c.UserStackPointer = val
 			} else {
 				c.KernelStackPointer = val
 			}
 		}
-	case dest&0177770 == 0170000:
+	case destAddr&0177770 == 0170000:
 		panic("MTPI attended on Register address")
 	default:
-		sourceAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
+		sourceAddress := c.mmunit.mapVirtualToPhysical(destAddr, false, prevMode)
 		c.mmunit.WriteWordByPhysicalAddress(sourceAddress, val)
 	}
 
@@ -442,15 +443,21 @@ func (c *CPU) sxtOp(instruction uint16) {
 // move (1)
 func (c *CPU) movOp(instruction uint16) {
 
+	if instruction == 010600 {
+		fmt.Printf("debug")
+	}
+
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
-	sourceVal := c.readWord(source)
+	srcAddr := c.GetVirtualByMode(source, 0)
+	sourceVal := c.mmunit.ReadMemoryWord(srcAddr)
+	dstAddr := c.GetVirtualByMode(dest, 0)
 
-	c.SetFlag("N", (sourceVal&0100000) > 0)
+	c.SetFlag("N", (sourceVal&0x8000) > 0)
 	c.SetFlag("Z", sourceVal == 0)
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
-	c.writeWord(dest, sourceVal)
+	c.mmunit.WriteMemoryWord(dstAddr, sourceVal)
 }
 
 // movb
