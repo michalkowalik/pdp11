@@ -40,8 +40,6 @@ type MMU18Bit struct {
 	MMUDebugMode bool
 }
 
-// MMUDebugMode - enables output of the MMU internals to the terminal
-var MMUDebugMode = false
 
 // MaxMemory - available for user, 248k
 const MaxMemory = 0760000
@@ -54,6 +52,9 @@ const UnibusMemoryBegin = 0170000
 
 // RegisterAddressBegin in 18bit space
 const RegisterAddressBegin = 0777700
+
+// RegisterAddressVirtual - begin of register address in 16 bit space
+const RegisterAddressVirtual = 0177700
 
 // NewMMU returns the new MMU18Bit struct
 func NewMMU(psw *psw.PSW, unibus *Unibus) *MMU18Bit {
@@ -76,7 +77,7 @@ func (m *MMU18Bit) MmuEnabled() bool {
 
 // Return Page Address or Page Description Register. Register address in virtual address.
 func (m *MMU18Bit) readPage(address uint32) uint16 {
-	i := ((address & 017) >> 1)
+	i := (address & 017) >> 1
 
 	// kernel space:
 	if (address >= 0772300) && (address < 0772320) {
@@ -100,7 +101,7 @@ func (m *MMU18Bit) readPage(address uint32) uint16 {
 
 // Modify memory page:
 func (m *MMU18Bit) writePage(address uint32, data uint16) {
-	i := ((address & 017) >> 1)
+	i := (address & 017) >> 1
 
 	// kernel space:
 	if (address >= 0772300) && (address < 0772320) {
@@ -126,7 +127,7 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", address)})
 }
 
-// mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
+// mapVirtualToPhysical returns physical 18 bit address for the 16 bit virtual
 // mode: 0 for kernel, 3 for user
 func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, mode uint16) uint32 {
 
@@ -226,13 +227,18 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 // Funny complication: A trap needs to be thrown if case it is an odd address
 // but not if it it is an register address -> then it's OK.
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
+	// Special case for registers. Not really sure why can't mmu
+	// calculate it properly
+	if addr & 0177770 == RegisterAddressVirtual {
+		return m.unibus.PdpCPU.Registers[addr & 7]
+	}
+
 	physicalAddress := m.mapVirtualToPhysical(addr, false, m.Psw.GetMode())
 	return m.ReadWordByPhysicalAddress(physicalAddress)
 }
 
-// ReadWordByPhysicalAddress - needed to read by physicall address
+// ReadWordByPhysicalAddress - needed to read by physical address
 func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
-
 	if !(addr&RegisterAddressBegin == RegisterAddressBegin) && ((addr & 1) == 1) {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -274,6 +280,12 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
+	// special case for registers:
+	if addr & 0177770 == RegisterAddressVirtual {
+		m.unibus.PdpCPU.Registers[addr & 7] = data
+		return
+	}
+
 	physicalAddress := m.mapVirtualToPhysical(addr, true, m.Psw.GetMode())
 	m.WriteWordByPhysicalAddress(physicalAddress, data)
 }

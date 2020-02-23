@@ -128,7 +128,7 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 	case physicalAddress == LKSAddr:
 		u.LKS = data
 	case physicalAddress&0777770 == ConsoleAddr:
-		u.TermEmulator.WriteTerm(physicalAddress, data)
+		_ = u.TermEmulator.WriteTerm(physicalAddress, data)
 	case physicalAddress == SR0Addr:
 		u.Mmu.SR0 = data
 	case physicalAddress == SR2Addr:
