@@ -443,8 +443,12 @@ func (c *CPU) sxtOp(instruction uint16) {
 // move (1)
 func (c *CPU) movOp(instruction uint16) {
 
+	var debug bool
+
 	if instruction == 010600 {
+		debug = true
 		fmt.Printf("debug")
+		c.mmunit.MMUDebugMode = true
 	}
 
 	source := (instruction & 07700) >> 6
@@ -458,6 +462,9 @@ func (c *CPU) movOp(instruction uint16) {
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
 	c.mmunit.WriteMemoryWord(dstAddr, sourceVal)
+	if debug {
+		panic("stop here")
+	}
 }
 
 // movb

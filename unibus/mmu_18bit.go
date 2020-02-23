@@ -35,6 +35,9 @@ type MMU18Bit struct {
 
 	// it's also convenient to keep a pointer to Unibus..
 	unibus *Unibus
+
+	// MMUDebugMode - enables output of the MMU internals to the terminal
+	MMUDebugMode bool
 }
 
 // MMUDebugMode - enables output of the MMU internals to the terminal
@@ -141,7 +144,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 		currentUser += 8
 	}
 	offset := (virtualAddress >> 13) + currentUser
-	if MMUDebugMode {
+	if m.MMUDebugMode {
 		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", writeMode, offset, m.PDR[offset])
 	}
 
@@ -150,7 +153,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 		m.SR0 = (1 << 13) | 1
 		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
 
-		if MMUDebugMode {
+		if m.MMUDebugMode {
 			fmt.Printf("modified SR0: %o\n", m.SR0)
 		}
 
@@ -184,7 +187,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 	block := (virtualAddress >> 6) & 0177
 	displacement := virtualAddress & 077
 
-	if MMUDebugMode {
+	if m.MMUDebugMode {
 		fmt.Printf(
 			"MMU: block: %o, displacement: %o, currentPAR: %o\n",
 			block, displacement, currentPAR)
@@ -211,11 +214,11 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 
 	physAddress := ((uint32(block) + uint32(currentPAR)) << 6) + uint32(displacement)
 
-	if MMUDebugMode {
-		fmt.Printf("MMU: PSW VIRT ADDR. SR0: %o, SR2: %o, PHYS ADDR: %o\n", m.SR0, m.SR2, physAddress)
+	if m.MMUDebugMode {
+		fmt.Printf(m.dumpRegisters())
 	}
 
-	MMUDebugMode = false
+	m.MMUDebugMode = false
 	return physAddress
 }
 
@@ -312,4 +315,24 @@ func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
 	}
 	physicalAddress = m.mapVirtualToPhysical(addr&0xFFFE, true, m.Psw.GetMode())
 	m.WriteWordByPhysicalAddress(physicalAddress, wordData)
+}
+
+func (m *MMU18Bit) dumpRegisters() string {
+	status := fmt.Sprintf("SR0: %o, SR2: %o\n", m.SR0, m.SR2)
+	for i, v := range m.APR {
+		status += fmt.Sprintf("APR[%d]: %o\t", i, v)
+	}
+	status += "\n"
+
+	for i, v := range m.PDR {
+		status += fmt.Sprintf("PDR[%d]: %o\t", i, v)
+	}
+	status += "\n"
+
+	for i, v := range m.PAR {
+		status += fmt.Sprintf("PAR[%d]: %o\t", i, v)
+	}
+	status += "\n"
+
+	return status
 }
