@@ -6,13 +6,10 @@ import (
 	"strings"
 )
 
-// memory related constans (by far not all needed -- figuring out as  writing)
+// memory related constants (by far not all needed -- figuring out as  writing)
 const (
 	// add debug output to the console
 	debug = false
-
-	// ByteMode -> Read addresses by byte, not by word (?)
-	ByteMode = 1
 
 	// CPU state: Run / Halt / Wait:
 	HALT   = 0
@@ -328,7 +325,6 @@ func (c *CPU) GetFlag(flag string) bool {
 // SwitchMode switches the kernel / user mode:
 // 0 for user, 3 for kernel, everything else is a mistake.
 // values are as they are used in the PSW
-// TODO: make sure the previous mode is set properly
 func (c *CPU) SwitchMode(m uint16) {
 	// save processor stack pointers:
 	if c.mmunit.Psw.GetMode() == 3 {

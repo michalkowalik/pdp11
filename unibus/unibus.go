@@ -64,8 +64,9 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 
 	// TODO: it needs to be modified, in order to allow the GUI!
 	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue)
-	unibus.TermEmulator.Run()
-
+	if err := unibus.TermEmulator.Run(); err != nil {
+		panic("Can't initialize terminal emulator")
+	}
 	unibus.Rk01 = NewRK(&unibus)
 	return &unibus
 }

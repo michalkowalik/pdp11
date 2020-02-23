@@ -43,7 +43,7 @@ func InitializeSystem(
 	}
 
 	sys.unibus.Rk01.Reset()
-	sys.console.WriteConsole("Initializing PDP11 CPU.\n")
+	_ = sys.console.WriteConsole("Initializing PDP11 CPU.\n")
 
 	sys.CPU = sys.unibus.PdpCPU
 	sys.CPU.State = unibus.CPURUN
