@@ -1,7 +1,6 @@
 package unibus
 
 import (
-	"fmt"
 	"pdp/interrupts"
 )
 
@@ -445,15 +444,14 @@ func (c *CPU) movOp(instruction uint16) {
 
 	var debug bool
 
-	if instruction == 010600 {
+	if instruction == 011046 {
 		debug = true
-		fmt.Printf("debug")
-		c.mmunit.MMUDebugMode = true
 		c.mmunit.DumpMemory()
 	}
 
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
+
 	srcAddr := c.GetVirtualByMode(source, 0)
 	sourceVal := c.mmunit.ReadMemoryWord(srcAddr)
 	dstAddr := c.GetVirtualByMode(dest, 0)
