@@ -8,9 +8,6 @@ import (
 
 // memory related constants (by far not all needed -- figuring out as  writing)
 const (
-	// add debug output to the console
-	debug = false
-
 	// CPU state: Run / Halt / Wait:
 	HALT   = 0
 	CPURUN = 1
@@ -24,6 +21,9 @@ const (
 	// UserMode - user cpu mode const
 	UserMode = 3
 )
+
+// add debug output to the console
+var debug = false
 
 // CPU type:
 type CPU struct {
@@ -55,11 +55,12 @@ type CPU struct {
 }
 
 // NewCPU initializes and returns the CPU variable:
-func NewCPU(mmunit *MMU18Bit) *CPU {
+func NewCPU(mmunit *MMU18Bit, debugMode bool) *CPU {
 
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0
+	debug = debugMode
 
 	// single operand
 	c.singleOpOpcodes = make(map[uint16]func(uint16))

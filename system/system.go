@@ -27,14 +27,14 @@ type System struct {
 
 // InitializeSystem initializes the emulated PDP-11/40 hardware
 func InitializeSystem(
-	c console.Console, terminalView, regView *gocui.View, gui *gocui.Gui) *System {
+	c console.Console, terminalView, regView *gocui.View, gui *gocui.Gui, debugMode bool) *System {
 	sys := new(System)
 	sys.console = c
 	sys.terminalView = terminalView
 	sys.regView = regView
 
 	// unibus
-	sys.unibus = unibus.New(&sys.psw, gui, &c)
+	sys.unibus = unibus.New(&sys.psw, gui, &c, debugMode)
 	sys.unibus.PdpCPU.Reset()
 
 	// mount drive

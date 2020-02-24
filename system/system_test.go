@@ -20,7 +20,7 @@ var (
 func TestMain(m *testing.M) {
 	sys = new(System)
 	c = console.NewSimple()
-	sys.unibus = unibus.New(&sys.psw, nil, &c)
+	sys.unibus = unibus.New(&sys.psw, nil, &c, false)
 	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()

@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"fmt"
 	"pdp/interrupts"
 )
 
@@ -441,15 +442,16 @@ func (c *CPU) sxtOp(instruction uint16) {
 // double operand cpu instructions:
 // move (1)
 func (c *CPU) movOp(instruction uint16) {
-	/*
-		var debug bool
 
-		if instruction == 010600 {
-			debug = true
-			fmt.Printf("debug")
-			c.mmunit.MMUDebugMode = true
-		}
-	*/
+	var debug bool
+
+	if instruction == 010600 {
+		debug = true
+		fmt.Printf("debug")
+		c.mmunit.MMUDebugMode = true
+		c.mmunit.DumpMemory()
+	}
+
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 	srcAddr := c.GetVirtualByMode(source, 0)
@@ -461,12 +463,10 @@ func (c *CPU) movOp(instruction uint16) {
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
 	c.mmunit.WriteMemoryWord(dstAddr, sourceVal)
-	/*
-		if debug {
-			panic("stop here")
-		}
 
-	*/
+	if debug {
+		panic("stop here")
+	}
 }
 
 // movb

@@ -52,7 +52,7 @@ type Unibus struct {
 }
 
 // New initializes and returns the Unibus variable
-func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus {
+func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMode bool) *Unibus {
 	unibus := Unibus{}
 
 	unibus.controlConsole = *controlConsole
@@ -60,7 +60,7 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 
 	// initialize attached devices:
 	unibus.Mmu = NewMMU(psw, &unibus)
-	unibus.PdpCPU = NewCPU(unibus.Mmu)
+	unibus.PdpCPU = NewCPU(unibus.Mmu, debugMode)
 
 	// TODO: it needs to be modified, in order to allow the GUI!
 	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue)
