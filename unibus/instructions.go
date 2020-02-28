@@ -186,6 +186,12 @@ func (c *CPU) sbcbOp(instruction uint16) {
 // tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
+
+	if c.Registers[6] == 0177756 && c.Registers[7] == 010 {
+		c.mmunit.DumpMemory()
+		panic("quit in TST")
+	}
+
 	dest := c.readWord(instruction & 077)
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x8000) > 0)
@@ -441,14 +447,14 @@ func (c *CPU) sxtOp(instruction uint16) {
 // double operand cpu instructions:
 // move (1)
 func (c *CPU) movOp(instruction uint16) {
+	/*
+		var debug bool
 
-	var debug bool
-
-	if instruction == 011046 {
-		debug = true
-		c.mmunit.DumpMemory()
-	}
-
+		if instruction == 011046 {
+			debug = true
+			c.mmunit.DumpMemory()
+		}
+	*/
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
@@ -461,10 +467,11 @@ func (c *CPU) movOp(instruction uint16) {
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
 	c.mmunit.WriteMemoryWord(dstAddr, sourceVal)
-
-	if debug {
-		panic("stop here")
-	}
+	/*
+		if debug {
+			panic("stop here")
+		}
+	*/
 }
 
 // movb
