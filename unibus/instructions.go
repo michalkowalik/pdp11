@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"fmt"
 	"pdp/interrupts"
 )
 
@@ -186,12 +187,6 @@ func (c *CPU) sbcbOp(instruction uint16) {
 // tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
-
-	if c.Registers[6] == 0177756 && c.Registers[7] == 010 {
-		c.mmunit.DumpMemory()
-		panic("quit in TST")
-	}
-
 	dest := c.readWord(instruction & 077)
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x8000) > 0)
@@ -701,13 +696,28 @@ func (c *CPU) bisbOp(instruction uint16) {
 
 // jsr - jump to subroutine
 func (c *CPU) jsrOp(instruction uint16) {
+	debug := false
+
+	if c.Registers[3] == 0 && c.Registers[4] == 0 && c.Registers[5] == 0 && c.Registers[6] == 0177756 && c.Registers[7] == 016 {
+		debug = true
+		c.mmunit.DumpMemory()
+	}
+
 	register := (instruction >> 6) & 7
 	destination := instruction & 077
 	val := c.GetVirtualByMode(destination, 0)
 
+	if debug {
+		fmt.Printf("destination virtual address: %o\n", val)
+	}
+
 	c.Push(c.Registers[register])
 	c.Registers[register] = c.Registers[7]
 	c.Registers[7] = val
+
+	if debug == true {
+		panic("stop at jsrOp")
+	}
 }
 
 // multiply (070), EIS option
