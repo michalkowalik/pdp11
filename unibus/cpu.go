@@ -345,9 +345,10 @@ func (c *CPU) SwitchMode(m uint16) {
 
 // Trap handles all Trap / abort events.
 func (c *CPU) Trap(trap interrupts.Trap) {
-	fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
-	fmt.Printf("DEBUG\nDEBUG\n")
-
+	if debug {
+		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+		fmt.Printf("DEBUG\nDEBUG\n")
+	}
 	prevPSW := c.mmunit.Psw.Get()
 
 	defer func(vec, prevPSW uint16) {
