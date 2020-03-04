@@ -240,11 +240,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 func (c *CPU) Execute() {
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
-	/*
-		if instruction == 004767 && c.Registers[3] == 0 && c.Registers[4] == 0 && c.Registers[5] == 0 && c.Registers[6] == 0177756 && c.Registers[7] == 016 {
-			debug = true
-		}
-	*/
+
 	if debug {
 		fmt.Printf(c.printState(instruction))
 		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))

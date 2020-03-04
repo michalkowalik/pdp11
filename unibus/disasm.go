@@ -77,19 +77,20 @@ var disasmtable = []struct {
 }
 
 func (u *Unibus) disasmaddr(m uint16, a uint16) string {
+	aa := u.Mmu.mapVirtualToPhysical(a, false, u.psw.GetMode())
 	if (m & 7) == 7 {
 		switch m {
 		case 027:
-			a += 2
-			return fmt.Sprintf("$%06o", u.Mmu.ReadMemoryWord(a))
+			aa += 2
+			return fmt.Sprintf("$%06o", u.Mmu.ReadWordByPhysicalAddress(aa))
 		case 037:
-			a += 2
-			return fmt.Sprintf("*%06o", u.Mmu.ReadMemoryWord(a))
+			aa += 2
+			return fmt.Sprintf("*%06o", u.Mmu.ReadWordByPhysicalAddress(aa))
 		case 067:
-			a += 2
-			return fmt.Sprintf("*%06o", (a+2+uint16(u.Mmu.ReadMemoryWord(a)))&0xFFFF)
+			aa += 2
+			return fmt.Sprintf("*%06o", (aa+2+uint32(u.Mmu.ReadWordByPhysicalAddress(aa)))&0xFFFF)
 		case 077:
-			return fmt.Sprintf("**%06o", (a+2+uint16(u.Mmu.ReadMemoryWord(a)))&0xFFFF)
+			return fmt.Sprintf("**%06o", (aa+2+uint32(u.Mmu.ReadWordByPhysicalAddress(aa)))&0xFFFF)
 		}
 	}
 	r := rs[m&7]
