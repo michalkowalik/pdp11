@@ -40,7 +40,6 @@ type MMU18Bit struct {
 	MMUDebugMode bool
 }
 
-
 // MaxMemory - available for user, 248k
 const MaxMemory = 0760000
 
@@ -205,7 +204,12 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
-		panic("PAGE LENGTH EXCEEDED")
+		//fmt.Printf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o\n",
+		//	virtualAddress, block, m.PDR[offset].length())
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg: fmt.Sprintf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o",
+				virtualAddress, block, m.PDR[offset].length())})
 	}
 
 	// set PDR W byte:
@@ -229,8 +233,8 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
 	// Special case for registers. Not really sure why can't mmu
 	// calculate it properly
-	if addr & 0177770 == RegisterAddressVirtual {
-		return m.unibus.PdpCPU.Registers[addr & 7]
+	if addr&0177770 == RegisterAddressVirtual {
+		return m.unibus.PdpCPU.Registers[addr&7]
 	}
 
 	physicalAddress := m.mapVirtualToPhysical(addr, false, m.Psw.GetMode())
@@ -281,8 +285,8 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
 	// special case for registers:
-	if addr & 0177770 == RegisterAddressVirtual {
-		m.unibus.PdpCPU.Registers[addr & 7] = data
+	if addr&0177770 == RegisterAddressVirtual {
+		m.unibus.PdpCPU.Registers[addr&7] = data
 		return
 	}
 
