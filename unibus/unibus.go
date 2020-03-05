@@ -86,7 +86,7 @@ func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
 }
 
 // ReadIOPage reads from unibus devices.
-func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
+func (u *Unibus) ReadIOPage(physicalAddress uint32) (uint16, error) {
 	switch {
 	case physicalAddress == PSWAddr:
 		return u.psw.Get(), nil
@@ -116,7 +116,7 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 }
 
 // WriteIOPage writes to the unibus connected device
-func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) {
+func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16) {
 	switch {
 	case physicalAddress == PSWAddr:
 		// also : switch mode!

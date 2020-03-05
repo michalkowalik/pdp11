@@ -151,9 +151,9 @@ found:
 		fallthrough
 	case flagO:
 		if o&0x80 == 0x80 {
-			msg += fmt.Sprintf(" -%#o", (2 * ((0xFF ^ o) + 1)))
+			msg += fmt.Sprintf(" -%#o", 2 * ((0xFF ^ o) + 1))
 		} else {
-			msg += fmt.Sprintf(" +%#o", (2 * o))
+			msg += fmt.Sprintf(" +%#o", 2 * o)
 		}
 	case flagR | flagD:
 		msg += " " + rs[(ins&0700)>>6] + ", " + u.disasmaddr(destination, a)
