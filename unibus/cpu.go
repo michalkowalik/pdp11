@@ -13,9 +13,6 @@ const (
 	CPURUN = 1
 	WAIT   = 2
 
-	// stack size:
-	StackOverflow = 0xff
-
 	// KernelMode - kernel cpu mode const
 	KernelMode = 0
 	// UserMode - user cpu mode const

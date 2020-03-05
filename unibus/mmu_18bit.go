@@ -254,7 +254,7 @@ func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
 	}
 
 	// IO Page:
-	data, err := m.unibus.ReadIOPage(addr, false)
+	data, err := m.unibus.ReadIOPage(addr)
 	if err != nil {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
@@ -301,7 +301,7 @@ func (m *MMU18Bit) WriteWordByPhysicalAddress(addr uint32, data uint16) {
 	if addr < MaxMemory {
 		m.Memory[addr>>1] = data
 	} else if addr > MaxMemory && addr <= MaxTotalMemory {
-		m.unibus.WriteIOPage(addr, data, false)
+		m.unibus.WriteIOPage(addr, data)
 	} else {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
