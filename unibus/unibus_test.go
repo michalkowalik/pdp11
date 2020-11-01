@@ -21,7 +21,7 @@ func TestUnibus_ReadIOPage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.psw.Set(tt.want)
-			got, err := u.ReadIOPage(tt.args.physicalAddress, tt.args.byteFlag)
+			got, err := u.ReadIOPage(tt.args.physicalAddress)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Unibus.ReadIOPage() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -1,7 +1,9 @@
 package system
 
 import (
+	"go/build"
 	"os"
+	"path/filepath"
 	"pdp/console"
 	"pdp/unibus"
 	"testing"
@@ -18,11 +20,13 @@ var (
 func TestMain(m *testing.M) {
 	sys = new(System)
 	c = console.NewSimple()
-	sys.unibus = unibus.New(&sys.psw, nil, &c)
+	sys.unibus = unibus.New(&sys.psw, nil, &c, false)
 	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()
-	sys.unibus.Rk01.Attach(0, "/home/mkowalik/src/pdp/images/rk0.img")
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp/rk0")); err != nil {
+		panic("Can't mount the drive")
+	}
 	sys.unibus.Rk01.Reset()
 
 	sys.CPU = sys.unibus.PdpCPU
@@ -116,8 +120,8 @@ func TestRunBranchCode(t *testing.T) {
 		000377, // 001002 000377 <- value pointed at by R7
 		012701, // 001004 mov 0xff R1
 		000377, // 001006 0xff <- value pointed at by R7, to be loaded to R1
-		//// the loop starts here:
-		//// move the value from R1 to the address pointed by R0
+		// the loop starts here:
+		// move the value from R1 to the address pointed by R0
 		010120, // 001010 mov R1, (R0)+
 		005301, // 001012 dec `R1
 		001375, // 001014 BNE -2	<- branch to mov
@@ -127,8 +131,8 @@ func TestRunBranchCode(t *testing.T) {
 	memPointer := 001000
 	for _, c := range code {
 		// this should be bytes in 1 word!
-		mm.Memory[memPointer] = uint16(c & 0xff)
-		mm.Memory[memPointer+1] = uint16(c >> 8)
+		mm.Memory[memPointer] = c & 0xff
+		mm.Memory[memPointer+1] = c >> 8
 		memPointer += 2
 	}
 
@@ -151,8 +155,8 @@ func TestTriggerTrap(t *testing.T) {
 	memPointer := 001000
 	for _, c := range code {
 		// this should be bytes in 1 word!
-		mm.Memory[memPointer] = uint16(c & 0xff)
-		mm.Memory[memPointer+1] = uint16(c >> 8)
+		mm.Memory[memPointer] = c & 0xff
+		mm.Memory[memPointer+1] = c >> 8
 		memPointer += 2
 	}
 

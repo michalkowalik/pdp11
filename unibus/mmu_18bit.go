@@ -35,10 +35,10 @@ type MMU18Bit struct {
 
 	// it's also convenient to keep a pointer to Unibus..
 	unibus *Unibus
-}
 
-// MMUDebugMode - enables output of the MMU internals to the terminal
-var MMUDebugMode = false
+	// MMUDebugMode - enables output of the MMU internals to the terminal
+	MMUDebugMode bool
+}
 
 // MaxMemory - available for user, 248k
 const MaxMemory = 0760000
@@ -51,6 +51,9 @@ const UnibusMemoryBegin = 0170000
 
 // RegisterAddressBegin in 18bit space
 const RegisterAddressBegin = 0777700
+
+// RegisterAddressVirtual - begin of register address in 16 bit space
+const RegisterAddressVirtual = 0177700
 
 // NewMMU returns the new MMU18Bit struct
 func NewMMU(psw *psw.PSW, unibus *Unibus) *MMU18Bit {
@@ -73,7 +76,7 @@ func (m *MMU18Bit) MmuEnabled() bool {
 
 // Return Page Address or Page Description Register. Register address in virtual address.
 func (m *MMU18Bit) readPage(address uint32) uint16 {
-	i := ((address & 017) >> 1)
+	i := (address & 017) >> 1
 
 	// kernel space:
 	if (address >= 0772300) && (address < 0772320) {
@@ -97,7 +100,7 @@ func (m *MMU18Bit) readPage(address uint32) uint16 {
 
 // Modify memory page:
 func (m *MMU18Bit) writePage(address uint32, data uint16) {
-	i := ((address & 017) >> 1)
+	i := (address & 017) >> 1
 
 	// kernel space:
 	if (address >= 0772300) && (address < 0772320) {
@@ -123,7 +126,7 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", address)})
 }
 
-// mapVirtualToPhysical retuns physical 18 bit address for the 16 bit virtual
+// mapVirtualToPhysical returns physical 18 bit address for the 16 bit virtual
 // mode: 0 for kernel, 3 for user
 func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, mode uint16) uint32 {
 
@@ -141,7 +144,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 		currentUser += 8
 	}
 	offset := (virtualAddress >> 13) + currentUser
-	if MMUDebugMode {
+	if m.MMUDebugMode {
 		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", writeMode, offset, m.PDR[offset])
 	}
 
@@ -150,7 +153,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 		m.SR0 = (1 << 13) | 1
 		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
 
-		if MMUDebugMode {
+		if m.MMUDebugMode {
 			fmt.Printf("modified SR0: %o\n", m.SR0)
 		}
 
@@ -184,7 +187,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 	block := (virtualAddress >> 6) & 0177
 	displacement := virtualAddress & 077
 
-	if MMUDebugMode {
+	if m.MMUDebugMode {
 		fmt.Printf(
 			"MMU: block: %o, displacement: %o, currentPAR: %o\n",
 			block, displacement, currentPAR)
@@ -201,10 +204,10 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
-		//panic(interrupts.Trap{
-		//	Vector: interrupts.INTFault,
-		//	Msg:    "Page length exceeded"})
-		panic("PAGE LENGTH EXCEEDED")
+		panic(interrupts.Trap{
+			Vector: interrupts.INTFault,
+			Msg: fmt.Sprintf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o",
+				virtualAddress, block, m.PDR[offset].length())})
 	}
 
 	// set PDR W byte:
@@ -214,11 +217,11 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 
 	physAddress := ((uint32(block) + uint32(currentPAR)) << 6) + uint32(displacement)
 
-	if MMUDebugMode {
-		fmt.Printf("MMU: PSW VIRT ADDR. SR0: %o, SR2: %o, PHYS ADDR: %o\n", m.SR0, m.SR2, physAddress)
+	if m.MMUDebugMode {
+		fmt.Printf(m.dumpRegisters())
 	}
 
-	MMUDebugMode = false
+	m.MMUDebugMode = false
 	return physAddress
 }
 
@@ -226,13 +229,18 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 // Funny complication: A trap needs to be thrown if case it is an odd address
 // but not if it it is an register address -> then it's OK.
 func (m *MMU18Bit) ReadMemoryWord(addr uint16) uint16 {
+	// Special case for registers. Not really sure why can't mmu
+	// calculate it properly
+	if addr&0177770 == RegisterAddressVirtual {
+		return m.unibus.PdpCPU.Registers[addr&7]
+	}
+
 	physicalAddress := m.mapVirtualToPhysical(addr, false, m.Psw.GetMode())
 	return m.ReadWordByPhysicalAddress(physicalAddress)
 }
 
-// ReadWordByPhysicalAddress - needed to read by physicall address
+// ReadWordByPhysicalAddress - needed to read by physical address
 func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
-
 	if !(addr&RegisterAddressBegin == RegisterAddressBegin) && ((addr & 1) == 1) {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -248,7 +256,7 @@ func (m *MMU18Bit) ReadWordByPhysicalAddress(addr uint32) uint16 {
 	}
 
 	// IO Page:
-	data, err := m.unibus.ReadIOPage(addr, false)
+	data, err := m.unibus.ReadIOPage(addr)
 	if err != nil {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
@@ -274,6 +282,12 @@ func (m *MMU18Bit) ReadMemoryByte(addr uint16) byte {
 
 // WriteMemoryWord writes a word to the location pointed by virtual address addr
 func (m *MMU18Bit) WriteMemoryWord(addr, data uint16) {
+	// special case for registers:
+	if addr&0177770 == RegisterAddressVirtual {
+		m.unibus.PdpCPU.Registers[addr&7] = data
+		return
+	}
+
 	physicalAddress := m.mapVirtualToPhysical(addr, true, m.Psw.GetMode())
 	m.WriteWordByPhysicalAddress(physicalAddress, data)
 }
@@ -289,7 +303,7 @@ func (m *MMU18Bit) WriteWordByPhysicalAddress(addr uint32, data uint16) {
 	if addr < MaxMemory {
 		m.Memory[addr>>1] = data
 	} else if addr > MaxMemory && addr <= MaxTotalMemory {
-		m.unibus.WriteIOPage(addr, data, false)
+		m.unibus.WriteIOPage(addr, data)
 	} else {
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -315,4 +329,24 @@ func (m *MMU18Bit) WriteMemoryByte(addr uint16, data byte) {
 	}
 	physicalAddress = m.mapVirtualToPhysical(addr&0xFFFE, true, m.Psw.GetMode())
 	m.WriteWordByPhysicalAddress(physicalAddress, wordData)
+}
+
+func (m *MMU18Bit) dumpRegisters() string {
+	status := fmt.Sprintf("SR0: %o, SR2: %o\n", m.SR0, m.SR2)
+	for i, v := range m.APR {
+		status += fmt.Sprintf("APR[%d]: %o\t", i, v)
+	}
+	status += "\n"
+
+	for i, v := range m.PDR {
+		status += fmt.Sprintf("PDR[%d]: %o\t", i, v)
+	}
+	status += "\n"
+
+	for i, v := range m.PAR {
+		status += fmt.Sprintf("PAR[%d]: %o\t", i, v)
+	}
+	status += "\n"
+
+	return status
 }

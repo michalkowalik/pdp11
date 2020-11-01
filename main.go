@@ -12,8 +12,11 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
+var debugMode *bool
+
 func main() {
 	plainMode := flag.Bool("gui", false, "Run program in gui mode")
+	debugMode = flag.Bool("debug", false, "Run with CPU debug information")
 	flag.Parse()
 
 	if !*plainMode {
@@ -110,7 +113,7 @@ func startPdp(g *gocui.Gui) error {
 	c.WriteConsole("Starting PDP-11/70 emulator.")
 
 	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
-	pdp := system.InitializeSystem(c, terminalView, regView, g)
+	pdp := system.InitializeSystem(c, terminalView, regView, g, *debugMode)
 
 	// update registers:
 	if g != nil {

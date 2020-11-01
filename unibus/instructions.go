@@ -1,7 +1,7 @@
 package unibus
 
 import (
-	"pdp/interrupts"
+	"pdp/psw"
 )
 
 // Definition of all PDP-11 CPU instructions
@@ -165,7 +165,7 @@ func (c *CPU) sbcOp(instruction uint16) {
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("V", dest == 0x8000)
-	c.SetFlag("C", (dest != 0) || c.GetFlag("C"))
+	c.SetFlag("C", !((dest == 0) && c.GetFlag("C")))
 }
 
 func (c *CPU) sbcbOp(instruction uint16) {
@@ -180,12 +180,13 @@ func (c *CPU) sbcbOp(instruction uint16) {
 	c.SetFlag("N", (result&0x80) == 0x80)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("V", dest == 0x80)
-	c.SetFlag("C", (dest != 0) || c.GetFlag("C"))
+	c.SetFlag("C", !((dest == 0) && c.GetFlag("C")))
 }
 
 // tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
+
 	dest := c.readWord(instruction & 077)
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x8000) > 0)
@@ -395,27 +396,27 @@ func (c *CPU) mfpiOp(instruction uint16) {
 
 // mtpi - move to previous instruction space
 func (c *CPU) mtpiOp(instruction uint16) {
-	dest := c.GetVirtualByMode(instruction&077, 0)
+	destAddr := c.GetVirtualByMode(instruction&077, 0)
 	val := c.Pop()
 
-	curUser := c.mmunit.Psw.GetMode()
-	prevUser := c.mmunit.Psw.GetPreviousMode()
+	currentMode := c.mmunit.Psw.GetMode()
+	prevMode := c.mmunit.Psw.GetPreviousMode()
 
 	switch {
-	case dest == 0170006:
-		if curUser == prevUser {
+	case destAddr == 0177706:
+		if currentMode == prevMode {
 			c.Registers[6] = val
 		} else {
-			if curUser == 0 {
+			if prevMode == 3 {
 				c.UserStackPointer = val
 			} else {
 				c.KernelStackPointer = val
 			}
 		}
-	case dest&0177770 == 0170000:
+	case destAddr&0177770 == 0170000:
 		panic("MTPI attended on Register address")
 	default:
-		sourceAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevUser)
+		sourceAddress := c.mmunit.mapVirtualToPhysical(destAddr, false, prevMode)
 		c.mmunit.WriteWordByPhysicalAddress(sourceAddress, val)
 	}
 
@@ -441,16 +442,18 @@ func (c *CPU) sxtOp(instruction uint16) {
 // double operand cpu instructions:
 // move (1)
 func (c *CPU) movOp(instruction uint16) {
-
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
-	sourceVal := c.readWord(source)
 
-	c.SetFlag("N", (sourceVal&0100000) > 0)
+	srcAddr := c.GetVirtualByMode(source, 0)
+	sourceVal := c.mmunit.ReadMemoryWord(srcAddr)
+	dstAddr := c.GetVirtualByMode(dest, 0)
+
+	c.SetFlag("N", (sourceVal&0x8000) > 0)
 	c.SetFlag("Z", sourceVal == 0)
 	// V is always cleared by MOV
 	c.SetFlag("V", false)
-	c.writeWord(dest, sourceVal)
+	c.mmunit.WriteMemoryWord(dstAddr, sourceVal)
 }
 
 // movb
@@ -487,13 +490,12 @@ func (c *CPU) haltOp(instruction uint16) {
 
 // bpt - breakpoint trap
 func (c *CPU) bptOp(instruction uint16) {
-	// 14 is breakpoint trap vector
-	c.Trap(interrupts.Trap{Vector: 014, Msg: "Breakpoint"})
+	c.trapOpcode(014)
 }
 
 // iot - i/o trap
 func (c *CPU) iotOp(instruction uint16) {
-	c.Trap(interrupts.Trap{Vector: 020, Msg: "i/o"})
+	c.trapOpcode(020)
 }
 
 // rti - return from interrupt
@@ -682,8 +684,19 @@ func (c *CPU) bisbOp(instruction uint16) {
 func (c *CPU) jsrOp(instruction uint16) {
 	register := (instruction >> 6) & 7
 	destination := instruction & 077
+	/*
+		debug := false
+		if c.Registers[3] == 0 && c.Registers[4] == 0 && c.Registers[5] == 0 && c.Registers[6] == 0177756 && c.Registers[7] == 016 {
+			debug = true
+		}
+	*/
 	val := c.GetVirtualByMode(destination, 0)
 
+	/*
+		if debug {
+			fmt.Printf("JSR VAL %o\n", val)
+		}
+	*/
 	c.Push(c.Registers[register])
 	c.Registers[register] = c.Registers[7]
 	c.Registers[7] = val
@@ -838,15 +851,29 @@ func (c *CPU) sobOp(instruction uint16) {
 }
 
 // trap opcodes:
+func (c *CPU) trapOpcode(vector uint16) {
+	prevPs := uint16(*c.mmunit.Psw)
+	c.SwitchMode(psw.KernelMode)
+
+	// push current PS and PC to stack
+	c.Push(prevPs)
+	c.Push(c.Registers[7])
+
+	// load PC and PS from trap vector location
+	c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
+	previousMode := prevPs & ((1 << 13) | (1 << 12))
+	c.mmunit.Psw.Set(c.mmunit.ReadMemoryWord(vector+2) | previousMode)
+}
+
 // emt - emulator trap - trap vector hardcoded to location 32
 func (c *CPU) emtOp(instruction uint16) {
-	c.Trap(interrupts.Trap{Vector: 030, Msg: "emt"})
+	c.trapOpcode(030)
 }
 
 // trap
 // trap vector for TRAP is hardcoded for all PDP11s to memory location 34
 func (c *CPU) trapOp(instruction uint16) {
-	c.Trap(interrupts.Trap{Vector: 034, Msg: "TRAP"})
+	c.trapOpcode(034)
 }
 
 // Single Register opcodes

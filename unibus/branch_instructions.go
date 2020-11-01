@@ -109,7 +109,7 @@ func (c *CPU) bgtOp(instruction uint16) {
 
 // ble - branch if less than or equal
 func (c *CPU) bleOp(instruction uint16) {
-	if (c.GetFlag("N") != c.GetFlag("V")) && !c.GetFlag("Z") {
+	if (c.GetFlag("N") != c.GetFlag("V")) || c.GetFlag("Z") {
 		c.Registers[7] = c.branch(instruction)
 	}
 }

@@ -1,7 +1,5 @@
 package interrupts
 
-import "fmt"
-
 /**
  * Separate package exists mainly in order to avoid cyclic imports
  */
@@ -64,8 +62,6 @@ type InterruptQueue [8]Interrupt
 
 // SendInterrupt to the queue
 func (iq *InterruptQueue) SendInterrupt(priority, vector uint16) {
-	fmt.Printf("IRQ: %06o\n", vector)
-
 	interrupt := Interrupt{
 		Priority: priority,
 		Vector:   vector}

@@ -6,27 +6,22 @@ import (
 	"strings"
 )
 
-// memory related constans (by far not all needed -- figuring out as  writing)
+// memory related constants (by far not all needed -- figuring out as  writing)
 const (
-	// add debug output to the console
-	debug = false
-
-	// ByteMode -> Read addresses by byte, not by word (?)
-	ByteMode = 1
-
 	// CPU state: Run / Halt / Wait:
 	HALT   = 0
 	CPURUN = 1
 	WAIT   = 2
-
-	// stack size:
-	StackOverflow = 0xff
 
 	// KernelMode - kernel cpu mode const
 	KernelMode = 0
 	// UserMode - user cpu mode const
 	UserMode = 3
 )
+
+// add debug output to the console
+var debug = false
+var trapDebug = true
 
 // CPU type:
 type CPU struct {
@@ -58,11 +53,12 @@ type CPU struct {
 }
 
 // NewCPU initializes and returns the CPU variable:
-func NewCPU(mmunit *MMU18Bit) *CPU {
+func NewCPU(mmunit *MMU18Bit, debugMode bool) *CPU {
 
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0
+	debug = debugMode
 
 	// single operand
 	c.singleOpOpcodes = make(map[uint16]func(uint16))
@@ -328,7 +324,6 @@ func (c *CPU) GetFlag(flag string) bool {
 // SwitchMode switches the kernel / user mode:
 // 0 for user, 3 for kernel, everything else is a mistake.
 // values are as they are used in the PSW
-// TODO: make sure the previous mode is set properly
 func (c *CPU) SwitchMode(m uint16) {
 	// save processor stack pointers:
 	if c.mmunit.Psw.GetMode() == 3 {
@@ -343,15 +338,14 @@ func (c *CPU) SwitchMode(m uint16) {
 	} else {
 		c.Registers[6] = c.KernelStackPointer
 	}
-
 	c.mmunit.Psw.SwitchMode(m)
 }
 
 // Trap handles all Trap / abort events.
 func (c *CPU) Trap(trap interrupts.Trap) {
-	fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
-	fmt.Printf("DEBUG\nDEBUG\n")
-
+	if debug || trapDebug {
+		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+	}
 	prevPSW := c.mmunit.Psw.Get()
 
 	defer func(vec, prevPSW uint16) {

@@ -27,11 +27,11 @@ func TestMain(m *testing.M) {
 	mmu := &MMU18Bit{}
 	p := psw.PSW(0)
 	mmu.Psw = &p
-	c = NewCPU(mmu)
+	c = NewCPU(mmu, false)
 
 	var cons console.Console
 	cons = console.NewSimple()
-	u = New(&p, nil, &cons)
+	u = New(&p, nil, &cons, false)
 
 	os.Exit(m.Run())
 }

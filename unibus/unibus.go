@@ -52,7 +52,7 @@ type Unibus struct {
 }
 
 // New initializes and returns the Unibus variable
-func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus {
+func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMode bool) *Unibus {
 	unibus := Unibus{}
 
 	unibus.controlConsole = *controlConsole
@@ -60,12 +60,13 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console) *Unibus 
 
 	// initialize attached devices:
 	unibus.Mmu = NewMMU(psw, &unibus)
-	unibus.PdpCPU = NewCPU(unibus.Mmu)
+	unibus.PdpCPU = NewCPU(unibus.Mmu, debugMode)
 
 	// TODO: it needs to be modified, in order to allow the GUI!
 	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue)
-	unibus.TermEmulator.Run()
-
+	if err := unibus.TermEmulator.Run(); err != nil {
+		panic("Can't initialize terminal emulator")
+	}
 	unibus.Rk01 = NewRK(&unibus)
 	return &unibus
 }
@@ -85,7 +86,7 @@ func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
 }
 
 // ReadIOPage reads from unibus devices.
-func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, error) {
+func (u *Unibus) ReadIOPage(physicalAddress uint32) (uint16, error) {
 	switch {
 	case physicalAddress == PSWAddr:
 		return u.psw.Get(), nil
@@ -115,7 +116,7 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32, byteFlag bool) (uint16, erro
 }
 
 // WriteIOPage writes to the unibus connected device
-func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool) {
+func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16) {
 	switch {
 	case physicalAddress == PSWAddr:
 		// also : switch mode!
@@ -127,7 +128,7 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16, byteFlag bool)
 	case physicalAddress == LKSAddr:
 		u.LKS = data
 	case physicalAddress&0777770 == ConsoleAddr:
-		u.TermEmulator.WriteTerm(physicalAddress, data)
+		_ = u.TermEmulator.WriteTerm(physicalAddress, data)
 	case physicalAddress == SR0Addr:
 		u.Mmu.SR0 = data
 	case physicalAddress == SR2Addr:
