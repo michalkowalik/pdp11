@@ -1,7 +1,7 @@
 package unibus
 
 import (
-	"pdp/interrupts"
+	"pdp/psw"
 )
 
 // Definition of all PDP-11 CPU instructions
@@ -490,13 +490,12 @@ func (c *CPU) haltOp(instruction uint16) {
 
 // bpt - breakpoint trap
 func (c *CPU) bptOp(instruction uint16) {
-	// 14 is breakpoint trap vector
-	c.Trap(interrupts.Trap{Vector: 014, Msg: "Breakpoint"})
+	c.trapOpcode(014)
 }
 
 // iot - i/o trap
 func (c *CPU) iotOp(instruction uint16) {
-	c.Trap(interrupts.Trap{Vector: 020, Msg: "i/o"})
+	c.trapOpcode(020)
 }
 
 // rti - return from interrupt
@@ -852,15 +851,29 @@ func (c *CPU) sobOp(instruction uint16) {
 }
 
 // trap opcodes:
+func (c *CPU) trapOpcode(vector uint16) {
+	prevPs := uint16(*c.mmunit.Psw)
+	c.SwitchMode(psw.KernelMode)
+
+	// push current PS and PC to stack
+	c.Push(prevPs)
+	c.Push(c.Registers[7])
+
+	// load PC and PS from trap vector location
+	c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
+	previousMode := prevPs & ((1 << 13) | (1 << 12))
+	c.mmunit.Psw.Set(c.mmunit.ReadMemoryWord(vector+2) | previousMode)
+}
+
 // emt - emulator trap - trap vector hardcoded to location 32
 func (c *CPU) emtOp(instruction uint16) {
-	c.Trap(interrupts.Trap{Vector: 030, Msg: "emt"})
+	c.trapOpcode(030)
 }
 
 // trap
 // trap vector for TRAP is hardcoded for all PDP11s to memory location 34
 func (c *CPU) trapOp(instruction uint16) {
-	c.Trap(interrupts.Trap{Vector: 034, Msg: "TRAP"})
+	c.trapOpcode(034)
 }
 
 // Single Register opcodes

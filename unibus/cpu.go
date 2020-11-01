@@ -21,6 +21,7 @@ const (
 
 // add debug output to the console
 var debug = false
+var trapDebug = true
 
 // CPU type:
 type CPU struct {
@@ -342,9 +343,8 @@ func (c *CPU) SwitchMode(m uint16) {
 
 // Trap handles all Trap / abort events.
 func (c *CPU) Trap(trap interrupts.Trap) {
-	if debug {
+	if debug || trapDebug {
 		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
-		fmt.Printf("DEBUG\nDEBUG\n")
 	}
 	prevPSW := c.mmunit.Psw.Get()
 

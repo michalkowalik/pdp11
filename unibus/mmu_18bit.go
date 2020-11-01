@@ -204,8 +204,6 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
-		//fmt.Printf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o\n",
-		//	virtualAddress, block, m.PDR[offset].length())
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
 			Msg: fmt.Sprintf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o",
