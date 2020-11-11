@@ -20,8 +20,11 @@ const (
 )
 
 // add debug output to the console
-var debug = false
-var trapDebug = true
+var (
+	debug        = false
+	trapDebug    = true
+	panicCounter = 0
+)
 
 // CPU type:
 type CPU struct {
@@ -243,6 +246,22 @@ func (c *CPU) Execute() {
 		fmt.Printf(c.printState(instruction))
 		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
 	}
+	// is it time to die?
+	if instruction == 012767 {
+		if c.timeToDie([]uint16{053, 0141656, 052, 060540, 060566, 0141712, 0141654, 002734}) {
+			if panicCounter == 0 {
+				c.mmunit.DumpMemory()
+
+				fmt.Printf("D: PRD: [")
+				for _, v := range c.mmunit.PDR {
+					fmt.Printf(" %o ", v)
+				}
+				fmt.Printf(" ]\n")
+				panic("Yes, it's time to die")
+			}
+			panicCounter++
+		}
+	}
 	opcode(instruction)
 }
 
@@ -345,6 +364,9 @@ func (c *CPU) SwitchMode(m uint16) {
 func (c *CPU) Trap(trap interrupts.Trap) {
 	if debug || trapDebug {
 		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+		if trap.Vector == 0250 {
+			panic("die die die")
+		}
 	}
 	prevPSW := c.mmunit.Psw.Get()
 
@@ -454,4 +476,15 @@ func (c *CPU) Reset() {
 	c.ClockCounter = 0
 	c.mmunit.unibus.Rk01.Reset()
 	c.State = CPURUN
+}
+
+// debug:
+// true if all registers have the same value. don't panic immediately, there might be a panic counter somewhere.
+func (c *CPU) timeToDie(registers []uint16) bool {
+	for i, v := range c.Registers {
+		if registers[i] != v {
+			return false
+		}
+	}
+	return true
 }

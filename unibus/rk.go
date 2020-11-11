@@ -265,6 +265,7 @@ func (r *RK11) Step() {
 	// reaad complete sector:
 	for i := 0; i < 256 && r.RKWC != 0; i++ {
 		if isWrite {
+			// fmt.Printf("RKBA: %o \n", r.RKBA)
 			val := r.unibus.Mmu.ReadMemoryWord(r.RKBA)
 			unit.rdisk[pos] = byte(val & 0xFF)
 			unit.rdisk[pos+1] = byte((val >> 8) & 0xFF)
@@ -280,7 +281,7 @@ func (r *RK11) Step() {
 		}
 		r.RKBA += 2
 		pos += 2
-		r.RKWC++
+		r.RKWC = (r.RKWC + 1) & 0xffff
 	}
 	r.sector++
 	if r.sector > 13 {
