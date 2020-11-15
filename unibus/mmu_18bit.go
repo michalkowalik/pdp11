@@ -102,10 +102,6 @@ func (m *MMU18Bit) readPage(address uint32) uint16 {
 func (m *MMU18Bit) writePage(address uint32, data uint16) {
 	i := (address & 017) >> 1
 
-	if data == 03106 {
-		fmt.Printf("Attempting to save 03106 to address %o\n", address)
-	}
-
 	// kernel space:
 	if (address >= 0772300) && (address < 0772320) {
 		m.PDR[i] = pdr(data)
@@ -118,22 +114,7 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 
 	// user space:
 	if (address >= 0777600) && (address < 0777620) {
-
-		localDebug := false
-		if address == 0777602 {
-			fmt.Printf("attempting write to 0777602, value %o\n", data)
-			localDebug = true
-		}
-
 		m.PDR[i+8] = pdr(data)
-
-		if localDebug {
-			fmt.Printf("D: PRD: [")
-			for _, v := range m.PDR {
-				fmt.Printf(" %o ", v)
-			}
-			fmt.Printf(" ]\n")
-		}
 		return
 	}
 	if (address >= 0777640) && (address < 0777660) {
@@ -147,7 +128,7 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 
 // mapVirtualToPhysical returns physical 18 bit address for the 16 bit virtual
 // mode: 0 for kernel, 3 for user
-func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, mode uint16) uint32 {
+func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, write bool, mode uint16) uint32 {
 
 	if !m.MmuEnabled() {
 		addr := uint32(virtualAddress)
@@ -160,15 +141,15 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
 	if mode > 0 {
-		currentUser += 8
+		currentUser = 8
 	}
 	offset := (virtualAddress >> 13) + currentUser
 	if m.MMUDebugMode {
-		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", writeMode, offset, m.PDR[offset])
+		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", write, offset, m.PDR[offset])
 	}
 
 	// check page availability in PDR:
-	if writeMode && !m.PDR[offset].write() {
+	if write && !m.PDR[offset].write() {
 		m.SR0 = (1 << 13) | 1
 		m.SR0 |= virtualAddress >> 12 & ^uint16(1)
 
@@ -188,7 +169,6 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 		m.SR0 = (1 << 15) | 1
 		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
 
-		// check for user mode
 		if mode > 0 {
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
@@ -230,9 +210,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 	}
 
 	// set PDR W byte:
-	// MK 2020.11.10
-	// do we have a bug here???
-	if writeMode {
+	if write {
 		currentPDR |= 1 << 6
 	}
 

@@ -10,7 +10,7 @@ func (m *MMU18Bit) DumpMemory() error {
 	file, err := os.Create("mem_dmp.txt")
 
 	defer file.Close()
-	for i := range m.Memory {
+	for i := 0; i < 0760000/2; i++ {
 		fmt.Fprintf(file, "%06o : %06o\n", i*2, m.Memory[i])
 	}
 	return err

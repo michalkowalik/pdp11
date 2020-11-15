@@ -247,12 +247,13 @@ func (c *CPU) Execute() {
 		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
 	}
 	// is it time to die?
-	if instruction == 012767 {
-		if c.timeToDie([]uint16{053, 0141656, 052, 060540, 060566, 0141712, 0141654, 002734}) {
-			if panicCounter == 0 {
+
+	if instruction == 014104 {
+		if c.timeToDie([]uint16{0, 0141574, 0103, 0113162, 0177404, 0141574, 0141564, 03572}) {
+			if panicCounter == 1 {
 				c.mmunit.DumpMemory()
 
-				fmt.Printf("D: PRD: [")
+				fmt.Printf("D: PDR: [")
 				for _, v := range c.mmunit.PDR {
 					fmt.Printf(" %o ", v)
 				}
@@ -262,6 +263,7 @@ func (c *CPU) Execute() {
 			panicCounter++
 		}
 	}
+
 	opcode(instruction)
 }
 
