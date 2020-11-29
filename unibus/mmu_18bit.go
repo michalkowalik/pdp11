@@ -190,10 +190,9 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, write bool, mode 
 	}
 
 	// check if page length not exceeded
-	if currentPDR.ed() && block < currentPDR.length() ||
-		!currentPDR.ed() && block > currentPDR.length() {
+	if (currentPDR.ed() && block < currentPDR.length()) || (!currentPDR.ed() && block > currentPDR.length()) {
 
-		fmt.Printf("We have problem!\n")
+		fmt.Printf("We have a problem!\n")
 
 		m.SR0 = (1 << 14) | 1
 		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
@@ -205,8 +204,8 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, write bool, mode 
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
-			Msg: fmt.Sprintf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o",
-				virtualAddress, block, currentPDR.length())})
+			Msg: fmt.Sprintf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o. Usermode: %v",
+				virtualAddress, block, currentPDR.length(), mode)})
 	}
 
 	// set PDR W byte:

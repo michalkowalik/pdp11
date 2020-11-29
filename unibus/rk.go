@@ -9,7 +9,7 @@ import (
 
 const (
 	// RKDEBUG flag to output extra info
-	RKDEBUG = false
+	RKDEBUG = true
 
 	rk5ImageLength = 2077696
 	// unibus Addresses:
@@ -119,11 +119,13 @@ func (r *RK11) read(address uint32) uint16 {
 	case rkerAddress:
 		return r.RKER
 	case rkcsAddress:
+		// !! it's completely unclear why some implementations choose to use that OR with rkba.
+		//return uint16(uint32(r.RKCS) | (uint32(r.RKBA)&0x30000)>>12)
 		return r.RKCS
 	case rkwcAddress:
 		return uint16(r.RKWC)
 	case rkbaAddress:
-		return r.RKBA
+		return r.RKBA & 0xFFFF
 	case rkdaAddress:
 		return uint16(r.sector | (r.surface << 4) | (r.cylinder << 5) | (r.drive << 13))
 	default:
@@ -164,7 +166,6 @@ func (r *RK11) write(address uint32, value uint16) {
 	default:
 		panic("RK5: Invalid write")
 	}
-
 }
 
 // Respond to GO bit set in RKCS - start operations
@@ -262,10 +263,16 @@ func (r *RK11) Step() {
 		panic(fmt.Sprintf("pos outside rkdisk length, pos: %v, len %v", pos, len(r.unit[r.drive].rdisk)))
 	}
 
+	if RKDEBUG {
+		fmt.Printf("\nRK DEBUG. Starting position: %o\n", pos)
+	}
+
 	// reaad complete sector:
 	for i := 0; i < 256 && r.RKWC != 0; i++ {
 		if isWrite {
-			// fmt.Printf("RKBA: %o \n", r.RKBA)
+			if RKDEBUG {
+				fmt.Printf("RK WRITE: RKBA: %o, RKWC: %o \n", r.RKBA, r.RKWC)
+			}
 			val := r.unibus.Mmu.ReadMemoryWord(r.RKBA)
 			unit.rdisk[pos] = byte(val & 0xFF)
 			unit.rdisk[pos+1] = byte((val >> 8) & 0xFF)
@@ -281,7 +288,8 @@ func (r *RK11) Step() {
 		}
 		r.RKBA += 2
 		pos += 2
-		r.RKWC = (r.RKWC + 1) & 0xffff
+		//r.RKWC = (r.RKWC + 1) & 0xffff
+		r.RKWC++
 	}
 	r.sector++
 	if r.sector > 13 {
@@ -298,7 +306,9 @@ func (r *RK11) Step() {
 
 	// RKWC == 0 -> transfer is completed. if bit 6 set in RKCS, interrupt should be sent.
 	if r.RKWC == 0 {
-		// fmt.Printf("RKWC: 0, transfer complete, RKCS: %o\n", r.RKCS)
+		if RKDEBUG {
+			fmt.Printf("RKWC: 0, transfer complete, RKCS: %o\n", r.RKCS)
+		}
 		r.running = false
 		r.rkReady()
 		if r.RKCS&(1<<6) != 0 {
