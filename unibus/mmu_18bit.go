@@ -128,7 +128,7 @@ func (m *MMU18Bit) writePage(address uint32, data uint16) {
 
 // mapVirtualToPhysical returns physical 18 bit address for the 16 bit virtual
 // mode: 0 for kernel, 3 for user
-func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, mode uint16) uint32 {
+func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, write bool, mode uint16) uint32 {
 
 	if !m.MmuEnabled() {
 		addr := uint32(virtualAddress)
@@ -141,24 +141,20 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 	// if bits 14 and 15 in PSW are set -> system in kernel mode
 	currentUser := uint16(0)
 	if mode > 0 {
-		currentUser += 8
+		currentUser = 8
 	}
 	offset := (virtualAddress >> 13) + currentUser
 	if m.MMUDebugMode {
-		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", writeMode, offset, m.PDR[offset])
+		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", write, offset, m.PDR[offset])
 	}
 
 	// check page availability in PDR:
-	if writeMode && !m.PDR[offset].write() {
+	if write && !m.PDR[offset].write() {
 		m.SR0 = (1 << 13) | 1
-		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
-
-		if m.MMUDebugMode {
-			fmt.Printf("modified SR0: %o\n", m.SR0)
-		}
+		m.SR0 |= virtualAddress >> 12 & ^uint16(1)
 
 		// check for user mode
-		if m.unibus.psw.GetMode() == 3 {
+		if mode > 0 {
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 
@@ -173,8 +169,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 		m.SR0 = (1 << 15) | 1
 		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
 
-		// check for user mode
-		if m.unibus.psw.GetMode() == 3 {
+		if mode > 0 {
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
@@ -184,6 +179,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 	}
 
 	currentPAR := m.PAR[offset]
+	currentPDR := m.PDR[offset]
 	block := (virtualAddress >> 6) & 0177
 	displacement := virtualAddress & 077
 
@@ -194,28 +190,30 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, writeMode bool, m
 	}
 
 	// check if page length not exceeded
-	if m.PDR[offset].ed() && block < m.PDR[offset].length() ||
-		!m.PDR[offset].ed() && block > m.PDR[offset].length() {
+	if (currentPDR.ed() && block < currentPDR.length()) || (!currentPDR.ed() && block > currentPDR.length()) {
+
+		fmt.Printf("We have a problem!\n")
+
 		m.SR0 = (1 << 14) | 1
 		m.SR0 |= (virtualAddress >> 12) & ^uint16(1)
 
 		// check for user mode
-		if m.unibus.psw.GetMode() == 3 {
+		if mode > 0 {
 			m.SR0 |= (1 << 5) | (1 << 6)
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
-			Msg: fmt.Sprintf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o",
-				virtualAddress, block, m.PDR[offset].length())})
+			Msg: fmt.Sprintf("PAGE LENGTH EXCEEDED. Address %06o (block %03o) is beyond %03o. Usermode: %v",
+				virtualAddress, block, currentPDR.length(), mode)})
 	}
 
 	// set PDR W byte:
-	if writeMode {
-		m.PDR[offset] |= 1 << 6
+	if write {
+		currentPDR |= 1 << 6
 	}
 
-	physAddress := ((uint32(block) + uint32(currentPAR)) << 6) + uint32(displacement)
+	physAddress := ((uint32(block) + uint32(currentPAR&07777)) << 6) + uint32(displacement)
 
 	if m.MMUDebugMode {
 		fmt.Printf(m.dumpRegisters())

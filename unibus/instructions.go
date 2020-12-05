@@ -445,9 +445,29 @@ func (c *CPU) movOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
+	/*
+		debug := false
+		if instruction == 016746 {
+			if c.timeToDie([]uint16{053, 0141656, 052, 060540, 060566, 0141712, 0141656, 02730}) {
+				debug = true
+			}
+		}
+	*/
 	srcAddr := c.GetVirtualByMode(source, 0)
 	sourceVal := c.mmunit.ReadMemoryWord(srcAddr)
 	dstAddr := c.GetVirtualByMode(dest, 0)
+
+	/*
+		if debug {
+			fmt.Printf("D: source: %o\n", source)
+			fmt.Printf("D: dest: %o\n", dest)
+			fmt.Printf("D: srcAddr: %o\n", srcAddr)
+			fmt.Printf("D: sourceVal: %o\n", sourceVal)
+			fmt.Printf("D: dstAddr: %o\n", dstAddr)
+			fmt.Printf("D: PDR: %v\n", c.mmunit.PDR)
+			fmt.Printf("D: PAR: %v\n", c.mmunit.PAR)
+		}
+	*/
 
 	c.SetFlag("N", (sourceVal&0x8000) > 0)
 	c.SetFlag("Z", sourceVal == 0)
