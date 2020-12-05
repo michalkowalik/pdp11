@@ -9,7 +9,7 @@ import (
 
 const (
 	// RKDEBUG flag to output extra info
-	RKDEBUG = true
+	RKDEBUG = false
 
 	rk5ImageLength = 2077696
 	// unibus Addresses:
@@ -38,7 +38,10 @@ type RK11 struct {
 	// counting up to zero starting with negative value. not sure what were they
 	// smoking at DEC back then.
 	RKWC int
-	RKBA uint16
+
+	// on the systems with extended memory ( > 32K words) RKBA overflows to the bits 3 and 4 of RKCS
+	// therefore, it's easier to represent it here as an uint32, and run bitwise and on the 18 bits.
+	RKBA uint32
 	DKDA uint16
 
 	// disk units
@@ -119,13 +122,12 @@ func (r *RK11) read(address uint32) uint16 {
 	case rkerAddress:
 		return r.RKER
 	case rkcsAddress:
-		// !! it's completely unclear why some implementations choose to use that OR with rkba.
-		//return uint16(uint32(r.RKCS) | (uint32(r.RKBA)&0x30000)>>12)
-		return r.RKCS
+		// because rkba overflows to RKCS, every time RKCS is returned, those bits should be updated
+		return uint16(uint32(r.RKCS) | (r.RKBA&0x30000)>>12)
 	case rkwcAddress:
 		return uint16(r.RKWC)
 	case rkbaAddress:
-		return r.RKBA & 0xFFFF
+		return uint16(r.RKBA & 0xFFFF)
 	case rkdaAddress:
 		return uint16(r.sector | (r.surface << 4) | (r.cylinder << 5) | (r.drive << 13))
 	default:
@@ -141,9 +143,8 @@ func (r *RK11) write(address uint32, value uint16) {
 		break
 	case rkcsAddress:
 		// set bus address:
-		r.RKBA = r.RKBA | ((value & 060) << 12)
-
-		var bits uint16 = 017517
+		r.RKBA = (r.RKBA & 0xFFFF) | uint32((value&060)<<12)
+		const bits uint16 = 017517
 
 		// set only the writeable bits:
 		value &= bits
@@ -157,7 +158,7 @@ func (r *RK11) write(address uint32, value uint16) {
 	case rkwcAddress:
 		r.RKWC = int(int(^value+1) * -1)
 	case rkbaAddress:
-		r.RKBA = value
+		r.RKBA = (r.RKBA & 0x30000) | uint32(value)
 	case rkdaAddress:
 		r.drive = int(value >> 13)
 		r.cylinder = int(value>>5) & 0377
@@ -251,6 +252,11 @@ func (r *RK11) Step() {
 		panic(fmt.Sprintf("unimplemented RK05 operation: %#o", ((r.RKCS & 017) >> 1)))
 	}
 
+	if RKDEBUG {
+		fmt.Printf("DEBUG Head location: cylinder: %o,\tsector: %o,\tsurface: %o\n",
+			r.cylinder, r.sector, r.surface)
+	}
+
 	// set the head location:
 	if r.cylinder > 0312 {
 		r.rkError(rkNxc)
@@ -273,7 +279,7 @@ func (r *RK11) Step() {
 			if RKDEBUG {
 				fmt.Printf("RK WRITE: RKBA: %o, RKWC: %o \n", r.RKBA, r.RKWC)
 			}
-			val := r.unibus.Mmu.ReadMemoryWord(r.RKBA)
+			val := r.unibus.Mmu.ReadWordByPhysicalAddress(r.RKBA)
 			unit.rdisk[pos] = byte(val & 0xFF)
 			unit.rdisk[pos+1] = byte((val >> 8) & 0xFF)
 		} else {
@@ -282,7 +288,7 @@ func (r *RK11) Step() {
 			}
 			// TODO: monitor if it's fine. this implementation does not take care of
 			// bits 4 and 5 of rkcs, which should be used on systems with extended memory
-			r.unibus.Mmu.WriteMemoryWord(
+			r.unibus.Mmu.WriteWordByPhysicalAddress(
 				r.RKBA,
 				uint16(unit.rdisk[pos])|uint16(unit.rdisk[pos+1])<<8)
 		}
@@ -292,7 +298,11 @@ func (r *RK11) Step() {
 		//r.RKWC++
 	}
 	r.sector++
-	if r.sector > 13 {
+	if RKDEBUG {
+		fmt.Printf("increasing sector to %o \n", r.sector)
+	}
+
+	if r.sector > 013 {
 		r.sector = 0
 		r.surface++
 		if r.surface > 1 {
