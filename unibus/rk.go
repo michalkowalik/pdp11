@@ -288,8 +288,8 @@ func (r *RK11) Step() {
 		}
 		r.RKBA += 2
 		pos += 2
-		//r.RKWC = (r.RKWC + 1) & 0xffff
-		r.RKWC++
+		r.RKWC = (r.RKWC + 1) & 0xffff
+		//r.RKWC++
 	}
 	r.sector++
 	if r.sector > 13 {
