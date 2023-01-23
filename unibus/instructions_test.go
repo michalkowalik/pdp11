@@ -29,8 +29,7 @@ func TestMain(m *testing.M) {
 	mmu.Psw = &p
 	c = NewCPU(mmu, false)
 
-	var cons console.Console
-	cons = console.NewSimple()
+	var cons console.Console = console.NewSimple()
 	u = New(&p, nil, &cons, false)
 
 	os.Exit(m.Run())
@@ -494,8 +493,7 @@ func TestCPU_ashOp(t *testing.T) {
 // hence, it's always the same instruction.
 func TestCPU_subOp(t *testing.T) {
 	// substract: R1 = R1 - R0
-	var instruction uint16
-	instruction = 0160001
+	var instruction uint16 = 0160001
 
 	tests := []struct {
 		name    string

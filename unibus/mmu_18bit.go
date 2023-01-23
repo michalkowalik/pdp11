@@ -150,6 +150,9 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, write bool, mode 
 
 	// check page availability in PDR:
 	if write && !m.PDR[offset].write() {
+		fmt.Printf("Virtual Address: %o, current user: %o\n", virtualAddress, currentUser)
+		fmt.Printf("MMU: write mode: %v, offset: %o, PDR[offset]: %o\n", write, offset, m.PDR[offset])
+
 		m.SR0 = (1 << 13) | 1
 		m.SR0 |= virtualAddress >> 12 & ^uint16(1)
 
@@ -162,7 +165,7 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, write bool, mode 
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
 			Vector: interrupts.INTFault,
-			Msg:    "Abort: write on read-only page"})
+			Msg:    fmt.Sprintf("Abort: write on read-only page %o\n", virtualAddress)})
 	}
 
 	if !m.PDR[offset].read() {

@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"fmt"
 	"pdp/psw"
 )
 
@@ -704,19 +705,13 @@ func (c *CPU) bisbOp(instruction uint16) {
 func (c *CPU) jsrOp(instruction uint16) {
 	register := (instruction >> 6) & 7
 	destination := instruction & 077
-	/*
-		debug := false
-		if c.Registers[3] == 0 && c.Registers[4] == 0 && c.Registers[5] == 0 && c.Registers[6] == 0177756 && c.Registers[7] == 016 {
-			debug = true
-		}
-	*/
 	val := c.GetVirtualByMode(destination, 0)
 
-	/*
-		if debug {
-			fmt.Printf("JSR VAL %o\n", val)
-		}
-	*/
+	if c.Registers[register] == 0554 {
+		fmt.Printf("!!\n %s", c.printState(instruction))
+		fmt.Printf("%s\n !!\n", c.mmunit.unibus.Disasm(instruction))
+	}
+
 	c.Push(c.Registers[register])
 	c.Registers[register] = c.Registers[7]
 	c.Registers[7] = val
@@ -905,8 +900,7 @@ func (c *CPU) rtsOp(instruction uint16) {
 	c.Registers[7] = c.Registers[register]
 
 	// load word popped from processor stack to "register"
-	val := c.Pop()
-	c.Registers[register] = val
+	c.Registers[register] = c.Pop()
 }
 
 // clear flag opcodes

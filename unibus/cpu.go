@@ -21,9 +21,9 @@ const (
 
 // add debug output to the console
 var (
-	debug        = false
-	trapDebug    = true
-	panicCounter = 0
+	debug     = false
+	trapDebug = true
+	// panicCounter = 0
 )
 
 // CPU type:
@@ -373,6 +373,7 @@ func (c *CPU) SwitchMode(m uint16) {
 func (c *CPU) Trap(trap interrupts.Trap) {
 	if debug || trapDebug {
 		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+
 		if trap.Vector == 0250 {
 			c.mmunit.DumpMemory()
 			fmt.Printf("D: PDR: [")
@@ -472,12 +473,22 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 // Push to processor stack
 func (c *CPU) Push(v uint16) {
 	c.Registers[6] -= 2
+
+	fmt.Printf("Pushing to stack. Value: %o. R6 value: %o\n", v, c.Registers[6])
+
+	if v == 0554 && c.Registers[6] == 0177750 {
+		panic("pushing 554 to 177750")
+	}
+
 	c.mmunit.WriteMemoryWord(c.Registers[6], v)
 }
 
 // Pop from CPU stack
 func (c *CPU) Pop() uint16 {
 	val := c.mmunit.ReadMemoryWord(c.Registers[6])
+
+	fmt.Printf("Popping from stack. Value: %o, R6 value %o\n", val, c.Registers[6])
+
 	c.Registers[6] += 2
 	return val
 }

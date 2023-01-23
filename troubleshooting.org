@@ -1,0 +1,190 @@
+#+AUTHOR: Michał Kowalik
+#+TITLE: PDP11 Troubleshooting
+
+* Troubleshooting
+** The Deadly Trap 250
+    - System starts ok. as a matter of fact identical as DCs
+    - which means, that until then it is able to 
+        - read from disk
+        - execute pretty much every possible CPU instruction
+        - run subprocedures
+    - what is not being known:
+        - are there any interrupts called during the boot process?
+    - No matter which shell command is executed, the effect is the same: a trap, and write to read only page
+    - which means, that hte command is not executed at all.
+    - so it's probably shell trying to fork (?) to call the command line
+    - it fails *always* in the same place. which is probably a good news
+    - what is it doing when it fails?
+
+* What needs to be checked:
+** TODO Are there any interrupts called during the boot?
+** DONE Where does it exactly fail (and what does it do then?)
+   allright, so it's clarly in ~jsrOp~. jump to subroutine. 
+   and it fails, when it tries to push to the stack. 
+   which means, that:
+       - either the ~SP~ is wrong
+       - or the stack is wrongly defined
+       - or there's an error in ~mmu.WriteMemoryWord~
+
+** DONE does it fail with the same values for the PRD/PAR?
+    #+BEGIN_SRC
+        # /BIN/WHO
+        /BNWHO
+        /IVirtual Address: 16, current user: 10
+        MMU: write mode: true, offset: 10, PDR[offset]: 46402
+        TRAP 250 occured: Abort: write on read-only page 16
+
+        D: PDR: [ 77406  77406  77406  77406  77406  77406  7406  77406  46402  21406  0  0  0  0  0  66016  ]
+        D: PAR: [ 0  200  400  600  1000  1200  1457  7600  1321  1477  1321  1321  1321  1321  1321  1367  ]
+        panic: (interrupts.Trap) (0x5a9ae0,0xc00011c180) [recovered]
+                panic: dying the death of trap 0250
+    #+END_SRC
+
+    #+BEGIN_SRC
+    # LS
+    LS
+    Virtual Address: 16, current user: 10
+    MMU: write mode: true, offset: 10, PDR[offset]: 46402
+    TRAP 250 occured: Abort: write on read-only page 16
+
+    D: PDR: [ 77406  77406  77406  77406  77406  77406  7406  77406  46402  21406  0  0  0  0  0  66016  ]
+    D: PAR: [ 0  200  400  600  1000  1200  1457  7600  1321  1477  1321  1321  1321  1321  1321  1367  ]
+    panic: (interrupts.Trap) (0x5a9ae0,0xc00000c1e0) [recovered]
+            panic: dying the death of trap 0250
+    #+END_SRC
+
+    #+BEGIN_SRC
+    # W
+    W
+    Virtual Address: 16, current user: 10
+    MMU: write mode: true, offset: 10, PDR[offset]: 46402
+    TRAP 250 occured: Abort: write on read-only page 16
+
+    D: PDR: [ 77406  77406  77406  77406  77406  77406  7406  77406  46402  21406  0  0  0  0  0  66016  ]
+    D: PAR: [ 0  200  400  600  1000  1200  1457  7600  1321  1477  1321  1321  1321  1321  1321  1367  ]
+    panic: (interrupts.Trap) (0x5a9ae0,0xc00033e060) [recovered]
+            panic: dying the death of trap 0250
+    #+END_SRC
+
+    So it very much looks like it dies in the same place all over again
+    
+
+** where it fails:
+   #+BEGIN_SRC
+   panic: (interrupts.Trap) (0x5a9ae0,0xc0000a2080) [recovered]
+   panic: dying the death of trap 0250
+
+   goroutine 1 [running]:
+   pdp/unibus.(*CPU).Trap(0xc000098000, 0x5a00a8, 0xc0000b4000, 0x22)
+   /home/mkowalik/src/pdp11/unibus/cpu.go:391 +0x549
+   pdp/system.(*System).processTrap(...)
+        /home/mkowalik/src/pdp11/system/system.go:80
+	pdp/system.(*System).run.func1(0xc000094000)
+        /home/mkowalik/src/pdp11/system/system.go:66 +0x81
+	panic(0x5a9ae0, 0xc0000a2080)
+        /usr/local/go/src/runtime/panic.go:969 +0x166
+	pdp/unibus.(*MMU18Bit).mapVirtualToPhysical(0xc000180000, 0x30001000e, 0xc00003fcce)
+        /home/mkowalik/src/pdp11/unibus/mmu_18bit.go:166 +0xa4c
+	pdp/unibus.(*MMU18Bit).WriteMemoryWord(0xc000180000, 0xffce000e)
+        /home/mkowalik/src/pdp11/unibus/mmu_18bit.go:292 +0x8b
+	pdp/unibus.(*CPU).Push(...)
+        /home/mkowalik/src/pdp11/unibus/cpu.go:476
+	pdp/unibus.(*CPU).jsrOp(0xc000098000, 0xc000000977)
+        /home/mkowalik/src/pdp11/unibus/instructions.go:720 +0x89
+	pdp/unibus.(*CPU).Execute(0xc000098000)
+        /home/mkowalik/src/pdp11/unibus/cpu.go:274 +0x86
+	pdp/system.(*System).step(0xc000094000)
+        /home/mkowalik/src/pdp11/system/system.go:98 +0xd3
+	pdp/system.(*System).run(0xc000094000)
+        /home/mkowalik/src/pdp11/system/system.go:75 +0x4e
+	pdp/system.(*System).Run(0xc000094000)
+        /home/mkowalik/src/pdp11/system/system.go:56 +0x2b
+	pdp/system.(*System).Boot(0xc000094000)
+        /home/mkowalik/src/pdp11/system/bootstrap.go:58 +0xc8
+	main.startPdp(0x0, 0xc0000101d0, 0x0)
+        /home/mkowalik/src/pdp11/main.go:122 +0x365
+	main.main()
+        /home/mkowalik/src/pdp11/main.go:23 +0x32c
+   #+END_SRC
+
+   and let's have it broken down:
+   - system.go:56: ~sys.run()~
+   - system.go:75: ~sys.step()~
+   - system.go:98: ~sys.CPU.Exectute()~
+   - cpu.go:274: ~opcode(instruction)~
+   - instructions.go:720: ~c.Push(c.Registers[register])~ -> in jsrOp (jump to subroutine)
+   - cpu.go:476: ~c.mmunit.WriteMemoryWord(c.Registers[6], v)~ -> in ~cpu.Push()~
+   - mmu_18bit.go:292: ~physicalAddress := m.mapVirtualToPhysical(addr, true, m.Psw.GetMode())~  -> in ~WriteMemoryWord~
+   - mmu_18bit.go:166: ~panic~ -> in ~mapVirtualToPhysical~
+
+** How do I define stack?
+   - ~Push~ and ~Pop~ methods
+   - there's no magic applied there. Push obtains new address in the stack by modifying the SP and saves the value there
+     Pop returns the value from under the R6 (SP) and modifies the SP to point to the new last element in the stack. 
+     Nothing fancy to see there. 
+   - DC is using exactly the same implementation, what comes of course as a no surprise, becasue there's really no other way.
+
+*** TODO do I have a wrong value in R6 to start with, or is there a bug in MMU?
+    #+BEGIN_SRC
+       DEBUG: PUSH: Pushing to stack value 020, to address R6=0177706
+       DEBUG: PUSH: Pushing to stack value 0177716, to address R6=016
+       Virtual Address: 16, current user: 10
+       MMU: write mode: true, offset: 10, PDR[offset]: 46402
+       TRAP 250 occured: Abort: write on read-only page 16
+    #+END_SRC
+
+    _so it seems, that whatever pushes the ~020~ to ~0177706~ wreaks havoc._
+**** TODO could it be a switch from User to Kernel mode?
+**** TODO What is pushing to the stack?
+     #+BEGIN_SRC
+       Pushing to stack. Value: 15706, current value of R6: 141744
+       Pushing to stack. Value: 16050, current value of R6: 141712
+       Pushing to stack. Value: 16054, current value of R6: 141744
+       Pushing to stack. Value: 141756, current value of R6: 141742
+       Pushing to stack. Value: 3566, current value of R6: 141732
+       //
+       //     !!!!!!!!!! WHAT IS HAPPENING HERE??? !!!!!!!!
+       //
+       Pushing to stack. Value: 554, current value of R6: 177750
+       Pushing to stack. Value: 177762, current value of R6: 177746
+       Pushing to stack. Value: 632, current value of R6: 177734
+       Pushing to stack. Value: 177746, current value of R6: 177732
+       Pushing to stack. Value: 1000, current value of R6: 177720
+       Pushing to stack. Value: 177732, current value of R6: 177716
+       Pushing to stack. Value: 1612, current value of R6: 177704
+       Pushing to stack. Value: 177716, current value of R6: 177702
+       Pushing to stack. Value: 20, current value of R6: 177706
+     #+END_SRC
+     
+     so what is happening is, that the stack operates happily in the ~0141XXX~ area, and suddenly it is being 
+     dumped into ~01777XX~ -> and here where the trouble starts.
+
+     comparing that to what DC's implementation shows:
+     #+BEGIN_SRC
+       Pushing to stack. Value 15706. R6 value: 141744
+""       Pushing to stack. Value 16050. R6 value: 141712
+       Pushing to stack. Value 16054. R6 value: 141744
+       Pushing to stack. Value 141756. R6 value: 141742
+       Pushing to stack. Value 3566. R6 value: 141732    // << -- until here it looks pretty much the same
+
+       Pushing to stack. Value 20. R6 value: 177754      // << -- value 20 is OK, the address on the stack is completely different
+       Pushing to stack. Value 0. R6 value: 177752
+       Pushing to stack. Value 40. R6 value: 177740
+       Pushing to stack. Value 170010. R6 value: 141776
+       Pushing to stack. Value 2164. R6 value: 141774
+       Pushing to stack. Value 34. R6 value: 141772
+       Pushing to stack. Value 177736. R6 value: 141764
+       Pushing to stack. Value 430. R6 value: 141760
+       Pushing to stack. Value 177736. R6 value: 141756
+     #+END_SRC
+
+**** DONE what is responsible for ~Pushing to stack. Value: 554, current value of R6: 177750~ ??
+     - it's a ~JSR~:
+       #+BEGIN_SRC
+         R0 000000 R1 177740 R2 177772 R3 020544 R4 177777 R5 177762 R6 177752 R7 000554
+	 [uU Z  ]  instr 000552: 004767   JSR PC, *133640
+       #+END_SRC
+**** TODO Where does this ~JSR~ came from?
+     - is the value in R7 wrong?
+     - or shouldn't we be there at all?  
+     - add full debug output.
