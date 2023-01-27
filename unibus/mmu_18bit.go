@@ -21,7 +21,7 @@ type MMU18Bit struct {
 	// PDR : Page Description Registers
 	PDR [16]pdr
 
-	// APR : Active Page Register - 8 of them
+	// APR : Active Page Register - 8 of them (Dave Chenney doesn't seem to be needing them!)
 	APR [8]uint16
 
 	// MMU Status Register 0 (Status and error indicator 0)

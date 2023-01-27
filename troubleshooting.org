@@ -11,7 +11,7 @@
     - what is not being known:
         - are there any interrupts called during the boot process?
     - No matter which shell command is executed, the effect is the same: a trap, and write to read only page
-    - which means, that hte command is not executed at all.
+    - which means, that the command is not executed at all.
     - so it's probably shell trying to fork (?) to call the command line
     - it fails *always* in the same place. which is probably a good news
     - what is it doing when it fails?
