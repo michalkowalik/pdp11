@@ -206,7 +206,9 @@ func (c *CPU) tstbOp(instruction uint16) {
 }
 
 // asr - arithmetic shift right
-// 	Shifts all bits of the destination right one place. Bit 15
+//
+//	Shifts all bits of the destination right one place. Bit 15
+//
 // is replicated. The C-bit is loaded from bit 0 of the destination.
 // ASR performs signed division of the destination by two.
 func (c *CPU) asrOp(instruction uint16) {
@@ -366,8 +368,8 @@ func (c *CPU) markOp(instruction uint16) {
 func (c *CPU) mfpiOp(instruction uint16) {
 	var val uint16
 	dest := c.GetVirtualByMode(instruction&077, 0)
-	currentMode := c.mmunit.Psw.GetMode()
-	prevMode := c.mmunit.Psw.GetPreviousMode()
+	currentMode := c.unibus.Psw.GetMode()
+	prevMode := c.unibus.Psw.GetPreviousMode()
 
 	switch {
 	case dest == 0177706:
@@ -389,7 +391,7 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	}
 
 	c.Push(val)
-	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFF0)
+	c.unibus.Psw.Set(c.unibus.Psw.Get() & 0xFFF0)
 	c.SetFlag("C", true)
 	c.SetFlag("N", val&0x8000 == 0x8000)
 	c.SetFlag("Z", val == 0)
@@ -400,8 +402,8 @@ func (c *CPU) mtpiOp(instruction uint16) {
 	destAddr := c.GetVirtualByMode(instruction&077, 0)
 	val := c.Pop()
 
-	currentMode := c.mmunit.Psw.GetMode()
-	prevMode := c.mmunit.Psw.GetPreviousMode()
+	currentMode := c.unibus.Psw.GetMode()
+	prevMode := c.unibus.Psw.GetPreviousMode()
 
 	switch {
 	case destAddr == 0177706:
@@ -421,7 +423,7 @@ func (c *CPU) mtpiOp(instruction uint16) {
 		c.mmunit.WriteWordByPhysicalAddress(sourceAddress, val)
 	}
 
-	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFFF)
+	c.unibus.Psw.Set(c.unibus.Psw.Get() & 0xFFFF)
 	c.SetFlag("C", true)
 	c.SetFlag("N", val&0x8000 == 0x8000)
 	c.SetFlag("Z", val == 0)
@@ -523,9 +525,9 @@ func (c *CPU) iotOp(instruction uint16) {
 func (c *CPU) rtiOp(instruction uint16) {
 	c.Registers[7] = c.Pop()
 	val := c.Pop()
-	if c.mmunit.Psw.GetMode() == UserMode {
+	if c.unibus.Psw.GetMode() == UserMode {
 		val &= 047
-		val |= c.mmunit.Psw.Get() & 0177730
+		val |= c.unibus.Psw.Get() & 0177730
 	}
 	c.mmunit.WriteMemoryWord(PSWVirtAddr, val)
 }
@@ -867,7 +869,7 @@ func (c *CPU) sobOp(instruction uint16) {
 
 // trap opcodes:
 func (c *CPU) trapOpcode(vector uint16) {
-	prevPs := uint16(*c.mmunit.Psw)
+	prevPs := uint16(*c.unibus.Psw)
 	c.SwitchMode(psw.KernelMode)
 
 	// push current PS and PC to stack
@@ -877,7 +879,7 @@ func (c *CPU) trapOpcode(vector uint16) {
 	// load PC and PS from trap vector location
 	c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
 	previousMode := prevPs & ((1 << 13) | (1 << 12))
-	c.mmunit.Psw.Set(c.mmunit.ReadMemoryWord(vector+2) | previousMode)
+	c.unibus.Psw.Set(c.mmunit.ReadMemoryWord(vector+2) | previousMode)
 }
 
 // emt - emulator trap - trap vector hardcoded to location 32

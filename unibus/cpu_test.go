@@ -43,7 +43,7 @@ func TestCPU_GetFlag(t *testing.T) {
 	}
 	for _, tt := range tests {
 		tempPsw := psw.PSW(tt.statusWord)
-		c.mmunit.Psw = &tempPsw
+		c.unibus.Psw = &tempPsw
 		t.Run(tt.name, func(t *testing.T) {
 			if got := c.GetFlag(tt.args); got != tt.want {
 				t.Errorf("CPU.GetFlag() = %v, want %v", got, tt.want)

@@ -20,16 +20,20 @@ const (
 	SR0Addr     = 0777572
 	SR2Addr     = 0777576
 	RegAddr     = 0777700
+	MemorySize  = 128 // kilo words
 )
 
 // Unibus definition
 type Unibus struct {
 
+	// memory
+	Memory [MemorySize * 1024]uint16
+
 	// LKS - KW11-L Clock status
 	LKS uint16
 
 	// Memory management Unit
-	Mmu *MMU18Bit
+	Mmu MMU
 
 	// console
 	controlConsole console.Console
@@ -44,7 +48,7 @@ type Unibus struct {
 	// or nil otherwise
 	ActiveTrap interrupts.Trap
 
-	psw *psw.PSW
+	Psw *psw.PSW
 
 	PdpCPU *CPU
 
@@ -56,11 +60,11 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMod
 	unibus := Unibus{}
 
 	unibus.controlConsole = *controlConsole
-	unibus.psw = psw
+	unibus.Psw = psw
 
 	// initialize attached devices:
-	unibus.Mmu = NewMMU(psw, &unibus)
-	unibus.PdpCPU = NewCPU(unibus.Mmu, debugMode)
+	unibus.Mmu = NewMMU18(&unibus)
+	unibus.PdpCPU = NewCPU(unibus.Mmu, &unibus, debugMode)
 
 	// TODO: it needs to be modified, in order to allow the GUI!
 	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue)
@@ -89,7 +93,7 @@ func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
 func (u *Unibus) ReadIOPage(physicalAddress uint32) (uint16, error) {
 	switch {
 	case physicalAddress == PSWAddr:
-		return u.psw.Get(), nil
+		return u.Psw.Get(), nil
 	case physicalAddress&RegAddr == RegAddr:
 		return u.getRegisterValue(physicalAddress), nil
 	// physical front console. Magic number that seems to do the job:
@@ -100,9 +104,9 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32) (uint16, error) {
 	case physicalAddress&0777770 == ConsoleAddr:
 		return u.TermEmulator.ReadTerm(physicalAddress)
 	case physicalAddress == SR0Addr:
-		return u.Mmu.SR0, nil
+		return u.Mmu.GetSR0(), nil
 	case physicalAddress == SR2Addr:
-		return u.Mmu.SR2, nil
+		return u.Mmu.GetSR2(), nil
 	case physicalAddress&0777760 == RK11Addr:
 		v := u.Rk01.read(physicalAddress)
 		return v, nil
@@ -122,7 +126,7 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16) {
 		// also : switch mode!
 		u.PdpCPU.SwitchMode(data >> 14)
 		// also: set flags:
-		u.psw.Set(data)
+		u.Psw.Set(data)
 	case physicalAddress&RegAddr == RegAddr:
 		u.setRegisterValue(physicalAddress, data)
 	case physicalAddress == LKSAddr:
@@ -130,9 +134,9 @@ func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16) {
 	case physicalAddress&0777770 == ConsoleAddr:
 		_ = u.TermEmulator.WriteTerm(physicalAddress, data)
 	case physicalAddress == SR0Addr:
-		u.Mmu.SR0 = data
+		u.Mmu.SetSR0(data)
 	case physicalAddress == SR2Addr:
-		u.Mmu.SR2 = data
+		u.Mmu.SetSR2(data)
 	case physicalAddress&0777760 == RK11Addr:
 		u.Rk01.write(physicalAddress, data)
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):

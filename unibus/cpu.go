@@ -36,8 +36,11 @@ type CPU struct {
 	KernelStackPointer uint16
 	UserStackPointer   uint16
 
+	// unibus
+	unibus *Unibus
+
 	// memory access is required:
-	mmunit *MMU18Bit
+	mmunit MMU
 
 	// ClockCounter
 	ClockCounter uint16
@@ -56,12 +59,13 @@ type CPU struct {
 }
 
 // NewCPU initializes and returns the CPU variable:
-func NewCPU(mmunit *MMU18Bit, debugMode bool) *CPU {
+func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0
 	debug = debugMode
+	unibus = unibus
 
 	// single operand
 	c.singleOpOpcodes = make(map[uint16]func(uint16))
@@ -244,7 +248,7 @@ func (c *CPU) Execute() {
 
 	if debug {
 		fmt.Printf(c.printState(instruction))
-		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
+		fmt.Printf("%s\n", c.unibus.Disasm(instruction))
 	}
 	// is it time to die?
 	/*
@@ -308,7 +312,7 @@ func (c *CPU) printState(instruction uint16) string {
 	out := fmt.Sprintf("%s\n", c.DumpRegisters())
 
 	// flags
-	out += fmt.Sprintf("%s ", c.mmunit.unibus.psw.GetFlags())
+	out += fmt.Sprintf("%s ", c.unibus.Psw.GetFlags())
 
 	// instruction
 	out += fmt.Sprintf(" instr %06o: %06o   ", c.Registers[7]-2, instruction)
@@ -320,15 +324,15 @@ func (c *CPU) printState(instruction uint16) string {
 func (c *CPU) SetFlag(flag string, set bool) {
 	switch flag {
 	case "C":
-		c.mmunit.Psw.SetC(set)
+		c.unibus.Psw.SetC(set)
 	case "V":
-		c.mmunit.Psw.SetV(set)
+		c.unibus.Psw.SetV(set)
 	case "Z":
-		c.mmunit.Psw.SetZ(set)
+		c.unibus.Psw.SetZ(set)
 	case "N":
-		c.mmunit.Psw.SetN(set)
+		c.unibus.Psw.SetN(set)
 	case "T":
-		c.mmunit.Psw.SetT(set)
+		c.unibus.Psw.SetT(set)
 	}
 }
 
@@ -336,15 +340,15 @@ func (c *CPU) SetFlag(flag string, set bool) {
 func (c *CPU) GetFlag(flag string) bool {
 	switch flag {
 	case "C":
-		return c.mmunit.Psw.C()
+		return c.unibus.Psw.C()
 	case "V":
-		return c.mmunit.Psw.V()
+		return c.unibus.Psw.V()
 	case "Z":
-		return c.mmunit.Psw.Z()
+		return c.unibus.Psw.Z()
 	case "N":
-		return c.mmunit.Psw.N()
+		return c.unibus.Psw.N()
 	case "T":
-		return c.mmunit.Psw.T()
+		return c.unibus.Psw.T()
 	}
 	return false
 }
@@ -354,7 +358,7 @@ func (c *CPU) GetFlag(flag string) bool {
 // values are as they are used in the PSW
 func (c *CPU) SwitchMode(m uint16) {
 	// save processor stack pointers:
-	if c.mmunit.Psw.GetMode() == 3 {
+	if c.unibus.Psw.GetMode() == 3 {
 		c.UserStackPointer = c.Registers[6]
 	} else {
 		c.KernelStackPointer = c.Registers[6]
@@ -366,40 +370,23 @@ func (c *CPU) SwitchMode(m uint16) {
 	} else {
 		c.Registers[6] = c.KernelStackPointer
 	}
-	c.mmunit.Psw.SwitchMode(m)
+	c.unibus.Psw.SwitchMode(m)
 }
 
 // Trap handles all Trap / abort events.
 func (c *CPU) Trap(trap interrupts.Trap) {
 	if debug || trapDebug {
 		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
-
-		if trap.Vector == 0250 {
-			c.mmunit.DumpMemory()
-			fmt.Printf("D: PDR: [")
-			for _, v := range c.mmunit.PDR {
-				fmt.Printf(" %o ", v)
-			}
-			fmt.Printf(" ]\n")
-
-			fmt.Printf("D: PAR: [")
-			for _, v := range c.mmunit.PAR {
-				fmt.Printf(" %o ", v)
-			}
-			fmt.Printf(" ]\n")
-
-			panic("dying the death of trap 0250")
-		}
 	}
-	prevPSW := c.mmunit.Psw.Get()
+	prevPSW := c.unibus.Psw.Get()
 
 	defer func(vec, prevPSW uint16) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
 			fmt.Printf("RED STACK TRAP!")
-			c.mmunit.Memory[0] = c.Registers[7]
-			c.mmunit.Memory[1] = prevPSW
+			c.unibus.Memory[0] = c.Registers[7]
+			c.unibus.Memory[1] = prevPSW
 			vec = 4
 			panic("FATAL")
 		case nil:
@@ -408,9 +395,9 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 			panic(t)
 		}
 		c.Registers[7] = c.mmunit.ReadWordByPhysicalAddress(uint32(vec))
-		c.mmunit.Psw.Set(c.mmunit.ReadWordByPhysicalAddress(uint32(vec) + 2))
+		c.unibus.Psw.Set(c.mmunit.ReadWordByPhysicalAddress(uint32(vec) + 2))
 		if prevPSW>>14 == 3 {
-			c.mmunit.Psw.Set(c.mmunit.Psw.Get() | (1 << 13) | (1 << 12))
+			c.unibus.Psw.Set(c.unibus.Psw.Get() | (1 << 13) | (1 << 12))
 		}
 	}(trap.Vector, prevPSW)
 
@@ -502,15 +489,14 @@ func (c *CPU) Reset() {
 		c.Registers[i] = 0
 	}
 	for i := 0; i < 16; i++ {
-		c.mmunit.PAR[i] = 0
-		c.mmunit.PDR[i] = 0
+		c.mmunit.SetPage(i, page{par: 0, pdr: 0})
 	}
 
 	c.KernelStackPointer = 0
 	c.UserStackPointer = 0
-	c.mmunit.SR0 = 0
+	c.mmunit.SetSR0(0)
 	c.ClockCounter = 0
-	c.mmunit.unibus.Rk01.Reset()
+	c.unibus.Rk01.Reset()
 	c.State = CPURUN
 }
 

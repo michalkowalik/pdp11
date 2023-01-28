@@ -1,4 +1,4 @@
-package mmu
+package unibus
 
 import "testing"
 

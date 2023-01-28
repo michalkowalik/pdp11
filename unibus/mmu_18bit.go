@@ -226,6 +226,11 @@ func (m *MMU18Bit) mapVirtualToPhysical(virtualAddress uint16, write bool, mode 
 	return physAddress
 }
 
+// to fulfill interface requirements
+func (m *MMU18Bit) decode(vAddr uint16, write bool, mode uint16) uint18 {
+	return uint18(m.mapVirtualToPhysical(vAddr, write, mode))
+}
+
 // ReadMemoryWord reads a word from virtual address addr
 // Funny complication: A trap needs to be thrown if case it is an odd address
 // but not if it it is an register address -> then it's OK.
