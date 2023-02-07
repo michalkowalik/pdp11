@@ -1,6 +1,7 @@
 package system
 
 import (
+	"fmt"
 	"go/build"
 	"path/filepath"
 	"pdp/console"
@@ -38,7 +39,9 @@ func InitializeSystem(
 	sys.unibus.PdpCPU.Reset()
 
 	// mount drive
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp/rk0")); err != nil {
+	fp := filepath.Join(build.Default.GOPATH, "src/priv/pdp11/rk0")
+	fmt.Printf("Disk image path: %s\n", fp)
+	if err := sys.unibus.Rk01.Attach(0, fp); err != nil {
 		panic("Can't mount the drive")
 	}
 
