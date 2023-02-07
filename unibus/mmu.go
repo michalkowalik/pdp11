@@ -2,7 +2,8 @@ package unibus
 
 /*
 
-Interfaces and type definitions for the 18 bit MMU, as used in PDP11/40
+Interfaces and type definitions for the MMU
+(should definitely work for 18bit MMU, as used in 11/40)
 
 */
 
@@ -35,5 +36,5 @@ type MMU interface {
 	SetPage(i int, p page)
 
 	// Debugging methods
-	DumpMemory()
+	DumpMemory() error
 }

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestUnibus_ReadIOPage(t *testing.T) {
+func TestUnibus_ReadIO(t *testing.T) {
 	type args struct {
 		physicalAddress uint32
 		byteFlag        bool
@@ -21,13 +21,13 @@ func TestUnibus_ReadIOPage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.Psw.Set(tt.want)
-			got, err := u.ReadIOPage(tt.args.physicalAddress)
+			got, err := u.ReadIO(tt.args.physicalAddress)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Unibus.ReadIOPage() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Unibus.ReadIO() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Unibus.ReadIOPage() = %v, want %v", got, tt.want)
+				t.Errorf("Unibus.ReadIO() = %v, want %v", got, tt.want)
 			}
 		})
 	}

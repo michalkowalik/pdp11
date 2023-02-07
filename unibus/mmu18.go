@@ -89,6 +89,7 @@ func (m *MMU18) MmuEnabled() bool {
 	return m.SR0&1 == 1
 }
 
+// Decode 16 bit virtual address to 18 bit physical address
 func (m *MMU18) Decode(a uint16, w, user bool) (addr uint18) {
 	if !m.MmuEnabled() {
 		aa := uint18(a)
@@ -154,9 +155,11 @@ func (m *MMU18) Decode(a uint16, w, user bool) (addr uint18) {
 
 }
 
+/*
 func (m *MMU18) DumpMemory() {
 	// TODO: finish
 }
+*/
 
 func (m *MMU18) GetSR0() uint16 {
 	return m.SR0
@@ -164,6 +167,10 @@ func (m *MMU18) GetSR0() uint16 {
 
 func (m *MMU18) GetSR2() uint16 {
 	return m.SR2
+}
+
+func (m *MMU18) SetSR0(v uint16) {
+	m.SR0 = v
 }
 
 func (m *MMU18) SetSR2(v uint16) {

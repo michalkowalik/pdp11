@@ -386,8 +386,8 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	case dest&0177770 == 0170000:
 		panic("MFPI attended on Register address")
 	default:
-		physicalAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevMode)
-		val = c.mmunit.ReadWordByPhysicalAddress(physicalAddress)
+		physicalAddress := c.mmunit.Decode(dest, false, prevMode == 3) // TODO: Change to user
+		val = c.unibus.ReadIO(physicalAddress)
 	}
 
 	c.Push(val)
@@ -419,8 +419,8 @@ func (c *CPU) mtpiOp(instruction uint16) {
 	case destAddr&0177770 == 0170000:
 		panic("MTPI attended on Register address")
 	default:
-		sourceAddress := c.mmunit.mapVirtualToPhysical(destAddr, false, prevMode)
-		c.mmunit.WriteWordByPhysicalAddress(sourceAddress, val)
+		sourceAddress := c.mmunit.Decode(destAddr, false, prevMode == 3)
+		c.unibus.WriteIO(sourceAddress, val)
 	}
 
 	c.unibus.Psw.Set(c.unibus.Psw.Get() & 0xFFFF)
@@ -546,8 +546,8 @@ func (c *CPU) waitOp(instruction uint16) {
 // Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
 // TODO: user mode?
 func (c *CPU) resetOp(instruction uint16) {
-	c.mmunit.unibus.Rk01.Reset()
-	c.mmunit.unibus.TermEmulator.ClearTerminal()
+	c.unibus.Rk01.Reset()
+	c.unibus.TermEmulator.ClearTerminal()
 }
 
 // compare (2) - byte op included
@@ -711,7 +711,8 @@ func (c *CPU) jsrOp(instruction uint16) {
 
 	if c.Registers[register] == 0554 {
 		fmt.Printf("!!\n %s", c.printState(instruction))
-		fmt.Printf("%s\n !!\n", c.mmunit.unibus.Disasm(instruction))
+		// TODO: FIX
+		//fmt.Printf("%s\n !!\n", c.unibus.Disasm(instruction))
 	}
 
 	c.Push(c.Registers[register])

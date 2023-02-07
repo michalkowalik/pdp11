@@ -169,8 +169,6 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 		} else {
 			t.TKS &= ^(uint16(1 << 6))
 		}
-		break
-
 	// printer control & status
 	case 0564:
 		if data&(1<<6) != 0 {
@@ -178,8 +176,6 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 		} else {
 			t.TPS &= ^(uint16(1 << 6))
 		}
-		break
-
 	// output
 	// side note:
 	// The original implementation introduces 1ms timeouts before setting the register value
@@ -196,17 +192,17 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 }
 
 // ReadTerm : read from terminal memory at address address
-func (t *Simple) ReadTerm(address uint32) (uint16, error) {
+func (t *Simple) ReadTerm(address uint32) uint16 {
 	switch address & 0777 {
 	case 0560:
-		return t.TKS, nil
+		return t.TKS
 	case 0562:
-		return t.getChar(), nil
+		return t.getChar()
 	case 0564:
-		return t.TPS, nil
+		return t.TPS
 	case 0566:
-		return 0, nil
+		return 0
 	default:
-		return 0, fmt.Errorf("read from invalid address: %o", address)
+		panic(fmt.Sprintf("TERM: Read from invalid address: %o\n", address))
 	}
 }

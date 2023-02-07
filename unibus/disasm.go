@@ -76,21 +76,20 @@ var disasmtable = []struct {
 	{0170000, 0170000, "FP", 0, false},
 }
 
-func (u *Unibus) disasmaddr(m uint16, a uint16) string {
-	aa := u.Mmu.mapVirtualToPhysical(a, false, u.Psw.GetMode())
+func (u *Unibus) disasmaddr(m uint16, a uint18) string {
 	if (m & 7) == 7 {
 		switch m {
 		case 027:
-			aa += 2
-			return fmt.Sprintf("$%06o", u.Mmu.ReadWordByPhysicalAddress(aa))
+			a += 2
+			return fmt.Sprintf("$%06o", u.ReadIO(a))
 		case 037:
-			aa += 2
-			return fmt.Sprintf("*%06o", u.Mmu.ReadWordByPhysicalAddress(aa))
+			a += 2
+			return fmt.Sprintf("*%06o", u.ReadIO(a))
 		case 067:
-			aa += 2
-			return fmt.Sprintf("*%06o", (aa+2+uint32(u.Mmu.ReadWordByPhysicalAddress(aa)))&0xFFFF)
+			a += 2
+			return fmt.Sprintf("*%06o", (a+2+uint18(u.ReadIO(a)))&0xFFFF)
 		case 077:
-			return fmt.Sprintf("**%06o", (aa+2+uint32(u.Mmu.ReadWordByPhysicalAddress(aa)))&0xFFFF)
+			return fmt.Sprintf("**%06o", (a+2+uint18(u.ReadIO(a)))&0xFFFF)
 		}
 	}
 	r := rs[m&7]
@@ -109,18 +108,17 @@ func (u *Unibus) disasmaddr(m uint16, a uint16) string {
 		return "*-(" + r + ")"
 	case 060:
 		a += 2
-		return fmt.Sprintf("%06o (%s)", u.Mmu.ReadMemoryWord(a), r)
+		return fmt.Sprintf("%06o (%s)", u.ReadIO(a), r)
 	case 070:
 		a += 2
-		return fmt.Sprintf("*%06o (%s)", u.Mmu.ReadMemoryWord(a), r)
+		return fmt.Sprintf("*%06o (%s)", u.ReadIO(a), r)
 	}
 	panic(fmt.Sprintf("disasmaddr: unknown addressing mode, register %v, mode %o", r, m&070))
 }
 
 // Disasm produces disassemled symbols out of 16 bit instruction
-func (u *Unibus) Disasm(a uint16) string {
-	ins := a
-	a = u.PdpCPU.Registers[7] - 2
+func (u *Unibus) Disasm(a uint18) string {
+	ins := u.ReadIO(a)
 	l := disasmtable[0]
 
 	for i := 0; i < len(disasmtable); i++ {

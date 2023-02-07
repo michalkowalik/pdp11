@@ -29,7 +29,7 @@ var (
 // CPU type:
 type CPU struct {
 	Registers [8]uint16
-	State     int
+	State     int // what is it doing? used for anything?
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
@@ -65,7 +65,7 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 	c.mmunit = mmunit
 	c.ClockCounter = 0
 	debug = debugMode
-	unibus = unibus
+	c.unibus = unibus
 
 	// single operand
 	c.singleOpOpcodes = make(map[uint16]func(uint16))
@@ -177,7 +177,8 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	instruction := c.mmunit.ReadMemoryWord(c.Registers[7])
+	physicalAddress := c.mmunit.Decode(c.Registers[7], false, c.unibus.Psw.GetMode() == 3)
+	instruction := c.unibus.ReadIO(physicalAddress)
 	c.Registers[7] += 2
 	return instruction
 }
@@ -236,7 +237,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 	}
 
 	// at this point it can be only an invalid instruction:
-	fmt.Printf(c.printState(instr))
+	fmt.Print(c.printState(instr))
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
@@ -247,8 +248,9 @@ func (c *CPU) Execute() {
 	opcode := c.Decode(instruction)
 
 	if debug {
-		fmt.Printf(c.printState(instruction))
-		fmt.Printf("%s\n", c.unibus.Disasm(instruction))
+		fmt.Print(c.printState(instruction))
+		// TODO: FIX
+		//fmt.Printf("%s\n", c.unibus.Disasm(instruction))
 	}
 	// is it time to die?
 	/*
@@ -394,8 +396,8 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 		default:
 			panic(t)
 		}
-		c.Registers[7] = c.mmunit.ReadWordByPhysicalAddress(uint32(vec))
-		c.unibus.Psw.Set(c.mmunit.ReadWordByPhysicalAddress(uint32(vec) + 2))
+		c.Registers[7] = c.unibus.ReadIO(uint18(vec))
+		c.unibus.Psw.Set(c.unibus.ReadIO(uint18(vec) + 2))
 		if prevPSW>>14 == 3 {
 			c.unibus.Psw.Set(c.unibus.Psw.Get() | (1 << 13) | (1 << 12))
 		}
@@ -500,6 +502,7 @@ func (c *CPU) Reset() {
 	c.State = CPURUN
 }
 
+/*
 // debug:
 // true if all registers have the same value. don't panic immediately, there might be a panic counter somewhere.
 func (c *CPU) timeToDie(registers []uint16) bool {
@@ -510,3 +513,4 @@ func (c *CPU) timeToDie(registers []uint16) bool {
 	}
 	return true
 }
+*/

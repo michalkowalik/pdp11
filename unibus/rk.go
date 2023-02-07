@@ -112,7 +112,7 @@ func (r *RK11) rkNotReady() {
 }
 
 // read and return drive register value
-func (r *RK11) read(address uint32) uint16 {
+func (r *RK11) read(address uint18) uint16 {
 	if RKDEBUG {
 		fmt.Printf("RK: Reading from address %o\n", address)
 	}
@@ -210,16 +210,12 @@ func (r *RK11) rkError(code uint16) {
 	switch code {
 	case rkOvr:
 		msg = "operation overflowed the disk"
-		break
 	case rkNxd:
 		msg = "invalid disk accessed"
-		break
 	case rkNxc:
 		msg = "invalid cylinder accessed"
-		break
 	case rkNxs:
 		msg = "invalid sector accessed"
-		break
 	}
 	panic(msg)
 }
@@ -279,7 +275,7 @@ func (r *RK11) Step() {
 			if RKDEBUG {
 				fmt.Printf("RK WRITE: RKBA: %o, RKWC: %o \n", r.RKBA, r.RKWC)
 			}
-			val := r.unibus.Mmu.ReadWordByPhysicalAddress(r.RKBA)
+			val := r.unibus.ReadIO(uint18(r.RKBA))
 			unit.rdisk[pos] = byte(val & 0xFF)
 			unit.rdisk[pos+1] = byte((val >> 8) & 0xFF)
 		} else {
@@ -288,8 +284,8 @@ func (r *RK11) Step() {
 			}
 			// TODO: monitor if it's fine. this implementation does not take care of
 			// bits 4 and 5 of rkcs, which should be used on systems with extended memory
-			r.unibus.Mmu.WriteWordByPhysicalAddress(
-				r.RKBA,
+			r.unibus.WriteIO(
+				uint18(r.RKBA),
 				uint16(unit.rdisk[pos])|uint16(unit.rdisk[pos+1])<<8)
 		}
 		r.RKBA += 2
