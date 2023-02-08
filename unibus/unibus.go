@@ -79,7 +79,7 @@ func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 }
 
 // get Register value for address:
-func (u *Unibus) getRegisterValue(addr uint18) uint16 {
+func (u *Unibus) getRegisterValue(addr Uint18) uint16 {
 	return u.PdpCPU.Registers[addr&07]
 }
 
@@ -88,7 +88,7 @@ func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
 }
 
 // ReadIO reads from unibus devices.
-func (u *Unibus) ReadIO(physicalAddress uint18) uint16 {
+func (u *Unibus) ReadIO(physicalAddress Uint18) uint16 {
 	switch {
 	case physicalAddress&1 == 1:
 		panic(interrupts.Trap{
@@ -124,7 +124,7 @@ func (u *Unibus) ReadIO(physicalAddress uint18) uint16 {
 }
 
 // WriteIO writes to the unibus connected device
-func (u *Unibus) WriteIO(physicalAddress uint18, data uint16) {
+func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 	switch {
 	case physicalAddress&1 == 1:
 		panic(interrupts.Trap{

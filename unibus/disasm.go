@@ -76,7 +76,7 @@ var disasmtable = []struct {
 	{0170000, 0170000, "FP", 0, false},
 }
 
-func (u *Unibus) disasmaddr(m uint16, a uint18) string {
+func (u *Unibus) disasmaddr(m uint16, a Uint18) string {
 	if (m & 7) == 7 {
 		switch m {
 		case 027:
@@ -87,9 +87,9 @@ func (u *Unibus) disasmaddr(m uint16, a uint18) string {
 			return fmt.Sprintf("*%06o", u.ReadIO(a))
 		case 067:
 			a += 2
-			return fmt.Sprintf("*%06o", (a+2+uint18(u.ReadIO(a)))&0xFFFF)
+			return fmt.Sprintf("*%06o", (a+2+Uint18(u.ReadIO(a)))&0xFFFF)
 		case 077:
-			return fmt.Sprintf("**%06o", (a+2+uint18(u.ReadIO(a)))&0xFFFF)
+			return fmt.Sprintf("**%06o", (a+2+Uint18(u.ReadIO(a)))&0xFFFF)
 		}
 	}
 	r := rs[m&7]
@@ -117,7 +117,7 @@ func (u *Unibus) disasmaddr(m uint16, a uint18) string {
 }
 
 // Disasm produces disassemled symbols out of 16 bit instruction
-func (u *Unibus) Disasm(a uint18) string {
+func (u *Unibus) Disasm(a Uint18) string {
 	ins := u.ReadIO(a)
 	l := disasmtable[0]
 

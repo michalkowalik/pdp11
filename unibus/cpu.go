@@ -399,8 +399,8 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 		default:
 			panic(t)
 		}
-		c.Registers[7] = c.unibus.ReadIO(uint18(vec))
-		c.unibus.Psw.Set(c.unibus.ReadIO(uint18(vec) + 2))
+		c.Registers[7] = c.unibus.ReadIO(Uint18(vec))
+		c.unibus.Psw.Set(c.unibus.ReadIO(Uint18(vec) + 2))
 		if prevPSW>>14 == 3 {
 			c.unibus.Psw.Set(c.unibus.Psw.Get() | (1 << 13) | (1 << 12))
 		}

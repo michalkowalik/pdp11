@@ -20,7 +20,7 @@ func (p *page) ed() bool     { return p.pdr&8 == 8 }
 func (p *page) addr() uint16 { return p.par & 07777 }
 func (p *page) len() uint16  { return (p.pdr >> 8) & 0x7f }
 
-func (m *MMU18) Read16(addr uint18) uint16 {
+func (m *MMU18) Read16(addr Uint18) uint16 {
 	i := (addr & 017) >> 1
 
 	// kernel space:
@@ -54,7 +54,7 @@ func (m *MMU18) ReadMemoryByte(a uint16) byte {
 	return 0
 }
 
-func (m *MMU18) Write16(addr uint18, data uint16) {
+func (m *MMU18) Write16(addr Uint18, data uint16) {
 	i := ((addr & 017) >> 1)
 	if (addr >= 0772300) && (addr < 0772320) {
 		m.pages[i].pdr = data
@@ -90,9 +90,9 @@ func (m *MMU18) MmuEnabled() bool {
 }
 
 // Decode 16 bit virtual address to 18 bit physical address
-func (m *MMU18) Decode(a uint16, w, user bool) (addr uint18) {
+func (m *MMU18) Decode(a uint16, w, user bool) (addr Uint18) {
 	if !m.MmuEnabled() {
-		aa := uint18(a)
+		aa := Uint18(a)
 		if aa >= 0170000 {
 			aa += 0600000
 		}
@@ -130,7 +130,7 @@ func (m *MMU18) Decode(a uint16, w, user bool) (addr uint18) {
 		})
 	}
 	block := (a >> 6) & 0177
-	disp := uint18(a & 077)
+	disp := Uint18(a & 077)
 	if p.ed() && block < p.len() || !p.ed() && block > p.len() {
 		//if(p.ed ? (block < p.len) : (block > p.len)) {
 		m.SR0 = (1 << 14) | 1
@@ -147,7 +147,7 @@ func (m *MMU18) Decode(a uint16, w, user bool) (addr uint18) {
 	if w {
 		p.pdr |= 1 << 6
 	}
-	aa := ((uint18(block) + uint18(p.addr())) << 6) + disp
+	aa := ((Uint18(block) + Uint18(p.addr())) << 6) + disp
 	if DEBUG_MMU {
 		fmt.Printf("decode: slow %06o -> %06o\n", a, aa)
 	}
