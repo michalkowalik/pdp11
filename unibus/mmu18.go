@@ -85,12 +85,24 @@ func (m *MMU18) Write16(addr Uint18, data uint16) {
 }
 
 func (m *MMU18) WriteMemoryWord(addr, data uint16) {
+	if addr&0177770 == RegisterAddressVirtual {
+		m.unibus.PdpCPU.Registers[addr&7] = data
+		return
+	}
+
 	pAddr := m.Decode(addr, true, m.unibus.Psw.GetMode() == 3)
 	m.unibus.WriteIO(pAddr, data)
 }
 
 func (m *MMU18) WriteMemoryByte(addr uint16, data byte) {
-	//TODO: finish
+	// modify register directly:
+	if (addr & 0177770) == 0177700 {
+		m.unibus.PdpCPU.Registers[addr&7] = uint16(data)
+		return
+	}
+
+	pAddr := m.Decode(addr, true, m.unibus.Psw.GetMode() == 3)
+	m.unibus.WriteIOByte(pAddr, uint16(data))
 }
 
 func (m *MMU18) MmuEnabled() bool {
