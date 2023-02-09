@@ -41,6 +41,11 @@ func (psw *PSW) GetMode() uint16 {
 	return uint16(*psw >> 14)
 }
 
+// it was just called way too often
+func (psw *PSW) IsUserMode() bool {
+	return psw.GetMode() == 3
+}
+
 // GetPreviousMode returns previous system mode: 3 for user, 0 for kernel
 func (psw *PSW) GetPreviousMode() uint16 {
 	return uint16((*psw >> 12) & 03)

@@ -222,7 +222,7 @@ func (c *CPU) asrOp(instruction uint16) {
 	c.SetFlag("Z", result == 0)
 
 	// V flag is a XOR on C and N flag, but golang doesn't provide boolean XOR
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 }
 
 func (c *CPU) asrbOp(instruction uint16) {
@@ -236,7 +236,7 @@ func (c *CPU) asrbOp(instruction uint16) {
 	c.SetFlag("Z", result == 0)
 
 	// V flag is a XOR on C and N flag, but golang doesn't provide boolean XOR
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 }
 
 // asl - arithmetic shift left
@@ -251,7 +251,7 @@ func (c *CPU) aslOp(instruction uint16) {
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("C", (dest&0x8000) == 0x8000)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryWord(destAddr, result)
 }
 
@@ -262,7 +262,7 @@ func (c *CPU) aslbOp(instruction uint16) {
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", (result&0x80) == 0x80)
 	c.SetFlag("C", (dest&0x80) == 0x80)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryByte(destAddr, result)
 }
 
@@ -278,7 +278,7 @@ func (c *CPU) rorOp(instruction uint16) {
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("C", cBit > 0)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryWord(destAddr, result)
 }
 
@@ -290,7 +290,7 @@ func (c *CPU) rorbOp(instruction uint16) {
 	c.SetFlag("N", (result&0x80) == 0x80)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("C", cBit > 0)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryByte(destAddr, result)
 }
 
@@ -309,7 +309,7 @@ func (c *CPU) rolOp(instruction uint16) {
 	c.SetFlag("C", (dest&0x8000) == 0x8000)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("N", (res&0x8000) == 0x8000)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryWord(dstAddr, res)
 }
 
@@ -324,7 +324,7 @@ func (c *CPU) rolbOp(instruction uint16) {
 	c.SetFlag("C", (dest&0x80) == 0x80)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("N", (res&0x80) == 0x80)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryByte(dstAddr, res)
 }
 
@@ -386,7 +386,7 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	case dest&0177770 == 0170000:
 		panic("MFPI attended on Register address")
 	default:
-		physicalAddress := c.mmunit.Decode(dest, false, prevMode == 3) // TODO: Change to user
+		physicalAddress := c.mmunit.Decode(dest, false, prevMode == psw.UserMode) // TODO: Change to user
 		val = c.unibus.ReadIO(physicalAddress)
 	}
 
@@ -419,7 +419,7 @@ func (c *CPU) mtpiOp(instruction uint16) {
 	case destAddr&0177770 == 0170000:
 		panic("MTPI attended on Register address")
 	default:
-		sourceAddress := c.mmunit.Decode(destAddr, false, prevMode == 3)
+		sourceAddress := c.mmunit.Decode(destAddr, false, prevMode == psw.UserMode)
 		c.unibus.WriteIO(sourceAddress, val)
 	}
 

@@ -8,6 +8,9 @@ import (
 // DumpMemory writes "size" words into file
 func (m *MMU18) DumpMemory() error {
 	file, err := os.Create("mem_dmp.txt")
+	if err != nil {
+		return err
+	}
 
 	defer file.Close()
 	for i := 0; i < 0760000/2; i++ {

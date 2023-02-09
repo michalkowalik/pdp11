@@ -136,7 +136,8 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 	c.controlOpcodes[01400] = c.beqOp
 	c.controlOpcodes[0100000] = c.bplOp
 	c.controlOpcodes[0100400] = c.bmiOp
-	c.controlOpcodes[0102000] = c.bvsOp
+	c.controlOpcodes[0102000] = c.bvcOp
+	c.controlOpcodes[0102400] = c.bvsOp
 	c.controlOpcodes[0103000] = c.bccOp
 	c.controlOpcodes[0103400] = c.bcsOp
 	c.controlOpcodes[0104000] = c.emtOp
@@ -177,7 +178,7 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	physicalAddress := c.mmunit.Decode(c.Registers[7], false, c.unibus.Psw.GetMode() == 3)
+	physicalAddress := c.mmunit.Decode(c.Registers[7], false, c.unibus.Psw.IsUserMode())
 	instruction := c.unibus.ReadIO(physicalAddress)
 	c.Registers[7] += 2
 	return instruction
@@ -250,7 +251,7 @@ func (c *CPU) Execute() {
 	if debug {
 		fmt.Print(c.printState(instruction))
 		// TODO: FIX
-		//fmt.Printf("%s\n", c.unibus.Disasm(instruction))
+		fmt.Printf("%s\n", c.unibus.Disasm(instruction))
 	}
 	opcode(instruction)
 }
@@ -335,7 +336,7 @@ func (c *CPU) GetFlag(flag string) bool {
 // values are as they are used in the PSW
 func (c *CPU) SwitchMode(m uint16) {
 	// save processor stack pointers:
-	if c.unibus.Psw.GetMode() == 3 {
+	if c.unibus.Psw.IsUserMode() {
 		c.UserStackPointer = c.Registers[6]
 	} else {
 		c.KernelStackPointer = c.Registers[6]

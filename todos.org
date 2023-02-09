@@ -1,11 +1,18 @@
 * Current Todos
-** Unibus [2/2]
+** Unibus [2/3]
 - [X] ~ReadIoPage~ and ~WriteIOPage~ are actually wrongly named - they read a Word, not a Page
 - [X] Use the memory array defined in Unibus
 - [ ] Read/Write Byte in Unibus implementation
+  - technically they're done. more testing still needed.
 
-** CPU [0/1]
-- [ ] what are the ~readByte~, ~readWord~, and ~writeWord~ functions in CPU implementation needed for?
-- [ ] re-enable debug output
-- [ ] Tests are broken - they should use correct MMU
+*** MMU [0/1]
+- [ ] change the way the user / kernel mode is being determined. that boolean is kind of weird. just stick to 0 for user and 3 for kernel
+
+** CPU [3/4]
+- [X] what are the ~readByte~, ~readWord~, and ~writeWord~ functions in CPU implementation needed for?
+  - they're just a helper methods. nothing nefarious is going on there.
+    they decode the virtual address from the opcode's operand and read the memory value using the usual mmmu/unibus combo
+- [X] re-enable debug output
+- [X] Tests are broken - they should use correct MMU
 - [ ] how DC deals with access to the Registers via Unibus address?
+  - Not sure if it's at all interesting right now.
