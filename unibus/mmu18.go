@@ -8,6 +8,9 @@ import (
 // I think it acutally is being called KT11
 const DEBUG_MMU = false
 
+// RegisterAddressVirtual - begin of register address in 16 bit space
+const RegisterAddressVirtual = 0177700
+
 type MMU18 struct {
 	SR0, SR2 uint16
 	pages    [16]page
@@ -45,13 +48,17 @@ func (m *MMU18) Read16(addr Uint18) uint16 {
 }
 
 func (m *MMU18) ReadMemoryWord(a uint16) uint16 {
-	// TODO:Finish
-	return 0
+	if a&0177770 == RegisterAddressVirtual {
+		return m.unibus.PdpCPU.Registers[a&7]
+	}
+
+	pAddr := m.Decode(a, false, m.unibus.Psw.GetMode() == 3)
+	return m.unibus.ReadIO(pAddr)
 }
 
 func (m *MMU18) ReadMemoryByte(a uint16) byte {
-	//TODO: finish
-	return 0
+	pAddr := m.Decode(a, false, m.unibus.Psw.Get() == 3)
+	return byte(m.unibus.ReadIOByte(pAddr))
 }
 
 func (m *MMU18) Write16(addr Uint18, data uint16) {
@@ -78,7 +85,8 @@ func (m *MMU18) Write16(addr Uint18, data uint16) {
 }
 
 func (m *MMU18) WriteMemoryWord(addr, data uint16) {
-	// TODO:Finish
+	pAddr := m.Decode(addr, true, m.unibus.Psw.GetMode() == 3)
+	m.unibus.WriteIO(pAddr, data)
 }
 
 func (m *MMU18) WriteMemoryByte(addr uint16, data byte) {
@@ -154,12 +162,6 @@ func (m *MMU18) Decode(a uint16, w, user bool) (addr Uint18) {
 	return aa
 
 }
-
-/*
-func (m *MMU18) DumpMemory() {
-	// TODO: finish
-}
-*/
 
 func (m *MMU18) GetSR0() uint16 {
 	return m.SR0

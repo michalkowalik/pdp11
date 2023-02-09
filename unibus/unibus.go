@@ -123,6 +123,15 @@ func (u *Unibus) ReadIO(physicalAddress Uint18) uint16 {
 	}
 }
 
+//TODO: Finish
+func (u *Unibus) ReadIOByte(physicalAddress Uint18) uint16 {
+	val := u.ReadIO(physicalAddress & ^Uint18(1))
+	if physicalAddress&1 != 0 {
+		return val >> 8
+	}
+	return val & 0xFF
+}
+
 // WriteIO writes to the unibus connected device
 func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 	switch {
@@ -156,4 +165,9 @@ func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
+}
+
+// TODO: Finish
+func (u *Unibus) WriteIOByte(physicalAddress Uint18, data uint16) {
+	// nothing to see here yet
 }

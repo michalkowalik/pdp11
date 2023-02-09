@@ -8,7 +8,7 @@ func TestMMU_ReadMemoryWord(t *testing.T) {
 	}
 	tests := []struct {
 		name string
-		m    *MMU
+		m    MMU
 		args args
 		want uint16
 	}{

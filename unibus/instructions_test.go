@@ -20,18 +20,16 @@ type flags struct {
 // global shared resources: CPU, memory etc.
 var c *CPU
 var u *Unibus
-var memory [0x400000]byte // 64KB of memory is all everyone needs
 
 // TestMain to resucure -> initialize memory and CPU
 func TestMain(m *testing.M) {
-	mmu := &MMU18Bit{}
 	p := psw.PSW(0)
-	mmu.Psw = &p
-	c = NewCPU(mmu, false)
 
 	var cons console.Console = console.NewSimple()
 	u = New(&p, nil, &cons, false)
-
+	u.Psw = &p
+	mmu := u.Mmu
+	c = NewCPU(mmu, u, false)
 	os.Exit(m.Run())
 }
 
@@ -54,7 +52,7 @@ func TestCPU_clrOp(t *testing.T) {
 	u.PdpCPU.Registers[6] = 0xfe
 
 	// come back here!!
-	u.Mmu.Memory[0xfe] = 2
+	u.Memory[0xfe] = 2
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,9 +85,9 @@ func TestCPU_addOp(t *testing.T) {
 	u.PdpCPU.Registers[1] = 0xfe
 	u.PdpCPU.Registers[2] = 0
 	u.PdpCPU.Registers[3] = 2
-	u.PdpCPU.mmunit.Memory[0x7f] = 0xff
-	u.PdpCPU.mmunit.Memory[0] = 2
-	u.PdpCPU.mmunit.Memory[2] = 0x300
+	u.Memory[0x7f] = 0xff
+	u.Memory[0] = 2
+	u.Memory[2] = 0x300
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -120,7 +118,7 @@ func TestCPU_movOp(t *testing.T) {
 
 	u.PdpCPU.Registers[0] = 0xfe
 	u.PdpCPU.Registers[1] = 0
-	u.Mmu.Memory[0x7f] = uint16(4)
+	u.Memory[0x7f] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -150,7 +148,7 @@ func TestCPU_movbOp(t *testing.T) {
 
 	u.PdpCPU.Registers[0] = 0xfe
 	u.PdpCPU.Registers[1] = 0
-	u.Mmu.Memory[0x7f] = uint16(4)
+	u.Memory[0x7f] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,7 +185,7 @@ func TestCPU_comOp(t *testing.T) {
 	}
 
 	u.PdpCPU.Registers[0] = 0xf0
-	u.Mmu.Memory[0xff] = uint16(4)
+	u.Memory[0xff] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

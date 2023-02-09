@@ -130,7 +130,7 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		default:
 			panic(t)
 		}
-		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
+		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector) // TODO: fix
 		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
 
 		if (prev & (1 << 14)) > 0 {

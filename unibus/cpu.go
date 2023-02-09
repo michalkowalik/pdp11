@@ -21,7 +21,7 @@ const (
 
 // add debug output to the console
 var (
-	debug     = false
+	debug     = true
 	trapDebug = true
 	// panicCounter = 0
 )
@@ -252,31 +252,6 @@ func (c *CPU) Execute() {
 		// TODO: FIX
 		//fmt.Printf("%s\n", c.unibus.Disasm(instruction))
 	}
-	// is it time to die?
-	/*
-		if instruction == 014104 {
-			if c.timeToDie([]uint16{0, 0141574, 0103, 0113162, 0177404, 0141574, 0141564, 03572}) {
-				if panicCounter == 1 {
-					c.mmunit.DumpMemory()
-
-					fmt.Printf("D: PDR: [")
-					for _, v := range c.mmunit.PDR {
-						fmt.Printf(" %o ", v)
-					}
-					fmt.Printf(" ]\n")
-
-					fmt.Printf("D: PAR: [")
-					for _, v := range c.mmunit.PAR {
-						fmt.Printf(" %o ", v)
-					}
-					fmt.Printf(" ]\n")
-
-					panic("Yes, it's time to die")
-				}
-				panicCounter++
-			}
-		}
-	*/
 	opcode(instruction)
 }
 
@@ -379,9 +354,6 @@ func (c *CPU) SwitchMode(m uint16) {
 func (c *CPU) Trap(trap interrupts.Trap) {
 	if debug || trapDebug {
 		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
-		if trap.Vector == 4 {
-			panic("die!")
-		}
 	}
 	prevPSW := c.unibus.Psw.Get()
 

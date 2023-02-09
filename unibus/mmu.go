@@ -22,8 +22,6 @@ type MMU interface {
 	WriteMemoryByte(addr uint16, data byte)
 
 	MmuEnabled() bool
-
-	// let's add decode to the interface, will make the testing easier
 	Decode(a uint16, w, user bool) Uint18
 
 	// SR0 getter and setter

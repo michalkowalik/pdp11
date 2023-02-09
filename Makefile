@@ -1,5 +1,5 @@
 GO=go
-MODULES = pdp/mmu pdp/psw pdp/system pdp/unibus
+MODULES = pdp/psw pdp/system pdp/unibus
 
 build:
 	$(GO) build
