@@ -81,13 +81,13 @@ func (u *Unibus) disasmaddr(m uint16, a uint16) string {
 	if (m & 7) == 7 {
 		switch m {
 		case 027:
-			a += 2
-			return fmt.Sprintf("$%06o", u.ReadIOByte(physicalAddress))
+			physicalAddress += 2
+			return fmt.Sprintf("$%06o", u.ReadIO(physicalAddress))
 		case 037:
-			a += 2
+			physicalAddress += 2
 			return fmt.Sprintf("*%06o", u.ReadIO(physicalAddress))
 		case 067:
-			a += 2
+			physicalAddress += 2
 			return fmt.Sprintf("*%06o", (a+2+u.ReadIO(physicalAddress))&0xFFFF)
 		case 077:
 			return fmt.Sprintf("**%06o", (a+2+u.ReadIO(physicalAddress))&0xFFFF)

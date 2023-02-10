@@ -8,7 +8,7 @@
 *** MMU [0/1]
 - [ ] change the way the user / kernel mode is being determined. that boolean is kind of weird. just stick to 0 for user and 3 for kernel
 
-** CPU [3/4]
+** CPU [4/5]
 - [X] what are the ~readByte~, ~readWord~, and ~writeWord~ functions in CPU implementation needed for?
   - they're just a helper methods. nothing nefarious is going on there.
     they decode the virtual address from the opcode's operand and read the memory value using the usual mmmu/unibus combo
@@ -16,3 +16,5 @@
 - [X] Tests are broken - they should use correct MMU
 - [ ] how DC deals with access to the Registers via Unibus address?
   - Not sure if it's at all interesting right now.
+- [X] Basic functionality is restored. The simulator still crashes, but at least first 500
+      CPU operations are going well. That makes the search for the failure much easier.
