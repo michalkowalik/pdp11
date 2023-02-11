@@ -248,11 +248,10 @@ func (c *CPU) Execute() {
 	instruction := c.Fetch()
 	opcode := c.Decode(instruction)
 
-	//if debug {
-	fmt.Print(c.printState(instruction))
-	// TODO: FIX
-	fmt.Printf("%s\n", c.unibus.Disasm(instruction))
-	//}
+	if debug {
+		fmt.Print(c.printState(instruction))
+		fmt.Printf("%s\n", c.unibus.Disasm(instruction))
+	}
 	opcode(instruction)
 }
 
