@@ -440,15 +440,9 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 // Push to processor stack
 func (c *CPU) Push(v uint16) {
 	c.Registers[6] -= 2
-	if debug {
-		fmt.Printf("Pushing to stack. Value: %o. R6 value: %o\n", v, c.Registers[6])
-	}
-
-	// and this must be quite important, but for the love of god, I can't remember why
-	if v == 0554 && c.Registers[6] == 0177750 {
-		panic("pushing 554 to 177750")
-	}
-
+	//if debug {
+	//		fmt.Printf("Pushing to stack. Value: %o. R6 value: %o\n", v, c.Registers[6])
+	//}
 	c.mmunit.WriteMemoryWord(c.Registers[6], v)
 }
 
@@ -456,9 +450,9 @@ func (c *CPU) Push(v uint16) {
 func (c *CPU) Pop() uint16 {
 	val := c.mmunit.ReadMemoryWord(c.Registers[6])
 
-	if debug {
-		fmt.Printf("Popping from stack. Value: %o, R6 value %o\n", val, c.Registers[6])
-	}
+	//	if debug {
+	//fmt.Printf("Popping from stack. Value: %o, R6 value %o\n", val, c.Registers[6])
+	//}
 	c.Registers[6] += 2
 	return val
 }

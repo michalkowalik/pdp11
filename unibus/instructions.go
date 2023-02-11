@@ -187,7 +187,6 @@ func (c *CPU) sbcbOp(instruction uint16) {
 // tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
-
 	dest := c.readWord(instruction & 077)
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x8000) > 0)
