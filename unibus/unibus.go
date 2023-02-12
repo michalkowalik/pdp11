@@ -123,7 +123,6 @@ func (u *Unibus) ReadIO(physicalAddress Uint18) uint16 {
 	}
 }
 
-//TODO: Finish
 func (u *Unibus) ReadIOByte(physicalAddress Uint18) uint16 {
 	val := u.ReadIO(physicalAddress & ^Uint18(1))
 	if physicalAddress&1 != 0 {
@@ -167,7 +166,15 @@ func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 	}
 }
 
-// TODO: Finish
 func (u *Unibus) WriteIOByte(physicalAddress Uint18, data uint16) {
-	// nothing to see here yet
+	memoryWordContent := u.ReadIO(physicalAddress & ^Uint18(1))
+
+	// modify the correct byte
+	if physicalAddress&1 == 0 {
+		memoryWordContent = (memoryWordContent & 0xff00) | data
+	} else {
+		memoryWordContent = (memoryWordContent & 0xff) | (data << 8)
+	}
+
+	u.WriteIO(physicalAddress&0xfffe, memoryWordContent)
 }
