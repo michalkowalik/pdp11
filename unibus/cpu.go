@@ -354,9 +354,6 @@ func (c *CPU) SwitchMode(m uint16) {
 func (c *CPU) Trap(trap interrupts.Trap) {
 	if debug || trapDebug {
 		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
-		if trap.Vector == 4 {
-			panic("die!")
-		}
 	}
 	prevPSW := c.unibus.Psw.Get()
 

@@ -176,5 +176,5 @@ func (u *Unibus) WriteIOByte(physicalAddress Uint18, data uint16) {
 		memoryWordContent = (memoryWordContent & 0xff) | (data << 8)
 	}
 
-	u.WriteIO(physicalAddress&0xfffe, memoryWordContent)
+	u.WriteIO(physicalAddress & ^Uint18(1), memoryWordContent)
 }

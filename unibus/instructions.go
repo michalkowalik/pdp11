@@ -186,7 +186,7 @@ func (c *CPU) sbcbOp(instruction uint16) {
 // tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
-	dstAddr := c.GetVirtualByMode(instruction&077, 1)
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(dstAddr)
 
 	c.SetFlag("Z", dest == 0)
