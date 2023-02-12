@@ -405,9 +405,10 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 
 	switch addressMode {
 	case 0:
+		// register contains operand
 		virtAddress = 0177700 | reg
 	case 1:
-		// register keeps the address of the address:
+		// register contains the address of the operand
 		virtAddress = c.Registers[reg]
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)

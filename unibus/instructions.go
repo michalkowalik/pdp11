@@ -187,7 +187,12 @@ func (c *CPU) sbcbOp(instruction uint16) {
 // tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
-	dest := c.readWord(instruction & 077)
+	if instruction == 05712 {
+		fmt.Print("stop here")
+	}
+	dstAddr := c.GetVirtualByMode(instruction&077, 1)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
+
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x8000) > 0)
 	c.SetFlag("V", false)
@@ -707,12 +712,6 @@ func (c *CPU) jsrOp(instruction uint16) {
 	register := (instruction >> 6) & 7
 	destination := instruction & 077
 	val := c.GetVirtualByMode(destination, 0)
-
-	if c.Registers[register] == 0554 {
-		fmt.Printf("!!\n %s", c.printState(instruction))
-		// TODO: FIX
-		//fmt.Printf("%s\n !!\n", c.unibus.Disasm(instruction))
-	}
 
 	c.Push(c.Registers[register])
 	c.Registers[register] = c.Registers[7]
