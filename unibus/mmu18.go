@@ -5,7 +5,6 @@ import (
 	"pdp/interrupts"
 )
 
-// I think it acutally is being called KT11
 const DEBUG_MMU = false
 
 // RegisterAddressVirtual - begin of register address in 16 bit space
@@ -62,7 +61,7 @@ func (m *MMU18) ReadMemoryByte(a uint16) byte {
 }
 
 func (m *MMU18) Write16(addr Uint18, data uint16) {
-	i := ((addr & 017) >> 1)
+	i := (addr & 017) >> 1
 	if (addr >= 0772300) && (addr < 0772320) {
 		m.pages[i].pdr = data
 		return
@@ -81,7 +80,7 @@ func (m *MMU18) Write16(addr Uint18, data uint16) {
 	}
 	panic(interrupts.Trap{
 		Vector: interrupts.INTBus,
-		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", addr)})
+		Msg:    fmt.Sprintf("Attempt to write to an invalid address %06o", addr)})
 }
 
 func (m *MMU18) WriteMemoryWord(addr, data uint16) {

@@ -7,11 +7,9 @@ import (
 )
 
 func Test_cpu_Fetch(t *testing.T) {
-	tests := []struct {
+	var tests []struct {
 		name string
 		c    CPU
-	}{
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
