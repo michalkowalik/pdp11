@@ -141,9 +141,8 @@ func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 	case physicalAddress < MEMSIZE:
 		u.Memory[physicalAddress>>1] = data
 	case physicalAddress == PSWAddr:
-		// also : switch mode!
+		// switch mode
 		u.PdpCPU.SwitchMode(data >> 14)
-		// also: set flags:
 		u.Psw.Set(data)
 	case physicalAddress&RegAddr == RegAddr:
 		u.setRegisterValue(uint32(physicalAddress), data)

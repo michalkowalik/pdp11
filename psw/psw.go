@@ -41,7 +41,6 @@ func (psw *PSW) GetMode() uint16 {
 	return uint16(*psw >> 14)
 }
 
-// it was just called way too often
 func (psw *PSW) IsUserMode() bool {
 	return psw.GetMode() == 3
 }
