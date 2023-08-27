@@ -8,4 +8,4 @@ clean:
 	$(GO) clean
 
 tests:
-	$(GO) test $(MODULES)
+	$(GO) test -v $(MODULES)

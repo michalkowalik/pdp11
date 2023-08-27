@@ -331,8 +331,6 @@ func (c *CPU) GetFlag(flag string) bool {
 }
 
 // SwitchMode switches the kernel / user mode:
-// 3 for user, 0 for kernel, everything else is a mistake.
-// values are as they are used in the PSW
 func (c *CPU) SwitchMode(m uint16) {
 	// save processor stack pointers:
 	if c.unibus.Psw.IsUserMode() {
