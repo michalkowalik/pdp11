@@ -21,7 +21,7 @@ const (
 
 // add debug output to the console
 var (
-	debug     = true
+	debug     = false
 	trapDebug = true
 	// panicCounter = 0
 )

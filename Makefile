@@ -9,3 +9,6 @@ clean:
 
 tests:
 	$(GO) test -v $(MODULES)
+
+debug:
+	$(GO) build -gcflags="all=-N -l"

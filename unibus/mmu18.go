@@ -112,7 +112,7 @@ func (m *MMU18) MmuEnabled() bool {
 func (m *MMU18) Decode(a uint16, w, user bool) (addr Uint18) {
 	if !m.MmuEnabled() {
 		aa := Uint18(a)
-		if aa >= 0170000 {
+		if aa >= 0170000 { // unibus memory address space begin
 			aa += 0600000
 		}
 		if DEBUG_MMU {
@@ -151,7 +151,6 @@ func (m *MMU18) Decode(a uint16, w, user bool) (addr Uint18) {
 	block := (a >> 6) & 0177
 	disp := Uint18(a & 077)
 	if p.ed() && block < p.len() || !p.ed() && block > p.len() {
-		//if(p.ed ? (block < p.len) : (block > p.len)) {
 		m.SR0 = (1 << 14) | 1
 		m.SR0 |= (a >> 12) & ^uint16(1)
 		if user {

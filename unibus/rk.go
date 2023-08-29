@@ -21,10 +21,10 @@ const (
 	rkdaAddress = 0777412
 
 	// RK11 error codes:
-	rkOvr = (1 << 14)
-	rkNxd = (1 << 7)
-	rkNxc = (1 << 6)
-	rkNxs = (1 << 5)
+	rkOvr = 1 << 14
+	rkNxd = 1 << 7
+	rkNxc = 1 << 6
+	rkNxs = 1 << 5
 )
 
 // RK11 disk controller
@@ -185,7 +185,7 @@ func (r *RK11) rkgo() {
 		r.running = true
 		r.rkNotReady()
 	default:
-		panic(fmt.Sprintf("unimplemented RK5 operation %#o", ((r.RKCS & 017) >> 1)))
+		panic(fmt.Sprintf("unimplemented RK5 operation %#o", (r.RKCS&017)>>1))
 	}
 }
 
@@ -245,7 +245,7 @@ func (r *RK11) Step() {
 		r.rkReady()
 		return
 	default:
-		panic(fmt.Sprintf("unimplemented RK05 operation: %#o", ((r.RKCS & 017) >> 1)))
+		panic(fmt.Sprintf("unimplemented RK05 operation: %#o", (r.RKCS&017)>>1))
 	}
 
 	if RKDEBUG {

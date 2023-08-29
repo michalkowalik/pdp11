@@ -18,10 +18,10 @@ const KernelMode = 0
 // UserMode - processor mode
 const UserMode = 3
 
-// PSW keeps processsor status word
+// PSW keeps processor status word
 type PSW uint16
 
-// Get returns current processsor status word
+// Get returns current processor status word
 func (psw *PSW) Get() uint16 {
 	return uint16(*psw)
 }
@@ -96,7 +96,7 @@ func (psw *PSW) SetZ(status bool) {
 	psw.setFlag(zFlag, status)
 }
 
-// N retruns N flag
+// N returns N flag
 func (psw *PSW) N() bool {
 	return psw.getFlag(nFlag)
 }
