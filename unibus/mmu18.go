@@ -56,6 +56,10 @@ func (m *MMU18) ReadMemoryWord(a uint16) uint16 {
 }
 
 func (m *MMU18) ReadMemoryByte(a uint16) byte {
+	if a&0177770 == RegisterAddressVirtual {
+		return byte(m.unibus.PdpCPU.Registers[a&7] & 0xff)
+	}
+
 	pAddr := m.Decode(a, false, m.unibus.Psw.IsUserMode())
 	return byte(m.unibus.ReadIOByte(pAddr))
 }

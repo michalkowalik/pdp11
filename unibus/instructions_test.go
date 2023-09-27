@@ -164,6 +164,62 @@ func TestCPU_movbOp(t *testing.T) {
 	}
 }
 
+func TestCpu_movbOpWitZeroFlag(t *testing.T) {
+	instruction := uint16(0110367)
+	pc := uint16(016036)
+
+	u.PdpCPU.Registers[3] = 0
+	u.PdpCPU.Registers[7] = pc
+
+	// memory is defined as 128K WORDS, so if the address is in bytes, therefore it needs to be divided by 2
+	u.PdpCPU.unibus.Memory[pc>>1] = 4     // offset
+	u.PdpCPU.unibus.Memory[(pc>>1)+2] = 2 // initial value
+
+	opcode := u.PdpCPU.Decode(instruction)
+	opcode(instruction)
+
+	if u.PdpCPU.unibus.Memory[pc+4] != 0 {
+		t.Errorf("Expected memory address to contain 0, but got %x\n", u.PdpCPU.unibus.Memory[pc+4])
+	}
+
+	if !u.Psw.Z() {
+		t.Errorf("Expected Zero flag to be set")
+	}
+}
+
+func TestCpu_movbOpWithNFlag(t *testing.T) {
+
+	tests := []struct {
+		name  string
+		r3    uint16
+		nFlag bool
+	}{
+		{"MOVB positive value in R3", 0x7f, false},
+		{"MOVB negative value in R3", 0x80, true},
+		{"MOVB negative value in R3", 0xaa, true},
+	}
+	instruction := uint16(0110322)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u.PdpCPU.Registers[3] = tt.r3
+			u.PdpCPU.Registers[2] = 016036
+
+			u.Psw.SetN(false)
+			opcode := u.PdpCPU.Decode(instruction)
+			opcode(instruction)
+
+			if u.Psw.N() != tt.nFlag {
+				t.Errorf("Negative flag not expected")
+			}
+
+			if u.Memory[016036>>1] != tt.r3 {
+				t.Errorf("Expected value from R3 to be written to the destination address")
+			}
+		})
+	}
+}
+
 // TODO: finish test implementation
 // tests:
 // - offset 0 -> no res

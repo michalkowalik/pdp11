@@ -1,4 +1,4 @@
-* Current Todos
+a* Current Todos
 ** Unibus [2/3]
 - [X] ~ReadIoPage~ and ~WriteIOPage~ are actually wrongly named - they read a Word, not a Page
 - [X] Use the memory array defined in Unibus
@@ -35,3 +35,8 @@ that's why the BEQ breaks there.
 Compare with DC or master
  - memory dump: are they identical
  - what do we actually read when it happens?
+
+
+ ** Comparing dumps
+
+ 
