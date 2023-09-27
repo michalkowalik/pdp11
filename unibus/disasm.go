@@ -77,20 +77,20 @@ var disasmtable = []struct {
 }
 
 func (u *Unibus) disasmaddr(m uint16, a uint16) string {
-	aa := u.Mmu.mapVirtualToPhysical(a, false, u.psw.GetMode())
+	physicalAddress := u.Mmu.Decode(a, false, u.Psw.IsUserMode())
 	if (m & 7) == 7 {
 		switch m {
 		case 027:
-			aa += 2
-			return fmt.Sprintf("$%06o", u.Mmu.ReadWordByPhysicalAddress(aa))
+			physicalAddress += 2
+			return fmt.Sprintf("$%06o", u.ReadIO(physicalAddress))
 		case 037:
-			aa += 2
-			return fmt.Sprintf("*%06o", u.Mmu.ReadWordByPhysicalAddress(aa))
+			physicalAddress += 2
+			return fmt.Sprintf("*%06o", u.ReadIO(physicalAddress))
 		case 067:
-			aa += 2
-			return fmt.Sprintf("*%06o", (aa+2+uint32(u.Mmu.ReadWordByPhysicalAddress(aa)))&0xFFFF)
+			physicalAddress += 2
+			return fmt.Sprintf("*%06o", (uint32(physicalAddress)+2+uint32(u.ReadIO(physicalAddress)))&0xFFFF)
 		case 077:
-			return fmt.Sprintf("**%06o", (aa+2+uint32(u.Mmu.ReadWordByPhysicalAddress(aa)))&0xFFFF)
+			return fmt.Sprintf("**%06o", (uint32(physicalAddress)+2+uint32(u.ReadIO(physicalAddress)))&0xFFFF)
 		}
 	}
 	r := rs[m&7]
@@ -151,9 +151,9 @@ found:
 		fallthrough
 	case flagO:
 		if o&0x80 == 0x80 {
-			msg += fmt.Sprintf(" -%#o", 2 * ((0xFF ^ o) + 1))
+			msg += fmt.Sprintf(" -%#o", 2*((0xFF^o)+1))
 		} else {
-			msg += fmt.Sprintf(" +%#o", 2 * o)
+			msg += fmt.Sprintf(" +%#o", 2*o)
 		}
 	case flagR | flagD:
 		msg += " " + rs[(ins&0700)>>6] + ", " + u.disasmaddr(destination, a)

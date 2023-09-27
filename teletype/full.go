@@ -173,8 +173,6 @@ func (t *Full) getChar() uint16 {
 }
 
 // WriteTerm : write to the terminal address:
-// Warning: Unibus needs to provide a map between the physical 22 bit
-// addresses and the 18 bit, DEC defined addresses for the devices.
 // TODO: this method can be private!
 func (t *Full) WriteTerm(address uint32, data uint16) error {
 	switch address & 0777 {
@@ -186,7 +184,6 @@ func (t *Full) WriteTerm(address uint32, data uint16) error {
 		} else {
 			t.TKS &= ^(uint16(1 << 6))
 		}
-		break
 
 	// printer control & status
 	case 0564:
@@ -195,7 +192,6 @@ func (t *Full) WriteTerm(address uint32, data uint16) error {
 		} else {
 			t.TPS &= ^(uint16(1 << 6))
 		}
-		break
 
 	// output
 	// side note:
@@ -223,11 +219,10 @@ func (t *Full) WriteTerm(address uint32, data uint16) error {
 				Priority: 4,
 				Vector:   interrupts.TTYout}
 		}
-		break
 
 	// any other address -> error
 	default:
-		return fmt.Errorf("Write to invalid address %o", address)
+		return fmt.Errorf("write to invalid address %o", address)
 	}
 	return nil
 }

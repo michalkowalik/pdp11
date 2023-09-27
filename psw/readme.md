@@ -22,6 +22,9 @@ lowest bits contain CPU flags, upper bits CPU mode
 | 12 - 13 | Previous mode |
 | 14 - 15 | Current Mode |
 
+* MODE:
+00 => KERNEL
+11 => USER
 
 ## Mode description:
 (PDP-11/40 Processor Manual, page 2-4, or pdp-11/70 Manual, page 280)

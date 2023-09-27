@@ -21,10 +21,10 @@ const (
 	rkdaAddress = 0777412
 
 	// RK11 error codes:
-	rkOvr = (1 << 14)
-	rkNxd = (1 << 7)
-	rkNxc = (1 << 6)
-	rkNxs = (1 << 5)
+	rkOvr = 1 << 14
+	rkNxd = 1 << 7
+	rkNxc = 1 << 6
+	rkNxs = 1 << 5
 )
 
 // RK11 disk controller
@@ -112,7 +112,7 @@ func (r *RK11) rkNotReady() {
 }
 
 // read and return drive register value
-func (r *RK11) read(address uint32) uint16 {
+func (r *RK11) read(address Uint18) uint16 {
 	if RKDEBUG {
 		fmt.Printf("RK: Reading from address %o\n", address)
 	}
@@ -185,7 +185,7 @@ func (r *RK11) rkgo() {
 		r.running = true
 		r.rkNotReady()
 	default:
-		panic(fmt.Sprintf("unimplemented RK5 operation %#o", ((r.RKCS & 017) >> 1)))
+		panic(fmt.Sprintf("unimplemented RK5 operation %#o", (r.RKCS&017)>>1))
 	}
 }
 
@@ -210,16 +210,12 @@ func (r *RK11) rkError(code uint16) {
 	switch code {
 	case rkOvr:
 		msg = "operation overflowed the disk"
-		break
 	case rkNxd:
 		msg = "invalid disk accessed"
-		break
 	case rkNxc:
 		msg = "invalid cylinder accessed"
-		break
 	case rkNxs:
 		msg = "invalid sector accessed"
-		break
 	}
 	panic(msg)
 }
@@ -249,7 +245,7 @@ func (r *RK11) Step() {
 		r.rkReady()
 		return
 	default:
-		panic(fmt.Sprintf("unimplemented RK05 operation: %#o", ((r.RKCS & 017) >> 1)))
+		panic(fmt.Sprintf("unimplemented RK05 operation: %#o", (r.RKCS&017)>>1))
 	}
 
 	if RKDEBUG {
@@ -279,7 +275,7 @@ func (r *RK11) Step() {
 			if RKDEBUG {
 				fmt.Printf("RK WRITE: RKBA: %o, RKWC: %o \n", r.RKBA, r.RKWC)
 			}
-			val := r.unibus.Mmu.ReadWordByPhysicalAddress(r.RKBA)
+			val := r.unibus.ReadIO(Uint18(r.RKBA))
 			unit.rdisk[pos] = byte(val & 0xFF)
 			unit.rdisk[pos+1] = byte((val >> 8) & 0xFF)
 		} else {
@@ -288,8 +284,8 @@ func (r *RK11) Step() {
 			}
 			// TODO: monitor if it's fine. this implementation does not take care of
 			// bits 4 and 5 of rkcs, which should be used on systems with extended memory
-			r.unibus.Mmu.WriteWordByPhysicalAddress(
-				r.RKBA,
+			r.unibus.WriteIO(
+				Uint18(r.RKBA),
 				uint16(unit.rdisk[pos])|uint16(unit.rdisk[pos+1])<<8)
 		}
 		r.RKBA += 2

@@ -186,8 +186,9 @@ func (c *CPU) sbcbOp(instruction uint16) {
 // tst - sets the condition codes N and Z according to the contents
 // of the destination address
 func (c *CPU) tstOp(instruction uint16) {
+	dstAddr := c.GetVirtualByMode(instruction&077, 0)
+	dest := c.mmunit.ReadMemoryWord(dstAddr)
 
-	dest := c.readWord(instruction & 077)
 	c.SetFlag("Z", dest == 0)
 	c.SetFlag("N", (dest&0x8000) > 0)
 	c.SetFlag("V", false)
@@ -205,7 +206,9 @@ func (c *CPU) tstbOp(instruction uint16) {
 }
 
 // asr - arithmetic shift right
-// 	Shifts all bits of the destination right one place. Bit 15
+//
+//	Shifts all bits of the destination right one place. Bit 15
+//
 // is replicated. The C-bit is loaded from bit 0 of the destination.
 // ASR performs signed division of the destination by two.
 func (c *CPU) asrOp(instruction uint16) {
@@ -219,7 +222,7 @@ func (c *CPU) asrOp(instruction uint16) {
 	c.SetFlag("Z", result == 0)
 
 	// V flag is a XOR on C and N flag, but golang doesn't provide boolean XOR
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 }
 
 func (c *CPU) asrbOp(instruction uint16) {
@@ -233,7 +236,7 @@ func (c *CPU) asrbOp(instruction uint16) {
 	c.SetFlag("Z", result == 0)
 
 	// V flag is a XOR on C and N flag, but golang doesn't provide boolean XOR
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 }
 
 // asl - arithmetic shift left
@@ -248,7 +251,7 @@ func (c *CPU) aslOp(instruction uint16) {
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("C", (dest&0x8000) == 0x8000)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryWord(destAddr, result)
 }
 
@@ -259,7 +262,7 @@ func (c *CPU) aslbOp(instruction uint16) {
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("N", (result&0x80) == 0x80)
 	c.SetFlag("C", (dest&0x80) == 0x80)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryByte(destAddr, result)
 }
 
@@ -275,7 +278,7 @@ func (c *CPU) rorOp(instruction uint16) {
 	c.SetFlag("N", (result&0x8000) == 0x8000)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("C", cBit > 0)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryWord(destAddr, result)
 }
 
@@ -287,7 +290,7 @@ func (c *CPU) rorbOp(instruction uint16) {
 	c.SetFlag("N", (result&0x80) == 0x80)
 	c.SetFlag("Z", result == 0)
 	c.SetFlag("C", cBit > 0)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryByte(destAddr, result)
 }
 
@@ -306,7 +309,7 @@ func (c *CPU) rolOp(instruction uint16) {
 	c.SetFlag("C", (dest&0x8000) == 0x8000)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("N", (res&0x8000) == 0x8000)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryWord(dstAddr, res)
 }
 
@@ -321,7 +324,7 @@ func (c *CPU) rolbOp(instruction uint16) {
 	c.SetFlag("C", (dest&0x80) == 0x80)
 	c.SetFlag("Z", res == 0)
 	c.SetFlag("N", (res&0x80) == 0x80)
-	c.SetFlag("V", (c.GetFlag("C") != c.GetFlag("N")) == true)
+	c.SetFlag("V", c.GetFlag("C") != c.GetFlag("N"))
 	c.mmunit.WriteMemoryByte(dstAddr, res)
 }
 
@@ -365,8 +368,8 @@ func (c *CPU) markOp(instruction uint16) {
 func (c *CPU) mfpiOp(instruction uint16) {
 	var val uint16
 	dest := c.GetVirtualByMode(instruction&077, 0)
-	currentMode := c.mmunit.Psw.GetMode()
-	prevMode := c.mmunit.Psw.GetPreviousMode()
+	currentMode := c.unibus.Psw.GetMode()
+	prevMode := c.unibus.Psw.GetPreviousMode()
 
 	switch {
 	case dest == 0177706:
@@ -383,12 +386,12 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	case dest&0177770 == 0170000:
 		panic("MFPI attended on Register address")
 	default:
-		physicalAddress := c.mmunit.mapVirtualToPhysical(dest, false, prevMode)
-		val = c.mmunit.ReadWordByPhysicalAddress(physicalAddress)
+		physicalAddress := c.mmunit.Decode(dest, false, prevMode == psw.UserMode) // TODO: Change to user
+		val = c.unibus.ReadIO(physicalAddress)
 	}
 
 	c.Push(val)
-	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFF0)
+	c.unibus.Psw.Set(c.unibus.Psw.Get() & 0xFFF0)
 	c.SetFlag("C", true)
 	c.SetFlag("N", val&0x8000 == 0x8000)
 	c.SetFlag("Z", val == 0)
@@ -399,8 +402,8 @@ func (c *CPU) mtpiOp(instruction uint16) {
 	destAddr := c.GetVirtualByMode(instruction&077, 0)
 	val := c.Pop()
 
-	currentMode := c.mmunit.Psw.GetMode()
-	prevMode := c.mmunit.Psw.GetPreviousMode()
+	currentMode := c.unibus.Psw.GetMode()
+	prevMode := c.unibus.Psw.GetPreviousMode()
 
 	switch {
 	case destAddr == 0177706:
@@ -416,11 +419,11 @@ func (c *CPU) mtpiOp(instruction uint16) {
 	case destAddr&0177770 == 0170000:
 		panic("MTPI attended on Register address")
 	default:
-		sourceAddress := c.mmunit.mapVirtualToPhysical(destAddr, false, prevMode)
-		c.mmunit.WriteWordByPhysicalAddress(sourceAddress, val)
+		sourceAddress := c.mmunit.Decode(destAddr, false, prevMode == psw.UserMode)
+		c.unibus.WriteIO(sourceAddress, val)
 	}
 
-	c.mmunit.Psw.Set(c.mmunit.Psw.Get() & 0xFFFF)
+	c.unibus.Psw.Set(c.unibus.Psw.Get() & 0xFFFF)
 	c.SetFlag("C", true)
 	c.SetFlag("N", val&0x8000 == 0x8000)
 	c.SetFlag("Z", val == 0)
@@ -445,29 +448,9 @@ func (c *CPU) movOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
 
-	/*
-		debug := false
-		if instruction == 016746 {
-			if c.timeToDie([]uint16{053, 0141656, 052, 060540, 060566, 0141712, 0141656, 02730}) {
-				debug = true
-			}
-		}
-	*/
 	srcAddr := c.GetVirtualByMode(source, 0)
 	sourceVal := c.mmunit.ReadMemoryWord(srcAddr)
 	dstAddr := c.GetVirtualByMode(dest, 0)
-
-	/*
-		if debug {
-			fmt.Printf("D: source: %o\n", source)
-			fmt.Printf("D: dest: %o\n", dest)
-			fmt.Printf("D: srcAddr: %o\n", srcAddr)
-			fmt.Printf("D: sourceVal: %o\n", sourceVal)
-			fmt.Printf("D: dstAddr: %o\n", dstAddr)
-			fmt.Printf("D: PDR: %v\n", c.mmunit.PDR)
-			fmt.Printf("D: PAR: %v\n", c.mmunit.PAR)
-		}
-	*/
 
 	c.SetFlag("N", (sourceVal&0x8000) > 0)
 	c.SetFlag("Z", sourceVal == 0)
@@ -522,9 +505,9 @@ func (c *CPU) iotOp(instruction uint16) {
 func (c *CPU) rtiOp(instruction uint16) {
 	c.Registers[7] = c.Pop()
 	val := c.Pop()
-	if c.mmunit.Psw.GetMode() == UserMode {
+	if c.unibus.Psw.GetMode() == UserMode {
 		val &= 047
-		val |= c.mmunit.Psw.Get() & 0177730
+		val |= c.unibus.Psw.Get() & 0177730
 	}
 	c.mmunit.WriteMemoryWord(PSWVirtAddr, val)
 }
@@ -543,8 +526,8 @@ func (c *CPU) waitOp(instruction uint16) {
 // Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
 // TODO: user mode?
 func (c *CPU) resetOp(instruction uint16) {
-	c.mmunit.unibus.Rk01.Reset()
-	c.mmunit.unibus.TermEmulator.ClearTerminal()
+	c.unibus.Rk01.Reset()
+	c.unibus.TermEmulator.ClearTerminal()
 }
 
 // compare (2) - byte op included
@@ -704,19 +687,8 @@ func (c *CPU) bisbOp(instruction uint16) {
 func (c *CPU) jsrOp(instruction uint16) {
 	register := (instruction >> 6) & 7
 	destination := instruction & 077
-	/*
-		debug := false
-		if c.Registers[3] == 0 && c.Registers[4] == 0 && c.Registers[5] == 0 && c.Registers[6] == 0177756 && c.Registers[7] == 016 {
-			debug = true
-		}
-	*/
 	val := c.GetVirtualByMode(destination, 0)
 
-	/*
-		if debug {
-			fmt.Printf("JSR VAL %o\n", val)
-		}
-	*/
 	c.Push(c.Registers[register])
 	c.Registers[register] = c.Registers[7]
 	c.Registers[7] = val
@@ -872,7 +844,7 @@ func (c *CPU) sobOp(instruction uint16) {
 
 // trap opcodes:
 func (c *CPU) trapOpcode(vector uint16) {
-	prevPs := uint16(*c.mmunit.Psw)
+	prevPs := uint16(*c.unibus.Psw)
 	c.SwitchMode(psw.KernelMode)
 
 	// push current PS and PC to stack
@@ -882,7 +854,7 @@ func (c *CPU) trapOpcode(vector uint16) {
 	// load PC and PS from trap vector location
 	c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
 	previousMode := prevPs & ((1 << 13) | (1 << 12))
-	c.mmunit.Psw.Set(c.mmunit.ReadMemoryWord(vector+2) | previousMode)
+	c.unibus.Psw.Set(c.mmunit.ReadMemoryWord(vector+2) | previousMode)
 }
 
 // emt - emulator trap - trap vector hardcoded to location 32
@@ -905,8 +877,7 @@ func (c *CPU) rtsOp(instruction uint16) {
 	c.Registers[7] = c.Registers[register]
 
 	// load word popped from processor stack to "register"
-	val := c.Pop()
-	c.Registers[register] = val
+	c.Registers[register] = c.Pop()
 }
 
 // clear flag opcodes

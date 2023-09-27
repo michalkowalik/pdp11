@@ -1,16 +1,15 @@
 package unibus
 
 import (
+	"pdp/console"
 	"pdp/psw"
 	"testing"
 )
 
 func Test_cpu_Fetch(t *testing.T) {
-	tests := []struct {
+	var tests []struct {
 		name string
 		c    CPU
-	}{
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -20,8 +19,11 @@ func Test_cpu_Fetch(t *testing.T) {
 }
 
 func TestCPU_GetFlag(t *testing.T) {
-	var c = &CPU{}
-	c.mmunit = &MMU18Bit{}
+	p := psw.PSW(0)
+	var cons console.Console = console.NewSimple()
+	u := New(&p, nil, &cons, false)
+
+	var c = NewCPU(u.Mmu, u, false)
 
 	tests := []struct {
 		name       string
@@ -43,7 +45,7 @@ func TestCPU_GetFlag(t *testing.T) {
 	}
 	for _, tt := range tests {
 		tempPsw := psw.PSW(tt.statusWord)
-		c.mmunit.Psw = &tempPsw
+		c.unibus.Psw = &tempPsw
 		t.Run(tt.name, func(t *testing.T) {
 			if got := c.GetFlag(tt.args); got != tt.want {
 				t.Errorf("CPU.GetFlag() = %v, want %v", got, tt.want)

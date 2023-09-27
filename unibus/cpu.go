@@ -21,23 +21,26 @@ const (
 
 // add debug output to the console
 var (
-	debug        = false
-	trapDebug    = true
-	panicCounter = 0
+	debug     = false
+	trapDebug = true
+	// panicCounter = 0
 )
 
 // CPU type:
 type CPU struct {
 	Registers [8]uint16
-	State     int
+	State     int // what is it doing? used for anything?
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
 	KernelStackPointer uint16
 	UserStackPointer   uint16
 
+	// unibus
+	unibus *Unibus
+
 	// memory access is required:
-	mmunit *MMU18Bit
+	mmunit MMU
 
 	// ClockCounter
 	ClockCounter uint16
@@ -56,12 +59,13 @@ type CPU struct {
 }
 
 // NewCPU initializes and returns the CPU variable:
-func NewCPU(mmunit *MMU18Bit, debugMode bool) *CPU {
+func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 
 	c := CPU{}
 	c.mmunit = mmunit
 	c.ClockCounter = 0
 	debug = debugMode
+	c.unibus = unibus
 
 	// single operand
 	c.singleOpOpcodes = make(map[uint16]func(uint16))
@@ -132,7 +136,8 @@ func NewCPU(mmunit *MMU18Bit, debugMode bool) *CPU {
 	c.controlOpcodes[01400] = c.beqOp
 	c.controlOpcodes[0100000] = c.bplOp
 	c.controlOpcodes[0100400] = c.bmiOp
-	c.controlOpcodes[0102000] = c.bvsOp
+	c.controlOpcodes[0102000] = c.bvcOp
+	c.controlOpcodes[0102400] = c.bvsOp
 	c.controlOpcodes[0103000] = c.bccOp
 	c.controlOpcodes[0103400] = c.bcsOp
 	c.controlOpcodes[0104000] = c.emtOp
@@ -173,7 +178,8 @@ func NewCPU(mmunit *MMU18Bit, debugMode bool) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	instruction := c.mmunit.ReadMemoryWord(c.Registers[7])
+	physicalAddress := c.mmunit.Decode(c.Registers[7], false, c.unibus.Psw.IsUserMode())
+	instruction := c.unibus.ReadIO(physicalAddress)
 	c.Registers[7] += 2
 	return instruction
 }
@@ -232,7 +238,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 	}
 
 	// at this point it can be only an invalid instruction:
-	fmt.Printf(c.printState(instr))
+	fmt.Print(c.printState(instr))
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 
 }
@@ -243,34 +249,9 @@ func (c *CPU) Execute() {
 	opcode := c.Decode(instruction)
 
 	if debug {
-		fmt.Printf(c.printState(instruction))
-		fmt.Printf("%s\n", c.mmunit.unibus.Disasm(instruction))
+		fmt.Print(c.printState(instruction))
+		fmt.Printf("%s\n", c.unibus.Disasm(instruction))
 	}
-	// is it time to die?
-	/*
-		if instruction == 014104 {
-			if c.timeToDie([]uint16{0, 0141574, 0103, 0113162, 0177404, 0141574, 0141564, 03572}) {
-				if panicCounter == 1 {
-					c.mmunit.DumpMemory()
-
-					fmt.Printf("D: PDR: [")
-					for _, v := range c.mmunit.PDR {
-						fmt.Printf(" %o ", v)
-					}
-					fmt.Printf(" ]\n")
-
-					fmt.Printf("D: PAR: [")
-					for _, v := range c.mmunit.PAR {
-						fmt.Printf(" %o ", v)
-					}
-					fmt.Printf(" ]\n")
-
-					panic("Yes, it's time to die")
-				}
-				panicCounter++
-			}
-		}
-	*/
 	opcode(instruction)
 }
 
@@ -308,7 +289,7 @@ func (c *CPU) printState(instruction uint16) string {
 	out := fmt.Sprintf("%s\n", c.DumpRegisters())
 
 	// flags
-	out += fmt.Sprintf("%s ", c.mmunit.unibus.psw.GetFlags())
+	out += fmt.Sprintf("%s ", c.unibus.Psw.GetFlags())
 
 	// instruction
 	out += fmt.Sprintf(" instr %06o: %06o   ", c.Registers[7]-2, instruction)
@@ -320,15 +301,15 @@ func (c *CPU) printState(instruction uint16) string {
 func (c *CPU) SetFlag(flag string, set bool) {
 	switch flag {
 	case "C":
-		c.mmunit.Psw.SetC(set)
+		c.unibus.Psw.SetC(set)
 	case "V":
-		c.mmunit.Psw.SetV(set)
+		c.unibus.Psw.SetV(set)
 	case "Z":
-		c.mmunit.Psw.SetZ(set)
+		c.unibus.Psw.SetZ(set)
 	case "N":
-		c.mmunit.Psw.SetN(set)
+		c.unibus.Psw.SetN(set)
 	case "T":
-		c.mmunit.Psw.SetT(set)
+		c.unibus.Psw.SetT(set)
 	}
 }
 
@@ -336,25 +317,23 @@ func (c *CPU) SetFlag(flag string, set bool) {
 func (c *CPU) GetFlag(flag string) bool {
 	switch flag {
 	case "C":
-		return c.mmunit.Psw.C()
+		return c.unibus.Psw.C()
 	case "V":
-		return c.mmunit.Psw.V()
+		return c.unibus.Psw.V()
 	case "Z":
-		return c.mmunit.Psw.Z()
+		return c.unibus.Psw.Z()
 	case "N":
-		return c.mmunit.Psw.N()
+		return c.unibus.Psw.N()
 	case "T":
-		return c.mmunit.Psw.T()
+		return c.unibus.Psw.T()
 	}
 	return false
 }
 
 // SwitchMode switches the kernel / user mode:
-// 0 for user, 3 for kernel, everything else is a mistake.
-// values are as they are used in the PSW
 func (c *CPU) SwitchMode(m uint16) {
 	// save processor stack pointers:
-	if c.mmunit.Psw.GetMode() == 3 {
+	if c.unibus.Psw.IsUserMode() {
 		c.UserStackPointer = c.Registers[6]
 	} else {
 		c.KernelStackPointer = c.Registers[6]
@@ -366,39 +345,23 @@ func (c *CPU) SwitchMode(m uint16) {
 	} else {
 		c.Registers[6] = c.KernelStackPointer
 	}
-	c.mmunit.Psw.SwitchMode(m)
+	c.unibus.Psw.SwitchMode(m)
 }
 
 // Trap handles all Trap / abort events.
 func (c *CPU) Trap(trap interrupts.Trap) {
 	if debug || trapDebug {
 		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
-		if trap.Vector == 0250 {
-			c.mmunit.DumpMemory()
-			fmt.Printf("D: PDR: [")
-			for _, v := range c.mmunit.PDR {
-				fmt.Printf(" %o ", v)
-			}
-			fmt.Printf(" ]\n")
-
-			fmt.Printf("D: PAR: [")
-			for _, v := range c.mmunit.PAR {
-				fmt.Printf(" %o ", v)
-			}
-			fmt.Printf(" ]\n")
-
-			panic("dying the death of trap 0250")
-		}
 	}
-	prevPSW := c.mmunit.Psw.Get()
+	prevPSW := c.unibus.Psw.Get()
 
 	defer func(vec, prevPSW uint16) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
 			fmt.Printf("RED STACK TRAP!")
-			c.mmunit.Memory[0] = c.Registers[7]
-			c.mmunit.Memory[1] = prevPSW
+			c.unibus.Memory[0] = c.Registers[7]
+			c.unibus.Memory[1] = prevPSW
 			vec = 4
 			panic("FATAL")
 		case nil:
@@ -406,10 +369,10 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 		default:
 			panic(t)
 		}
-		c.Registers[7] = c.mmunit.ReadWordByPhysicalAddress(uint32(vec))
-		c.mmunit.Psw.Set(c.mmunit.ReadWordByPhysicalAddress(uint32(vec) + 2))
+		c.Registers[7] = c.unibus.ReadIO(Uint18(vec))
+		c.unibus.Psw.Set(c.unibus.ReadIO(Uint18(vec) + 2))
 		if prevPSW>>14 == 3 {
-			c.mmunit.Psw.Set(c.mmunit.Psw.Get() | (1 << 13) | (1 << 12))
+			c.unibus.Psw.Set(c.unibus.Psw.Get() | (1 << 13) | (1 << 12))
 		}
 	}(trap.Vector, prevPSW)
 
@@ -437,9 +400,10 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 
 	switch addressMode {
 	case 0:
+		// register contains operand
 		virtAddress = 0177700 | reg
 	case 1:
-		// register keeps the address of the address:
+		// register contains the address of the operand
 		virtAddress = c.Registers[reg]
 	case 2:
 		// register keeps the address. Increment the value by 2 (word!)
@@ -472,12 +436,19 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 // Push to processor stack
 func (c *CPU) Push(v uint16) {
 	c.Registers[6] -= 2
+	//if debug {
+	//		fmt.Printf("Pushing to stack. Value: %o. R6 value: %o\n", v, c.Registers[6])
+	//}
 	c.mmunit.WriteMemoryWord(c.Registers[6], v)
 }
 
 // Pop from CPU stack
 func (c *CPU) Pop() uint16 {
 	val := c.mmunit.ReadMemoryWord(c.Registers[6])
+
+	//	if debug {
+	//fmt.Printf("Popping from stack. Value: %o, R6 value %o\n", val, c.Registers[6])
+	//}
 	c.Registers[6] += 2
 	return val
 }
@@ -488,18 +459,18 @@ func (c *CPU) Reset() {
 		c.Registers[i] = 0
 	}
 	for i := 0; i < 16; i++ {
-		c.mmunit.PAR[i] = 0
-		c.mmunit.PDR[i] = 0
+		c.mmunit.SetPage(i, page{par: 0, pdr: 0})
 	}
 
 	c.KernelStackPointer = 0
 	c.UserStackPointer = 0
-	c.mmunit.SR0 = 0
+	c.mmunit.SetSR0(0)
 	c.ClockCounter = 0
-	c.mmunit.unibus.Rk01.Reset()
+	c.unibus.Rk01.Reset()
 	c.State = CPURUN
 }
 
+/*
 // debug:
 // true if all registers have the same value. don't panic immediately, there might be a panic counter somewhere.
 func (c *CPU) timeToDie(registers []uint16) bool {
@@ -510,3 +481,4 @@ func (c *CPU) timeToDie(registers []uint16) bool {
 	}
 	return true
 }
+*/

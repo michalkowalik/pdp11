@@ -36,22 +36,21 @@ var bootcode = [...]uint16{
 	0105711, /* TSTB (R1)  (wait for ready) */
 	0100376, /* BPL .-2 */
 	0105011, /* CLRB (R1) */
-	0005007 /* CLR PC */}
+	0005007} /* CLR PC */
 
 // Boot loads bootstrap code and start emulation
 func (sys *System) Boot() {
 	memPointer := uint16(BOOTBASE)
 
 	for _, c := range bootcode {
-		sys.unibus.Mmu.WriteMemoryWord(memPointer, c)
+		sys.unibus.WriteIO(unibus.Uint18(memPointer), c)
 		memPointer += 2
 	}
 
-	// set SP and PC to their starting address:
+	// set PC to the starting address:
 	sys.CPU.Registers[7] = BOOTBASE + 2
 
 	// start execution
-	// sys.console.WriteConsole("Booting..\n")
 	if sys.CPU.State != unibus.CPURUN {
 		sys.CPU.State = unibus.CPURUN
 	}

@@ -20,16 +20,18 @@ const (
 	SR0Addr     = 0777572
 	SR2Addr     = 0777576
 	RegAddr     = 0777700
+	MEMSIZE     = 0760000 // useful memory. everything above 248K is unibus reserved
 )
 
 // Unibus definition
 type Unibus struct {
+	Memory [MEMSIZE >> 1]uint16
 
 	// LKS - KW11-L Clock status
 	LKS uint16
 
 	// Memory management Unit
-	Mmu *MMU18Bit
+	Mmu MMU
 
 	// console
 	controlConsole console.Console
@@ -44,7 +46,7 @@ type Unibus struct {
 	// or nil otherwise
 	ActiveTrap interrupts.Trap
 
-	psw *psw.PSW
+	Psw *psw.PSW
 
 	PdpCPU *CPU
 
@@ -56,11 +58,11 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMod
 	unibus := Unibus{}
 
 	unibus.controlConsole = *controlConsole
-	unibus.psw = psw
+	unibus.Psw = psw
 
 	// initialize attached devices:
-	unibus.Mmu = NewMMU(psw, &unibus)
-	unibus.PdpCPU = NewCPU(unibus.Mmu, debugMode)
+	unibus.Mmu = NewMMU18(&unibus)
+	unibus.PdpCPU = NewCPU(unibus.Mmu, &unibus, debugMode)
 
 	// TODO: it needs to be modified, in order to allow the GUI!
 	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue)
@@ -77,7 +79,7 @@ func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 }
 
 // get Register value for address:
-func (u *Unibus) getRegisterValue(addr uint32) uint16 {
+func (u *Unibus) getRegisterValue(addr Uint18) uint16 {
 	return u.PdpCPU.Registers[addr&07]
 }
 
@@ -85,29 +87,35 @@ func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
 	u.PdpCPU.Registers[addr&07] = data
 }
 
-// ReadIOPage reads from unibus devices.
-func (u *Unibus) ReadIOPage(physicalAddress uint32) (uint16, error) {
+// ReadIO reads from unibus devices.
+func (u *Unibus) ReadIO(physicalAddress Uint18) uint16 {
 	switch {
+	case physicalAddress&1 == 1:
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    fmt.Sprintf("Read from the odd address %06o", physicalAddress)})
+	case physicalAddress < MEMSIZE:
+		return u.Memory[physicalAddress>>1]
 	case physicalAddress == PSWAddr:
-		return u.psw.Get(), nil
+		return u.Psw.Get()
 	case physicalAddress&RegAddr == RegAddr:
-		return u.getRegisterValue(physicalAddress), nil
+		return u.getRegisterValue(physicalAddress)
 	// physical front console. Magic number that seems to do the job:
 	case physicalAddress == 0777570:
-		return 0173030, nil
+		return 0173030
 	case physicalAddress == LKSAddr:
-		return u.LKS, nil
+		return u.LKS
 	case physicalAddress&0777770 == ConsoleAddr:
-		return u.TermEmulator.ReadTerm(physicalAddress)
+		return u.TermEmulator.ReadTerm(uint32(physicalAddress))
 	case physicalAddress == SR0Addr:
-		return u.Mmu.SR0, nil
+		return u.Mmu.GetSR0()
 	case physicalAddress == SR2Addr:
-		return u.Mmu.SR2, nil
+		return u.Mmu.GetSR2()
 	case physicalAddress&0777760 == RK11Addr:
 		v := u.Rk01.read(physicalAddress)
-		return v, nil
+		return v
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
-		return u.Mmu.readPage(physicalAddress), nil
+		return u.Mmu.Read16(physicalAddress)
 	default:
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
@@ -115,31 +123,57 @@ func (u *Unibus) ReadIOPage(physicalAddress uint32) (uint16, error) {
 	}
 }
 
-// WriteIOPage writes to the unibus connected device
-func (u *Unibus) WriteIOPage(physicalAddress uint32, data uint16) {
+func (u *Unibus) ReadIOByte(physicalAddress Uint18) uint16 {
+	val := u.ReadIO(physicalAddress & ^Uint18(1))
+	if physicalAddress&1 != 0 {
+		return val >> 8
+	}
+	return val & 0xFF
+}
+
+// WriteIO writes to the unibus connected device
+func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 	switch {
+	case physicalAddress&1 == 1:
+		panic(interrupts.Trap{
+			Vector: interrupts.INTBus,
+			Msg:    fmt.Sprintf("Write the odd address %06o", physicalAddress)})
+	case physicalAddress < MEMSIZE:
+		u.Memory[physicalAddress>>1] = data
 	case physicalAddress == PSWAddr:
-		// also : switch mode!
+		// switch mode
 		u.PdpCPU.SwitchMode(data >> 14)
-		// also: set flags:
-		u.psw.Set(data)
+		u.Psw.Set(data)
 	case physicalAddress&RegAddr == RegAddr:
-		u.setRegisterValue(physicalAddress, data)
+		u.setRegisterValue(uint32(physicalAddress), data)
 	case physicalAddress == LKSAddr:
 		u.LKS = data
 	case physicalAddress&0777770 == ConsoleAddr:
-		_ = u.TermEmulator.WriteTerm(physicalAddress, data)
+		_ = u.TermEmulator.WriteTerm(uint32(physicalAddress), data)
 	case physicalAddress == SR0Addr:
-		u.Mmu.SR0 = data
+		u.Mmu.SetSR0(data)
 	case physicalAddress == SR2Addr:
-		u.Mmu.SR2 = data
+		u.Mmu.SetSR2(data)
 	case physicalAddress&0777760 == RK11Addr:
-		u.Rk01.write(physicalAddress, data)
+		u.Rk01.write(uint32(physicalAddress), data)
 	case (physicalAddress&0777600 == 0772200) || (physicalAddress&0777600 == 0777600):
-		u.Mmu.writePage(physicalAddress, data)
+		u.Mmu.Write16(physicalAddress, data)
 	default:
 		panic(interrupts.Trap{
 			Vector: interrupts.INTBus,
 			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
+}
+
+func (u *Unibus) WriteIOByte(physicalAddress Uint18, data uint16) {
+	memoryWordContent := u.ReadIO(physicalAddress & ^Uint18(1))
+
+	// modify the correct byte
+	if physicalAddress&1 == 0 {
+		memoryWordContent = (memoryWordContent & 0xff00) | data
+	} else {
+		memoryWordContent = (memoryWordContent & 0xff) | (data << 8)
+	}
+
+	u.WriteIO(physicalAddress & ^Uint18(1), memoryWordContent)
 }

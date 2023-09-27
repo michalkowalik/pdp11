@@ -39,8 +39,8 @@ func InitializeSystem(
 	sys.unibus.PdpCPU.Reset()
 
 	// mount drive
-	fp := filepath.Join(build.Default.GOPATH, "src/priv/pdp11/rk0")
-	fmt.Printf("Mounting RK01 image file from %s\n", fp)
+	fp := filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")
+	fmt.Printf("Disk image path: %s\n", fp)
 	if err := sys.unibus.Rk01.Attach(0, fp); err != nil {
 		panic("Can't mount the drive")
 	}
@@ -83,7 +83,7 @@ func (sys *System) processTrap(trap interrupts.Trap) {
 	sys.CPU.Trap(trap)
 }
 
-//  single cpu step:
+// single cpu step:
 func (sys *System) step() {
 	// handle interrupts
 	if sys.unibus.InterruptQueue[0].Vector > 0 &&
@@ -112,12 +112,12 @@ func (sys *System) step() {
 }
 
 // process interrupt in the cpu interrupt queue
-// 1. push current PSW and PC to stack
-// 2. load PC from interrupt vector
-// 3. load PSW from (interrupt vector) + 2
-// 4. if previous state mode was User, then set the corresponding bits in PSW
-// 5. Return from subprocedure cpu instruction at the end of interrupt procedure
-//    makes sure to set the stack and PSW back to where it belongs
+//  1. push current PSW and PC to stack
+//  2. load PC from interrupt vector
+//  3. load PSW from (interrupt vector) + 2
+//  4. if previous state mode was User, then set the corresponding bits in PSW
+//  5. Return from subprocedure cpu instruction at the end of interrupt procedure
+//     makes sure to set the stack and PSW back to where it belongs
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	prev := sys.psw.Get()
 	defer func(prev uint16) {
@@ -130,7 +130,7 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		default:
 			panic(t)
 		}
-		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
+		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector) // TODO: fix
 		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
 
 		if (prev & (1 << 14)) > 0 {

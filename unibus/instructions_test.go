@@ -20,19 +20,16 @@ type flags struct {
 // global shared resources: CPU, memory etc.
 var c *CPU
 var u *Unibus
-var memory [0x400000]byte // 64KB of memory is all everyone needs
 
 // TestMain to resucure -> initialize memory and CPU
 func TestMain(m *testing.M) {
-	mmu := &MMU18Bit{}
 	p := psw.PSW(0)
-	mmu.Psw = &p
-	c = NewCPU(mmu, false)
 
-	var cons console.Console
-	cons = console.NewSimple()
+	var cons console.Console = console.NewSimple()
 	u = New(&p, nil, &cons, false)
-
+	u.Psw = &p
+	mmu := u.Mmu
+	c = NewCPU(mmu, u, false)
 	os.Exit(m.Run())
 }
 
@@ -55,7 +52,7 @@ func TestCPU_clrOp(t *testing.T) {
 	u.PdpCPU.Registers[6] = 0xfe
 
 	// come back here!!
-	u.Mmu.Memory[0xfe] = 2
+	u.Memory[0xfe] = 2
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -88,9 +85,9 @@ func TestCPU_addOp(t *testing.T) {
 	u.PdpCPU.Registers[1] = 0xfe
 	u.PdpCPU.Registers[2] = 0
 	u.PdpCPU.Registers[3] = 2
-	u.PdpCPU.mmunit.Memory[0x7f] = 0xff
-	u.PdpCPU.mmunit.Memory[0] = 2
-	u.PdpCPU.mmunit.Memory[2] = 0x300
+	u.Memory[0x7f] = 0xff
+	u.Memory[0] = 2
+	u.Memory[2] = 0x300
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -121,7 +118,7 @@ func TestCPU_movOp(t *testing.T) {
 
 	u.PdpCPU.Registers[0] = 0xfe
 	u.PdpCPU.Registers[1] = 0
-	u.Mmu.Memory[0x7f] = uint16(4)
+	u.Memory[0x7f] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -151,7 +148,7 @@ func TestCPU_movbOp(t *testing.T) {
 
 	u.PdpCPU.Registers[0] = 0xfe
 	u.PdpCPU.Registers[1] = 0
-	u.Mmu.Memory[0x7f] = uint16(4)
+	u.Memory[0x7f] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -162,6 +159,62 @@ func TestCPU_movbOp(t *testing.T) {
 			if d != tt.dst {
 				t.Logf("destination addr: %x\n", tt.args.instruction&077)
 				t.Errorf("Expected destination: %x, got %x\n", tt.dst, d)
+			}
+		})
+	}
+}
+
+func TestCpu_movbOpWitZeroFlag(t *testing.T) {
+	instruction := uint16(0110367)
+	pc := uint16(016036)
+
+	u.PdpCPU.Registers[3] = 0
+	u.PdpCPU.Registers[7] = pc
+
+	// memory is defined as 128K WORDS, so if the address is in bytes, therefore it needs to be divided by 2
+	u.PdpCPU.unibus.Memory[pc>>1] = 4     // offset
+	u.PdpCPU.unibus.Memory[(pc>>1)+2] = 2 // initial value
+
+	opcode := u.PdpCPU.Decode(instruction)
+	opcode(instruction)
+
+	if u.PdpCPU.unibus.Memory[pc+4] != 0 {
+		t.Errorf("Expected memory address to contain 0, but got %x\n", u.PdpCPU.unibus.Memory[pc+4])
+	}
+
+	if !u.Psw.Z() {
+		t.Errorf("Expected Zero flag to be set")
+	}
+}
+
+func TestCpu_movbOpWithNFlag(t *testing.T) {
+
+	tests := []struct {
+		name  string
+		r3    uint16
+		nFlag bool
+	}{
+		{"MOVB positive value in R3", 0x7f, false},
+		{"MOVB negative value in R3", 0x80, true},
+		{"MOVB negative value in R3", 0xaa, true},
+	}
+	instruction := uint16(0110322)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u.PdpCPU.Registers[3] = tt.r3
+			u.PdpCPU.Registers[2] = 016036
+
+			u.Psw.SetN(false)
+			opcode := u.PdpCPU.Decode(instruction)
+			opcode(instruction)
+
+			if u.Psw.N() != tt.nFlag {
+				t.Errorf("Negative flag not expected")
+			}
+
+			if u.Memory[016036>>1] != tt.r3 {
+				t.Errorf("Expected value from R3 to be written to the destination address")
 			}
 		})
 	}
@@ -188,7 +241,7 @@ func TestCPU_comOp(t *testing.T) {
 	}
 
 	u.PdpCPU.Registers[0] = 0xf0
-	u.Mmu.Memory[0xff] = uint16(4)
+	u.Memory[0xff] = uint16(4)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -494,8 +547,7 @@ func TestCPU_ashOp(t *testing.T) {
 // hence, it's always the same instruction.
 func TestCPU_subOp(t *testing.T) {
 	// substract: R1 = R1 - R0
-	var instruction uint16
-	instruction = 0160001
+	var instruction uint16 = 0160001
 
 	tests := []struct {
 		name    string

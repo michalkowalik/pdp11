@@ -12,7 +12,7 @@ import (
 // global resources
 var (
 	sys *System
-	mm  *unibus.MMU18Bit
+	mm  unibus.MMU
 	c   console.Console
 )
 
@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
 	sys.unibus.Rk01.Reset()
@@ -53,11 +53,11 @@ var virtualAddressTests = []struct {
 func TestGetVirtualAddress(t *testing.T) {
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
-		mm.Memory[8] = 040
-		mm.Memory[4] = 8
-		mm.Memory[2] = 2
-		mm.Memory[1] = 1
-		mm.Memory[0] = 4
+		sys.unibus.Memory[8] = 040
+		sys.unibus.Memory[4] = 8
+		sys.unibus.Memory[2] = 2
+		sys.unibus.Memory[1] = 1
+		sys.unibus.Memory[0] = 4
 		sys.CPU.Registers[0] = 2
 
 		// setup memory and registers for index mode:
@@ -77,7 +77,7 @@ func TestGetVirtualAddress(t *testing.T) {
 func TestRunCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 
-	mm.Memory[0xff] = 2
+	sys.unibus.Memory[0xff] = 2
 
 	code := []uint16{
 		012701, // 001000 mov 0xff R1
@@ -92,7 +92,7 @@ func TestRunCode(t *testing.T) {
 	// load sample code to memory
 	memPointer := 001000
 	for _, c := range code {
-		mm.Memory[memPointer] = c
+		sys.unibus.Memory[memPointer] = c
 		memPointer++
 	}
 
@@ -103,7 +103,7 @@ func TestRunCode(t *testing.T) {
 		sys.CPU.Execute()
 	}
 
-	if memVal := mm.Memory[0xff]; memVal != 4 {
+	if memVal := sys.unibus.Memory[0xff]; memVal != 4 {
 		t.Errorf("Expected memory cell at 0xff to be equal 4, got %x\n", memVal)
 	}
 }
@@ -131,8 +131,8 @@ func TestRunBranchCode(t *testing.T) {
 	memPointer := 001000
 	for _, c := range code {
 		// this should be bytes in 1 word!
-		mm.Memory[memPointer] = c & 0xff
-		mm.Memory[memPointer+1] = c >> 8
+		sys.unibus.Memory[memPointer] = c & 0xff
+		sys.unibus.Memory[memPointer+1] = c >> 8
 		memPointer += 2
 	}
 
@@ -155,8 +155,8 @@ func TestTriggerTrap(t *testing.T) {
 	memPointer := 001000
 	for _, c := range code {
 		// this should be bytes in 1 word!
-		mm.Memory[memPointer] = c & 0xff
-		mm.Memory[memPointer+1] = c >> 8
+		sys.unibus.Memory[memPointer] = c & 0xff
+		sys.unibus.Memory[memPointer+1] = c >> 8
 		memPointer += 2
 	}
 

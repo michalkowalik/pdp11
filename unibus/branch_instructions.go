@@ -4,21 +4,11 @@ package unibus
 
 // branch calculates the branch to PC for a branch instruction offset
 func (c *CPU) branch(instruction uint16) uint16 {
-
-	// offset is an 8 bit signed integer
-	var offset uint16
-	var negBit bool
 	pc := c.Registers[7]
+	offset := instruction & 0xff
 
-	// offset is being kept in the low 8 bits of the command
-	negBit = (instruction & 0200) > 0
-	offset = uint16(instruction & 0xff)
-
-	if negBit {
-		offset = 0377 - offset + 1
-	}
-
-	if negBit {
+	if (offset & 0x80) == 0x80 {
+		offset = 0xff - offset + 1
 		return pc - 2*offset
 	}
 	return pc + 2*offset

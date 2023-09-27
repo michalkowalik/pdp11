@@ -110,9 +110,7 @@ func startPdp(g *gocui.Gui) error {
 		c = console.NewSimple()
 	}
 
-	c.WriteConsole("Starting PDP-11/70 emulator.")
-
-	// fmt.Fprintf(statusView, "Starting PDP-11/70 emulator..\n")
+	c.WriteConsole("Starting PDP-11/40 emulator.")
 	pdp := system.InitializeSystem(c, terminalView, regView, g, *debugMode)
 
 	// update registers:
@@ -140,7 +138,7 @@ func updateRegisters(pdp *system.System, g *gocui.Gui) {
 					return err
 				}
 				v.Clear()
-				fmt.Fprintf(v, pdp.CPU.DumpRegisters())
+				fmt.Fprint(v, pdp.CPU.DumpRegisters())
 				return nil
 			})
 			i++

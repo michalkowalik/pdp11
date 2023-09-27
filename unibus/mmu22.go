@@ -1,9 +1,14 @@
-package mmu
+package unibus
 
 import (
 	"fmt"
 	"pdp/psw"
 )
+
+/*
+UNFINISHED implementation of the 22 bit MMU used in pdp11/70
+
+*/
 
 // memory related constans (by far not all needed -- figuring out as while writing)
 const (
@@ -18,7 +23,7 @@ const (
 )
 
 // MMU related functionality - translating virtual to physical addresses.
-type MMU struct {
+type MMU22 struct {
 	Memory          *[4 * 1024 * 1024]byte
 	MMR             [4]int16 // Memory Management Registers
 	MMR3Map         [4]int16 // Map from mode to MMR3 I/D bit mask
@@ -55,7 +60,7 @@ type MMU struct {
 
 // MapVirtualToPhysical maps the 17 bit I/D virtual address to a 22 bit physical address
 // TODO: All checks and specifics (i.e. 18bit calculation)
-func (m *MMU) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint32 {
+func (m *MMU22) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint32 {
 	var physicalAddress uint32
 	// this access doesn't require MMU
 	if (accessMask & m.MMUEnable) == 0 {
@@ -88,7 +93,7 @@ func (m *MMU) MapVirtualToPhysical(virtualAddress uint16, accessMask int16) uint
 // params:
 // addr : 16 bit virtual address
 // returns: 16 bit word
-func (m *MMU) ReadMemoryWord(addr uint16) uint16 {
+func (m *MMU22) ReadMemoryWord(addr uint16) uint16 {
 	// NO MMU SUPPORT SO FAR, 16 bit ADDRESSING ONLY HERE!!
 	lowerBit := m.Memory[addr]
 	higherBit := m.Memory[addr+1]
@@ -101,7 +106,7 @@ func (m *MMU) ReadMemoryWord(addr uint16) uint16 {
 // params:
 // addr: 16 bit virtual address
 // returns: byte
-func (m *MMU) ReadMemoryByte(addr uint16) byte {
+func (m *MMU22) ReadMemoryByte(addr uint16) byte {
 	return 0
 }
 
@@ -112,7 +117,7 @@ func (m *MMU) ReadMemoryByte(addr uint16) byte {
 // data: 16 bit word to write
 // returns: error
 // TODO: is it proper order?
-func (m *MMU) WriteMemoryWord(addr, data uint16) error {
+func (m *MMU22) WriteMemoryWord(addr, data uint16) error {
 	lowerByte := byte(data & 0xff)
 	upperByte := byte(data >> 8)
 	m.Memory[addr] = lowerByte
@@ -126,6 +131,6 @@ func (m *MMU) WriteMemoryWord(addr, data uint16) error {
 // addr: 16 bit virtual addr
 // data: byte to be written
 // returns: error
-func (m *MMU) WriteMemoryByte(addr uint16, data byte) error {
+func (m *MMU22) WriteMemoryByte(addr uint16, data byte) error {
 	return nil
 }

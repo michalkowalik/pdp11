@@ -1,0 +1,42 @@
+a* Current Todos
+** Unibus [2/3]
+- [X] ~ReadIoPage~ and ~WriteIOPage~ are actually wrongly named - they read a Word, not a Page
+- [X] Use the memory array defined in Unibus
+- [ ] Read/Write Byte in Unibus implementation
+  - technically they're done. more testing still needed.
+
+*** MMU [1/1]
+- [X] change the way the user / kernel mode is being determined. that boolean is kind of weird. just stick to 0 for user and 3 for kernel
+
+** CPU [4/5]
+- [X] what are the ~readByte~, ~readWord~, and ~writeWord~ functions in CPU implementation needed for?
+  - they're just a helper methods. nothing nefarious is going on there.
+    they decode the virtual address from the opcode's operand and read the memory value using the usual mmmu/unibus combo
+- [X] re-enable debug output
+- [X] Tests are broken - they should use correct MMU
+- [ ] how DC deals with access to the Registers via Unibus address?
+  - Not sure if it's at all interesting right now.
+- [X] Basic functionality is restored. The simulator still crashes, but at least first 500
+      CPU operations are going well. That makes the search for the failure much easier.
+
+
+** Where it breaks now
+
+R0 000002 R1 177404 R2 136046 R3 000000 R4 135030 R5 135070 R6 137000 R7 137146
+[kK Z  ]  instr 137144: 005712   TST (R2)
+stop hereR0 000002 R1 177404 R2 136046 R3 000000 R4 135030 R5 135070 R6 137000 R7 137150
+[kK Z  ]  instr 137146: 001430   BEQ +060
+R0 000002 R1 177404 R2 136046 R3 000000 R4 135030 R5 135070 R6 137000 R7 137232
+[kK Z  ]  instr 137230: 005002   CLR R2
+
+the TST (R2) reads 0 value from the memory.
+that's why the BEQ breaks there. 
+
+Compare with DC or master
+ - memory dump: are they identical
+ - what do we actually read when it happens?
+
+
+ ** Comparing dumps
+
+ 
