@@ -749,7 +749,7 @@ func (c *CPU) ashOp(instruction uint16) {
 
 	register := (instruction >> 6) & 7
 
-	// offset is the lower 6 bits of the source
+	// offset is the lower 6 bits of the source operand
 	offset := c.readWord(instruction&077) & 077
 	source := c.Registers[register]
 

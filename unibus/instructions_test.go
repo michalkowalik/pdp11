@@ -502,35 +502,34 @@ func assertRegistersShifted(op uint16, rValue, rPlusValue uint16) error {
 }
 
 func TestCPU_ashOp(t *testing.T) {
-	type args struct {
-		instruction uint16
-	}
 	tests := []struct {
 		name         string
-		args         args   // arg value
 		rValue       uint16 // selected register value
+		rOffset      uint16
 		rExpectedVal uint16
 		carrySet     bool
-		wantErr      bool
 	}{
-		{"left shift, no carry", args{072001}, 1, 0, false, false},
-		{"right shift, no carry", args{072077}, 2, 0, true, false},
-		{"left shift, carry", args{072001}, 0x8000, 0, false, false},
-		{"right shift, carry", args{072077}, 1, 0, false, false},
+		{"left shift, no carry", 1, 1, 2, false},
+		{"right shift, no carry", 2, 077, 1, false}, // 077 is -1 for a 6 bit signed number, so shift right by 1
+		{"left shift, carry", 0x8000, 1, 0, true},
+		{"right shift, carry", 1, 077, 0, true},
 	}
+	// R1 as source operand
+	instruction := uint16(072001)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.PdpCPU.SetFlag("C", false)
-			register := (tt.args.instruction >> 6) & 7
-			u.PdpCPU.Registers[register] = tt.rValue
-			u.PdpCPU.ashOp(tt.args.instruction)
+			u.PdpCPU.Registers[0] = tt.rValue
+			u.PdpCPU.Registers[1] = tt.rOffset
+			u.PdpCPU.ashOp(instruction)
 
 			// assert values of shifted register:
-			if c.Registers[register] != tt.rExpectedVal {
+			if u.PdpCPU.Registers[0] != tt.rExpectedVal {
 				t.Errorf(
 					"CPU.ashOp() expected Register value = %v, got %v",
 					tt.rExpectedVal,
-					c.Registers[register])
+					u.PdpCPU.Registers[0])
 			}
 			// assert carry flag set
 			if u.PdpCPU.GetFlag("C") != tt.carrySet {
