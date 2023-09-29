@@ -23,7 +23,7 @@ const (
 var (
 	debug     = false
 	trapDebug = true
-	// panicCounter = 0
+	plogger   *PLogger
 )
 
 // CPU type:
@@ -66,6 +66,10 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 	c.ClockCounter = 0
 	debug = debugMode
 	c.unibus = unibus
+
+	if debugMode {
+		plogger = initLogger("./debug-out.txt")
+	}
 
 	// single operand
 	c.singleOpOpcodes = make(map[uint16]func(uint16))
@@ -239,8 +243,8 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 
 	// at this point it can be only an invalid instruction:
 	fmt.Print(c.printState(instr))
+	c.mmunit.DumpMemory()
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
-
 }
 
 // Execute decoded instruction
@@ -249,8 +253,10 @@ func (c *CPU) Execute() {
 	opcode := c.Decode(instruction)
 
 	if debug {
-		fmt.Print(c.printState(instruction))
-		fmt.Printf("%s\n", c.unibus.Disasm(instruction))
+		plogger.debug(c.printState(instruction))
+		plogger.debug(c.unibus.Disasm(instruction))
+		// fmt.Print(c.printState(instruction))
+		// fmt.Printf("%s\n", c.unibus.Disasm(instruction))
 	}
 	opcode(instruction)
 }

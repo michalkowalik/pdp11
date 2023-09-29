@@ -19,9 +19,10 @@ func initLogger(path string) *PLogger {
 	} else {
 		file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
+			fmt.Errorf(err.Error())
 			panic("can't create debug logger!")
 		}
-		defer file.Close()
+		// defer file.Close()
 		logger.logger = log.New(file, "pdp", log.Ltime|log.Ldate)
 	}
 	return logger
@@ -29,4 +30,8 @@ func initLogger(path string) *PLogger {
 
 func (l *PLogger) info(msg string) {
 	l.logger.Printf("INFO: %s\n", msg)
+}
+
+func (l *PLogger) debug(msg string) {
+	l.logger.Printf("DEBUG: %s\n", msg)
 }

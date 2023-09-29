@@ -21,7 +21,7 @@ type flags struct {
 var c *CPU
 var u *Unibus
 
-// TestMain to resucure -> initialize memory and CPU
+// TestMain to rescue -> initialize memory and CPU
 func TestMain(m *testing.M) {
 	p := psw.PSW(0)
 
@@ -94,7 +94,7 @@ func TestCPU_addOp(t *testing.T) {
 			u.PdpCPU.addOp(tt.args.instruction)
 
 			//check value
-			w := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
+			w := u.PdpCPU.readWord(tt.args.instruction & 077)
 			t.Logf("Value at dst: %x\n", w)
 			if int16(w) != tt.wantRes {
 				t.Errorf("expected %x, got %x", tt.wantRes, w)
@@ -123,7 +123,7 @@ func TestCPU_movOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.PdpCPU.movOp(tt.args.instruction)
-			d := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
+			d := u.PdpCPU.readWord(tt.args.instruction & 077)
 
 			if int16(d) != tt.dst {
 				t.Logf("destination addr: %x\n", tt.args.instruction&077)
@@ -245,9 +245,9 @@ func TestCPU_comOp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opcode := u.PdpCPU.Decode(uint16(tt.args.instruction))
+			opcode := u.PdpCPU.Decode(tt.args.instruction)
 			opcode(tt.args.instruction)
-			d := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
+			d := u.PdpCPU.readWord(tt.args.instruction & 077)
 
 			if d != tt.dst {
 				t.Logf("destination addr: %x\n", tt.args.instruction&077)
@@ -283,10 +283,10 @@ func TestCPU_incOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.PdpCPU.Registers[0] = tt.regVal
-			instruction := u.PdpCPU.Decode(uint16(tt.args.instruction))
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
 			instruction(tt.args.instruction)
 
-			d := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
+			d := u.PdpCPU.readWord(tt.args.instruction & 077)
 			if d != tt.dst {
 				t.Errorf("Expected value: %x, got: %x\n", tt.dst, d)
 			}
@@ -330,7 +330,7 @@ func TestCPU_negOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.PdpCPU.Registers[0] = tt.regVal
-			instruction := u.PdpCPU.Decode(uint16(tt.args.instruction))
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
 			instruction(tt.args.instruction)
 			if u.PdpCPU.Registers[0] != tt.dst {
 				t.Errorf("\"%s\" ERROR: expected %v, got %v\n",
@@ -377,7 +377,7 @@ func TestCPU_adcOp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			u.PdpCPU.Registers[0] = tt.regVal
 			u.PdpCPU.SetFlag("C", tt.origCFlag)
-			instruction := u.PdpCPU.Decode(uint16(tt.args.instruction))
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
 			instruction(tt.args.instruction)
 			if u.PdpCPU.Registers[0] != tt.dst {
 				t.Errorf("ADC returned unexpected result. expected %v, got %v\n",
@@ -418,7 +418,7 @@ func TestCPU_xorOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.PdpCPU.xorOp(tt.args.instruction)
-			w := u.PdpCPU.readWord(uint16(tt.args.instruction & 077))
+			w := u.PdpCPU.readWord(tt.args.instruction & 077)
 			t.Logf("Value at dst: %x \n", w)
 			if w != tt.wantRes {
 				t.Errorf("expected %x, got %x\n", tt.wantRes, w)
@@ -539,13 +539,12 @@ func TestCPU_ashOp(t *testing.T) {
 	}
 }
 
-// for simplicity sake values are kept in registers directly,
+// for simplicity’s sake values are kept in registers directly,
 // src is always in R0
 // dst in R1
 // validity of decoding instructions and fetching from memory is tested in the cpu module
 // hence, it's always the same instruction.
 func TestCPU_subOp(t *testing.T) {
-	// substract: R1 = R1 - R0
 	var instruction uint16 = 0160001
 
 	tests := []struct {

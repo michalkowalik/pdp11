@@ -95,7 +95,7 @@ func (c *CPU) decbOp(instruction uint16) {
 
 // neg - negate dst
 // replace the contents of the destination address
-// by it's 2 complement. 01000000 is replaced by itself
+// by its 2 complement. 01000000 is replaced by itself
 func (c *CPU) negOp(instruction uint16) {
 	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(dstAddr)
@@ -152,7 +152,7 @@ func (c *CPU) adcOp(instruction uint16) {
 	c.SetFlag("C", (dst == oc) && c.GetFlag("C"))
 }
 
-// sbc - substract carry
+// sbc - subtract carry
 func (c *CPU) sbcOp(instruction uint16) {
 	dstAddr := c.GetVirtualByMode(instruction&077, 0)
 	dest := c.mmunit.ReadMemoryWord(dstAddr)
@@ -462,7 +462,7 @@ func (c *CPU) movOp(instruction uint16) {
 // movb
 // The MOVB to a register (unique among byte instructions)
 // extends the most significant bit of the low order byte (sign extension).
-// Otherwise MOVB operates on bytes exactly as MOV operates on words.
+// Otherwise, MOVB operates on bytes exactly as MOV operates on words.
 func (c *CPU) movbOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
@@ -487,22 +487,22 @@ func (c *CPU) movbOp(instruction uint16) {
 
 // misc instructions (decode all bits)
 // halt
-func (c *CPU) haltOp(instruction uint16) {
+func (c *CPU) haltOp(_ uint16) {
 	c.State = HALT
 }
 
 // bpt - breakpoint trap
-func (c *CPU) bptOp(instruction uint16) {
+func (c *CPU) bptOp(_ uint16) {
 	c.trapOpcode(014)
 }
 
 // iot - i/o trap
-func (c *CPU) iotOp(instruction uint16) {
+func (c *CPU) iotOp(_ uint16) {
 	c.trapOpcode(020)
 }
 
 // rti - return from interrupt
-func (c *CPU) rtiOp(instruction uint16) {
+func (c *CPU) rtiOp(_ uint16) {
 	c.Registers[7] = c.Pop()
 	val := c.Pop()
 	if c.unibus.Psw.GetMode() == UserMode {
@@ -518,14 +518,13 @@ func (c *CPU) rttOp(instruction uint16) {
 }
 
 // wait for interrupt
-// check for interrupts here!!
-func (c *CPU) waitOp(instruction uint16) {
+// TODO check for interrupts here!! (?)
+func (c *CPU) waitOp(_ uint16) {
 	c.State = WAIT
 }
 
 // Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
-// TODO: user mode?
-func (c *CPU) resetOp(instruction uint16) {
+func (c *CPU) resetOp(_ uint16) {
 	c.unibus.Rk01.Reset()
 	c.unibus.TermEmulator.ClearTerminal()
 }
@@ -574,7 +573,7 @@ func (c *CPU) addOp(instruction uint16) {
 	c.mmunit.WriteMemoryWord(virtAddr, sum)
 }
 
-// substract (16)
+// subtract (16)
 func (c *CPU) subOp(instruction uint16) {
 	source := (instruction & 07700) >> 6
 	dest := instruction & 077
@@ -831,8 +830,8 @@ func (c *CPU) xorOp(instruction uint16) {
 	c.mmunit.WriteMemoryWord(destAddr, res)
 }
 
-// sob - substract one and branch (if not equal 0)
-// if value of the register sourceReg is not 0, susbtract
+// sob - subtract one and branch (if not equal 0)
+// if value of the register sourceReg is not 0, subtract
 // twice the value of the offset (lowest 6 bits) from the SP
 func (c *CPU) sobOp(instruction uint16) {
 	sourceReg := (instruction >> 6) & 7
@@ -858,13 +857,12 @@ func (c *CPU) trapOpcode(vector uint16) {
 }
 
 // emt - emulator trap - trap vector hardcoded to location 32
-func (c *CPU) emtOp(instruction uint16) {
+func (c *CPU) emtOp(_ uint16) {
 	c.trapOpcode(030)
 }
 
-// trap
 // trap vector for TRAP is hardcoded for all PDP11s to memory location 34
-func (c *CPU) trapOp(instruction uint16) {
+func (c *CPU) trapOp(_ uint16) {
 	c.trapOpcode(034)
 }
 
