@@ -66,7 +66,7 @@ func (sys *System) run() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			sys.processTrap(t)
+			sys.CPU.Trap(t)
 		case nil:
 			// ignore
 		default:
@@ -77,10 +77,6 @@ func (sys *System) run() {
 	for {
 		sys.step()
 	}
-}
-
-func (sys *System) processTrap(trap interrupts.Trap) {
-	sys.CPU.Trap(trap)
 }
 
 // single cpu step:

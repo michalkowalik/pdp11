@@ -129,7 +129,8 @@ func (u *Unibus) Disasm(a uint16) string {
 			goto found
 		}
 	}
-	panic(fmt.Sprintf("disasm: cannot disassemble instruction %06o at %06o", ins, a))
+	// panic(fmt.Sprintf("disasm: cannot disassemble instruction %06o at %06o", ins, a))
+	return "??"
 
 found:
 	msg := l.msg

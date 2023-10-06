@@ -21,9 +21,10 @@ const (
 
 // add debug output to the console
 var (
-	debug     = false
-	trapDebug = true
-	plogger   *PLogger
+	debug      = false
+	trapDebug  = true
+	plogger    *PLogger
+	debugQueue *DebugQueue
 )
 
 // CPU type:
@@ -66,6 +67,10 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 	c.ClockCounter = 0
 	debug = debugMode
 	c.unibus = unibus
+
+	if debug {
+		debugQueue = NewQueue(40)
+	}
 
 	if debugMode {
 		plogger = initLogger("./debug-out.txt")
@@ -184,6 +189,7 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 func (c *CPU) Fetch() uint16 {
 	physicalAddress := c.mmunit.Decode(c.Registers[7], false, c.unibus.Psw.IsUserMode())
 	instruction := c.unibus.ReadIO(physicalAddress)
+
 	c.Registers[7] += 2
 	return instruction
 }
@@ -242,22 +248,41 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 	}
 
 	// at this point it can be only an invalid instruction:
-	fmt.Print(c.printState(instr))
-	c.mmunit.DumpMemory()
+	fmt.Printf("%s\n", c.printState(instr))
+	if debug {
+		for !debugQueue.IsEmpty() {
+			i, e := debugQueue.Dequeue()
+			if e != nil {
+				fmt.Errorf(e.Error())
+			}
+			fmt.Printf("%s\n", i)
+		}
+
+	}
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 }
 
 // Execute decoded instruction
 func (c *CPU) Execute() {
 	instruction := c.Fetch()
-	opcode := c.Decode(instruction)
 
 	if debug {
-		plogger.debug(c.printState(instruction))
-		plogger.debug(c.unibus.Disasm(instruction))
+		// plogger.debug(c.printState(instruction))
+		// plogger.debug(c.unibus.Disasm(instruction))
 		// fmt.Print(c.printState(instruction))
 		// fmt.Printf("%s\n", c.unibus.Disasm(instruction))
+		debugQueue.Enqueue(fmt.Sprintf("%s %s\n", c.printState(instruction), c.unibus.Disasm(instruction)))
 	}
+
+	/*
+		// breakpoint for the 0177770 instruction
+		if instruction == 0177770 {
+			fmt.Printf("0177770!\n")
+			fmt.Printf("%s\n", c.printState(instruction))
+			fmt.Printf("%s\n", c.unibus.Disasm(instruction))
+		}
+	*/
+	opcode := c.Decode(instruction)
 	opcode(instruction)
 }
 
