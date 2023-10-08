@@ -6,18 +6,19 @@ import (
 	"strings"
 )
 
-// memory related constants (by far not all needed -- figuring out as  writing)
-const (
-	// CPU state: Run / Halt / Wait:
-	HALT   = 0
-	CPURUN = 1
-	WAIT   = 2
+type CpuState int
 
-	// KernelMode - kernel cpu mode const
-	KernelMode = 0
-	// UserMode - user cpu mode const
-	UserMode = 3
+const (
+	HALT CpuState = iota
+	CPURUN
+	WAIT
 )
+
+// KernelMode - kernel cpu mode const
+const KernelMode = 0
+
+// UserMode - user cpu mode const
+const UserMode = 3
 
 // add debug output to the console
 var (
@@ -30,7 +31,7 @@ var (
 // CPU type:
 type CPU struct {
 	Registers [8]uint16
-	State     int // what is it doing? used for anything?
+	State     CpuState
 
 	// system stack pointers: kernel, super, illegal, user
 	// super won't be needed for pdp11/40:
@@ -264,8 +265,12 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 
 // Execute decoded instruction
 func (c *CPU) Execute() {
-	instruction := c.Fetch()
+	// do nothing if CPU waits for interrupt
+	if c.State == WAIT {
+		return
+	}
 
+	instruction := c.Fetch()
 	if debug {
 		// plogger.debug(c.printState(instruction))
 		// plogger.debug(c.unibus.Disasm(instruction))

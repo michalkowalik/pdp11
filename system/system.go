@@ -126,13 +126,14 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		default:
 			panic(t)
 		}
-		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector) // TODO: fix
+		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector) // TODO: fix  - > what here needs to be fixed?
 		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
 
 		if (prev & (1 << 14)) > 0 {
 			intPSW |= (1 << 13) | (1 << 12)
 		}
 		sys.psw.Set(intPSW)
+		sys.CPU.State = unibus.CPURUN
 	}(prev)
 
 	sys.CPU.SwitchMode(psw.KernelMode)
