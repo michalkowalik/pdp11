@@ -11,7 +11,6 @@ const (
 	// RKDEBUG flag to output extra info
 	RKDEBUG = false
 
-	rk5ImageLength = 2077696
 	// unibus Addresses:
 	rkdsAddress = 0777400
 	rkerAddress = 0777402
@@ -93,9 +92,6 @@ func (r *RK11) Attach(drive int, path string) error {
 	}
 
 	r.unit[drive] = unit
-
-	// r.unibus.controlConsole.WriteConsole("disk mounted")
-
 	return nil
 }
 
