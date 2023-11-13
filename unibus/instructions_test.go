@@ -539,7 +539,7 @@ func TestCPU_ashOp(t *testing.T) {
 	}
 }
 
-// for simplicity’s sake values are kept in registers directly,
+// for simplicity sake values are kept in registers directly,
 // src is always in R0
 // dst in R1
 // validity of decoding instructions and fetching from memory is tested in the cpu module
@@ -608,6 +608,41 @@ func TestCPU_bicOp(t *testing.T) {
 				t.Errorf(err.Error())
 			}
 		})
+	}
+}
+
+func TestCPU_rti(t *testing.T) {
+	psw := uint16(0xffff)
+	pc := uint16(0x1111)
+
+	u.PdpCPU.Registers[6] = 0x200 // set SP
+
+	u.PdpCPU.Push(psw)
+	u.PdpCPU.Push(pc)
+
+	u.PdpCPU.rtiOp(0x0)
+
+	if u.PdpCPU.Registers[7] != pc {
+		t.Errorf("expected R7 to be set to %v, got %v", pc, u.PdpCPU.Registers[7])
+	}
+
+	if u.Psw.Get() != psw {
+		t.Errorf("Expected PSW to be set to %v, got %v", psw, u.Psw.Get())
+	}
+}
+
+func TestCPU_rts(t *testing.T) {
+	u.PdpCPU.Registers[5] = 0xff // this needs to be loaded to the PC
+	u.PdpCPU.Push(1)             // this should end up in R5
+
+	u.PdpCPU.rtsOp(0205) // RTS R5
+
+	if u.PdpCPU.Registers[7] != 0xff {
+		t.Errorf("Expected PS to be 0xff, got %v", u.PdpCPU.Registers[7])
+	}
+
+	if u.PdpCPU.Registers[5] != 1 {
+		t.Errorf("Expected R5 to be set to 1, got %v", u.PdpCPU.Registers[5])
 	}
 }
 

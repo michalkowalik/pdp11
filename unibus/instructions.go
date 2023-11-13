@@ -509,6 +509,8 @@ func (c *CPU) rtiOp(_ uint16) {
 		val &= 047
 		val |= c.unibus.Psw.Get() & 0177730
 	}
+	// TODO -> what is happening here?
+	// c.unibus.Psw.Set(val)
 	c.mmunit.WriteMemoryWord(PSWVirtAddr, val)
 }
 
