@@ -247,8 +247,10 @@ TRAP 10 occured: Invalid Instruction
 - RTI sets the SP to a wrong location, and a non-existent opcode is being executed
 
   
-** TODO TODOS [0/1]<2023-10-07 Sat>
-- [ ] write unit tests for RTI and RTS
-  - [ ] check both user and kernel mode.
-  - [ ] is it possible, that the system switches between the modes in this case?
+** TODO TODOS [1/2]<2023-10-07 Sat>
+- [X] write unit tests for RTI and RTS
+  - [X] check both user and kernel mode.
+  - [X] is it possible, that the system switches between the modes in this case?
+    - no, it stays where it is - unless the PSW says so???
 - [ ] add the same debug information to the DC's implementation, check if the RTS-RTI sequence happens there as well.
+- [ ] PSW.Set -> there might be an issue iwth setting correct mode
