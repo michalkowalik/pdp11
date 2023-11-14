@@ -3,7 +3,7 @@ package unibus
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"pdp/interrupts"
 )
 
@@ -79,7 +79,7 @@ func NewRK(u *Unibus) *RK11 {
 
 // Attach reads disk image file and loads it to memory
 func (r *RK11) Attach(drive int, path string) error {
-	buf, err := ioutil.ReadFile(path)
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
