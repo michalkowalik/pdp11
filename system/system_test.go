@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"pdp/console"
+	"pdp/interrupts"
 	"pdp/unibus"
 	"testing"
 )
@@ -165,5 +166,68 @@ func TestTriggerTrap(t *testing.T) {
 
 	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
+	}
+}
+
+func TestInterruptHandling(t *testing.T) {
+	sys.CPU.KernelStackPointer = 0777 << 1
+	sys.CPU.UserStackPointer = 01776 << 1
+
+	memPointer := uint16(04000)
+	r7Value := uint16(0xfffe)
+	initialPSW := uint16(0xf000)
+
+	sys.unibus.Memory[memPointer>>1] = 06 // RTI
+
+	sys.unibus.Memory[interrupts.INTRK>>1] = memPointer
+
+	sys.CPU.Registers[7] = r7Value
+	sys.CPU.Registers[6] = sys.CPU.UserStackPointer
+
+	// mode = user, previousMode = user, no flags.
+	sys.unibus.Psw.Set(initialPSW)
+
+	sys.unibus.SendInterrupt(4, interrupts.INTRK)
+	if sys.unibus.InterruptQueue[0].Vector != interrupts.INTRK {
+		t.Errorf("Expected to have INTRK in the interrupt queue")
+	}
+
+	sys.processInterrupt(sys.unibus.InterruptQueue[0])
+
+	if sys.unibus.Psw.GetMode() != unibus.KernelMode {
+		t.Errorf("Expected processor to be in kernel mode")
+	}
+
+	if sys.unibus.Psw.GetPreviousMode() != unibus.UserMode {
+		t.Errorf("Expected previousMode to be USER")
+	}
+
+	if sys.CPU.Registers[6]>>1 != 0775 { // r7 and original psw should be on the stack
+		t.Errorf("Expected kernel stack pointer to be pointing to the address of 0775, got %o\n", sys.CPU.Registers[6])
+	}
+
+	instruction := sys.CPU.Fetch()
+	if instruction != 06 {
+		t.Errorf("Expected to fetch RTI at this point, but got %o\n", instruction)
+	}
+
+	// execute RTI
+	(sys.CPU.Decode(instruction))(instruction)
+
+	if sys.CPU.Registers[7] != r7Value {
+		t.Errorf("Expected SP to be set back to the original value, but got %o\n", sys.CPU.Registers[7])
+	}
+
+	if sys.unibus.Psw.Get() != initialPSW {
+		t.Errorf("Expected PSW to be set to the original value, but got %x\n", sys.unibus.Psw.Get())
+	}
+
+	// TODO: is that even right?
+	//if sys.unibus.Psw.GetPreviousMode() != unibus.KernelMode {
+	//	t.Errorf("previous mode should be set to KERNEL, but it is %x\n", sys.unibus.Psw.GetPreviousMode())
+	//}
+
+	if sys.CPU.Registers[6] != sys.CPU.UserStackPointer {
+		t.Errorf("Stack pointer should be set to the user stack by now")
 	}
 }

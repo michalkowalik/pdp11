@@ -632,6 +632,7 @@ func TestCPU_rti(t *testing.T) {
 }
 
 func TestCPU_rts(t *testing.T) {
+	u.PdpCPU.Registers[6] = 0777 << 1
 	u.PdpCPU.Registers[5] = 0xff // this needs to be loaded to the PC
 	u.PdpCPU.Push(1)             // this should end up in R5
 

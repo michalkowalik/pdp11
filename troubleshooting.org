@@ -247,7 +247,7 @@ TRAP 10 occured: Invalid Instruction
 - RTI sets the SP to a wrong location, and a non-existent opcode is being executed
 
   
-** TODO TODOS [2/3]<2023-10-07 Sat>
+** TODO TODOS [3/7]<2023-10-07 Sat>
 - [X] write unit tests for RTI and RTS
   - [X] check both user and kernel mode.
   - [X] is it possible, that the system switches between the modes in this case?
@@ -256,7 +256,17 @@ TRAP 10 occured: Invalid Instruction
 - [X] PSW.Set -> there might be an issue iwth setting correct mode
   - that would be too easy.
 - [ ] create a breakpoint on the RTS with the exact register values. there must be something wrong latest at this point.
-  
+- [ ] how often is RTI in user context called?
+- [X] test if RTI manages the mode switch and restore correctly
+  - [X] user -> kernel -> user
+  - [X] kernel -> kernel -> kernel
+- [ ] Do I switch between user and kernel in the MMU correctly? <- add test!
+- [ ] shouldn't be the previous mode set to Kernel after returning from the interrupt?
+
+
 - at least it looks like the interrupt management works fine. there are no nested interrupts,
   and only clock, rk5 and teletype are to be seen.
+- behaviour of the interrupt stack is a bit strange. Why does it show multiple TTY interrupts?
+- possibly, there are calls to RTI from outside of interrupt -> this is strange, and should not be.
+  - but at least, DC-11 shows the same behavior.
 
