@@ -51,6 +51,8 @@ type Unibus struct {
 	PdpCPU *CPU
 
 	Rk01 *RK11
+
+	InterruptStack InterruptStack
 }
 
 // New initializes and returns the Unibus variable

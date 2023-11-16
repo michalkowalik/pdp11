@@ -503,14 +503,15 @@ func (c *CPU) iotOp(_ uint16) {
 
 // rti - return from interrupt
 func (c *CPU) rtiOp(_ uint16) {
+
+	//c.unibus.InterruptStack.Pop()
+
 	c.Registers[7] = c.Pop()
 	val := c.Pop()
 	if c.unibus.Psw.GetMode() == UserMode {
 		val &= 047
 		val |= c.unibus.Psw.Get() & 0177730
 	}
-	// TODO -> what is happening here?
-	// c.unibus.Psw.Set(val)
 	c.mmunit.WriteMemoryWord(PSWVirtAddr, val)
 }
 

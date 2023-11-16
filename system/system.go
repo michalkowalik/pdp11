@@ -115,8 +115,7 @@ func (sys *System) step() {
 //  5. Return from subprocedure cpu instruction at the end of interrupt procedure
 //     makes sure to set the stack and PSW back to where it belongs
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
-	prev := sys.psw.Get()
-	defer func(prev uint16) {
+	defer func() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
@@ -126,17 +125,30 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		default:
 			panic(t)
 		}
-		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector) // TODO: fix  - > what here needs to be fixed?
-		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
+	}()
 
-		if (prev & (1 << 14)) > 0 {
-			intPSW |= (1 << 13) | (1 << 12)
+	/*
+		sys.unibus.InterruptStack.Push(interrupt.Vector)
+		if interrupt.Vector != interrupts.INTClock && interrupt.Vector != interrupts.INTRK {
+			fmt.Printf("Processing interrupt: ", interrupt.Vector)
+			for _, i := range sys.unibus.InterruptQueue {
+				fmt.Printf("<v: %o, p: %o> ", i.Vector, i.Priority)
+			}
+			fmt.Printf("\n")
 		}
-		sys.psw.Set(intPSW)
-		sys.CPU.State = unibus.CPURUN
-	}(prev)
+	*/
 
+	prev := sys.psw.Get()
 	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prev)
 	sys.CPU.Push(sys.CPU.Registers[7])
+	sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
+	intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
+
+	if (prev & (1 << 14)) > 0 {
+		intPSW |= (1 << 13) | (1 << 12)
+	}
+	sys.psw.Set(intPSW)
+	sys.CPU.State = unibus.CPURUN
+
 }

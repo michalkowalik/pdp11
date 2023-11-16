@@ -407,7 +407,7 @@ func (c *CPU) Trap(trap interrupts.Trap) {
 		}
 		c.Registers[7] = c.unibus.ReadIO(Uint18(vec))
 		c.unibus.Psw.Set(c.unibus.ReadIO(Uint18(vec) + 2))
-		if prevPSW>>14 == 3 {
+		if prevPSW>>14 == 3 { // user mode
 			c.unibus.Psw.Set(c.unibus.Psw.Get() | (1 << 13) | (1 << 12))
 		}
 	}(trap.Vector, prevPSW)
