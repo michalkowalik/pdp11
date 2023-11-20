@@ -28,6 +28,15 @@ func (psw *PSW) Get() uint16 {
 
 // Set PSW value
 func (psw *PSW) Set(p uint16) {
+
+	// if mode switch will happen, set the previous mode correctly:
+	if (p >> 14) != psw.GetMode() {
+		if psw.GetMode() == UserMode {
+			p |= (1 << 12) | (1 << 13)
+		} else {
+			p &= 0147777
+		}
+	}
 	*psw = PSW(p)
 }
 

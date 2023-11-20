@@ -33,19 +33,13 @@ type CPU struct {
 	Registers [8]uint16
 	State     CpuState
 
-	// system stack pointers: kernel, super, illegal, user
-	// super won't be needed for pdp11/40:
-	KernelStackPointer uint16
-	UserStackPointer   uint16
+	KernelStackPointer, UserStackPointer uint16
 
-	// unibus
+	// CPU modes
+	currentMode, previousMode int
+
 	unibus *Unibus
-
-	// memory access is required:
 	mmunit MMU
-
-	// ClockCounter
-	ClockCounter uint16
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it
@@ -65,7 +59,6 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 
 	c := CPU{}
 	c.mmunit = mmunit
-	c.ClockCounter = 0
 	debug = debugMode
 	c.unibus = unibus
 
@@ -501,7 +494,6 @@ func (c *CPU) Reset() {
 	c.KernelStackPointer = 0
 	c.UserStackPointer = 0
 	c.mmunit.SetSR0(0)
-	c.ClockCounter = 0
 	c.unibus.Rk01.Reset()
 	c.State = CPURUN
 }

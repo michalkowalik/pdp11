@@ -26,6 +26,10 @@ type System struct {
 	regView      *gocui.View
 }
 
+var (
+	clockCounter uint16
+)
+
 // InitializeSystem initializes the emulated PDP-11/40 hardware
 func InitializeSystem(
 	c console.Console, terminalView, regView *gocui.View, gui *gocui.Gui, debugMode bool) *System {
@@ -95,9 +99,9 @@ func (sys *System) step() {
 
 	// execute next CPU instruction
 	sys.CPU.Execute()
-	sys.CPU.ClockCounter++
-	if sys.CPU.ClockCounter >= 40000 {
-		sys.CPU.ClockCounter = 0
+	clockCounter++
+	if clockCounter >= 40000 {
+		clockCounter = 0
 		sys.unibus.LKS |= 1 << 7
 		if sys.unibus.LKS&(1<<6) != 0 {
 			sys.unibus.SendInterrupt(6, interrupts.INTClock)

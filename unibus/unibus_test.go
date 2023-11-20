@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"pdp/psw"
 	"testing"
 )
 
@@ -19,7 +20,7 @@ func TestUnibus_ReadIO(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u.Psw.Set(tt.want)
+			*u.Psw = psw.PSW(tt.want)
 			got := u.ReadIO(tt.args.physicalAddress)
 			if got != tt.want {
 				t.Errorf("Unibus.ReadIO() = %v, want %v", got, tt.want)

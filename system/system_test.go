@@ -1,7 +1,6 @@
 package system
 
 import (
-	"go/build"
 	"os"
 	"path/filepath"
 	"pdp/console"
@@ -25,7 +24,8 @@ func TestMain(m *testing.M) {
 	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
+	//if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
 	sys.unibus.Rk01.Reset()
@@ -218,14 +218,10 @@ func TestInterruptHandling(t *testing.T) {
 		t.Errorf("Expected SP to be set back to the original value, but got %o\n", sys.CPU.Registers[7])
 	}
 
-	if sys.unibus.Psw.Get() != initialPSW {
+	// previous mode should be set to kernel
+	if sys.unibus.Psw.Get() != (initialPSW & 0xCFFF) {
 		t.Errorf("Expected PSW to be set to the original value, but got %x\n", sys.unibus.Psw.Get())
 	}
-
-	// TODO: is that even right?
-	//if sys.unibus.Psw.GetPreviousMode() != unibus.KernelMode {
-	//	t.Errorf("previous mode should be set to KERNEL, but it is %x\n", sys.unibus.Psw.GetPreviousMode())
-	//}
 
 	if sys.CPU.Registers[6] != sys.CPU.UserStackPointer {
 		t.Errorf("Stack pointer should be set to the user stack by now")
