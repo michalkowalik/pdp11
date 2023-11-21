@@ -368,15 +368,13 @@ func (c *CPU) markOp(instruction uint16) {
 func (c *CPU) mfpiOp(instruction uint16) {
 	var val uint16
 	dest := c.GetVirtualByMode(instruction&077, 0)
-	currentMode := c.unibus.Psw.GetMode()
-	prevMode := c.unibus.Psw.GetPreviousMode()
 
 	switch {
 	case dest == 0177706:
-		if currentMode == prevMode {
+		if c.currentMode == c.previousMode {
 			val = c.Registers[6]
 		} else {
-			if prevMode == 3 { // user
+			if c.IsPrevModeUser() { // user
 				val = c.UserStackPointer
 			} else {
 				val = c.KernelStackPointer
@@ -386,12 +384,11 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	case dest&0177770 == 0170000:
 		panic("MFPI attended on Register address")
 	default:
-		physicalAddress := c.mmunit.Decode(dest, false, prevMode == psw.UserMode) // TODO: Change to user
+		physicalAddress := c.mmunit.Decode(dest, false, c.IsPrevModeUser())
 		val = c.unibus.ReadIO(physicalAddress)
 	}
 
 	c.Push(val)
-	c.unibus.Psw.Set(c.unibus.Psw.Get() & 0xFFF0)
 	c.SetFlag("C", true)
 	c.SetFlag("N", val&0x8000 == 0x8000)
 	c.SetFlag("Z", val == 0)
@@ -402,15 +399,12 @@ func (c *CPU) mtpiOp(instruction uint16) {
 	destAddr := c.GetVirtualByMode(instruction&077, 0)
 	val := c.Pop()
 
-	currentMode := c.unibus.Psw.GetMode()
-	prevMode := c.unibus.Psw.GetPreviousMode()
-
 	switch {
 	case destAddr == 0177706:
-		if currentMode == prevMode {
+		if c.currentMode == c.previousMode {
 			c.Registers[6] = val
 		} else {
-			if prevMode == 3 {
+			if c.previousMode == 3 {
 				c.UserStackPointer = val
 			} else {
 				c.KernelStackPointer = val
@@ -419,10 +413,11 @@ func (c *CPU) mtpiOp(instruction uint16) {
 	case destAddr&0177770 == 0170000:
 		panic("MTPI attended on Register address")
 	default:
-		sourceAddress := c.mmunit.Decode(destAddr, false, prevMode == psw.UserMode)
+		sourceAddress := c.mmunit.Decode(destAddr, false, c.IsPrevModeUser())
 		c.unibus.WriteIO(sourceAddress, val)
 	}
 
+	// TODO: Not strictly needed
 	c.unibus.Psw.Set(c.unibus.Psw.Get() & 0xFFFF)
 	c.SetFlag("C", true)
 	c.SetFlag("N", val&0x8000 == 0x8000)
@@ -505,11 +500,11 @@ func (c *CPU) iotOp(_ uint16) {
 func (c *CPU) rtiOp(_ uint16) {
 	c.Registers[7] = c.Pop()
 	val := c.Pop()
-	if c.unibus.Psw.GetMode() == UserMode {
+	if c.IsUserMode() {
 		val &= 047
 		val |= c.unibus.Psw.Get() & 0177730
 	}
-	c.mmunit.WriteMemoryWord(PSWVirtAddr, val)
+	c.unibus.WriteIO(PSWAddr, val)
 }
 
 // rtt - return from trap

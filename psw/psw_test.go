@@ -36,9 +36,6 @@ func TestPSW_C(t *testing.T) {
 }
 
 func TestPSW_SetC(t *testing.T) {
-	type args struct {
-		status bool
-	}
 	tests := []struct {
 		name string
 		psw  PSW
@@ -63,9 +60,6 @@ func TestPSW_SetC(t *testing.T) {
 }
 
 func TestPSW_SetN(t *testing.T) {
-	type args struct {
-		status bool
-	}
 	tests := []struct {
 		name        string
 		psw         PSW

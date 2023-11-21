@@ -13,7 +13,7 @@ type Simple struct {
 
 	// TKS : Reader status Register (addr. xxxx560)
 	// bits in register:
-	// 11: RCVR BUSY, 7: RCRV DONE, 6: RCVR INT ENB, 0: RDR ENB
+	// 11: RCVR BUSY, 7: RCVR DONE, 6: RCVR INT ENB, 0: RDR ENB
 	TKS uint16
 
 	// TPS : Punch status register (addr. xxxx564)
@@ -66,7 +66,7 @@ func (t *Simple) Step() {
 		select {
 		case v, ok := <-t.keyboardInput:
 			if ok {
-				t.addChar(byte(v))
+				t.addChar(v)
 			}
 		default:
 		}
@@ -120,7 +120,10 @@ func (t *Simple) writeTerminal(char int) {
 		// skip
 	default:
 		outb[0] = byte(char)
-		os.Stdout.Write(outb[:])
+		_, err := os.Stdout.Write(outb[:])
+		if err != nil {
+			panic("can't write to the output buffer")
+		}
 	}
 }
 
@@ -191,7 +194,7 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	return nil
 }
 
-// ReadTerm : read from terminal memory at address address
+// ReadTerm : read from terminal memory at address
 func (t *Simple) ReadTerm(address uint32) uint16 {
 	switch address & 0777 {
 	case 0560:

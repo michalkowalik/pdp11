@@ -1,3 +1,4 @@
+
 #+AUTHOR: Michał Kowalik
 #+TITLE: PDP11 Troubleshooting
 
@@ -17,7 +18,7 @@
     - what is it doing when it fails?
 
 * What needs to be checked:
-** TODO Are there any interrupts called during the boot?
+** DONE Are there any interrupts called during the boot?
 ** DONE Where does it exactly fail (and what does it do then?)
    allright, so it's clarly in ~jsrOp~. jump to subroutine. 
    and it fails, when it tries to push to the stack. 
@@ -25,7 +26,7 @@
        - either the ~SP~ is wrong
        - or the stack is wrongly defined
        - or there's an error in ~mmu.WriteMemoryWord~
-
+	 
 ** DONE does it fail with the same values for the PRD/PAR?
     #+BEGIN_SRC
         # /BIN/WHO
@@ -68,7 +69,7 @@
 
     So it very much looks like it dies in the same place all over again
     
-
+    
 ** where it fails:
    #+BEGIN_SRC
    panic: (interrupts.Trap) (0x5a9ae0,0xc0000a2080) [recovered]
@@ -184,7 +185,96 @@
          R0 000000 R1 177740 R2 177772 R3 020544 R4 177777 R5 177762 R6 177752 R7 000554
 	 [uU Z  ]  instr 000552: 004767   JSR PC, *133640
        #+END_SRC
-**** TODO Where does this ~JSR~ came from?
+**** DONE Where does this ~JSR~ came from?
      - is the value in R7 wrong?
      - or shouldn't we be there at all?  
      - add full debug output.
+
+
+* State for 2023.10.06
+- unix boots
+- TRAP 10 is being triggered by any interaction with the user.
+
+** Working hypothesis for the observed behaviour
+
+- typing on the teletype sends an interrupt to the system.
+- the ~RTI~ (return from interrupt) opcode is faulty
+  - or possibly, there's a problem with the stack, and a nonsensical information is popped from it
+- the last 40 opcodes before hitting the TRAP:
+
+#+BEGIN_SRC
+  R0 000012 R1 177706 R2 177716 R3 021646 R4 177612 R5 177702 R6 177672 R7 001674
+[uU   C]  instr 001672: 000763    BR -032
+
+R0 000012 R1 177706 R2 177716 R3 021646 R4 177612 R5 177702 R6 177672 R7 001644
+[uU   C]  instr 001642: 000167    JMP *143504
+
+R0 000012 R1 177706 R2 177716 R3 021646 R4 177612 R5 177702 R6 177672 R7 011406
+[uU   C]  instr 011404: 010501    MOV R5, R1
+
+R0 000012 R1 177702 R2 177716 R3 021646 R4 177612 R5 177702 R6 177672 R7 011410
+[uUN  C]  instr 011406: 014104    MOV -(R1), R4
+
+R0 000012 R1 177700 R2 177716 R3 021646 R4 000012 R5 177702 R6 177672 R7 011412
+[uU   C]  instr 011410: 014103    MOV -(R1), R3
+
+R0 000012 R1 177676 R2 177716 R3 021646 R4 000012 R5 177702 R6 177672 R7 011414
+[uU   C]  instr 011412: 014102    MOV -(R1), R2
+
+R0 000012 R1 177674 R2 177716 R3 021646 R4 000012 R5 177702 R6 177672 R7 011416
+[uUN  C]  instr 011414: 010506    MOV R5, SP
+
+R0 000012 R1 177674 R2 177716 R3 021646 R4 000012 R5 177702 R6 177702 R7 011420
+[uUN  C]  instr 011416: 012605    MOV (SP)+, R5
+
+R0 000012 R1 177674 R2 177716 R3 021646 R4 000012 R5 177716 R6 177704 R7 011422
+[uUN  C]  instr 011420: 000207    RTS PC
+
+R0 000012 R1 177674 R2 177716 R3 021646 R4 000012 R5 177716 R6 177706 R7 000014
+[uUN  C]  instr 000012: 000002    RTI
+
+R0 000012 R1 177674 R2 177716 R3 021646 R4 000012 R5 177716 R6 177712 R7 177710
+[uUN  C]  instr 177706: 000000    ??
+
+R0 000012 R1 177674 R2 177716 R3 021646 R4 000012 R5 177716 R6 177712 R7 177712
+[uUN  C]  instr 177710: 177770    FP
+
+TRAP 10 occured: Invalid Instruction
+#
+#+END_SRC
+
+- RTS followed by an RTI
+- RTI sets the SP to a wrong location, and a non-existent opcode is being executed
+
+  
+** TODO TODOS [6/8]<2023-10-07 Sat>
+- [X] write unit tests for RTI and RTS
+  - [X] check both user and kernel mode.
+  - [X] is it possible, that the system switches between the modes in this case?
+    - no, it stays where it is - unless the PSW says so???
+- [ ] add the same debug information to the DC's implementation, check if the RTS-RTI sequence happens there as well.
+- [X] PSW.Set -> there might be an issue iwth setting correct mode
+  - that would be too easy.
+- [ ] create a breakpoint on the RTS with the exact register values. there must be something wrong latest at this point.
+- [X] how often is RTI in user context called?
+  - it should ~never~ be called in the user context. Interrupts are handled in the kernel context.
+- [X] test if RTI manages the mode switch and restore correctly
+  - [X] user -> kernel -> user
+  - [X] kernel -> kernel -> kernel
+- [X] Do I switch between user and kernel in the MMU correctly? <- add test!
+- [X] shouldn't be the previous mode set to Kernel after returning from the interrupt?
+  - I think it should. and it as a matter of fact does now. but it doesn't change the system behaviour sadly.
+
+- at least it looks like the interrupt management works fine. there are no nested interrupts,
+  and only clock, rk5 and teletype are to be seen.
+- behaviour of the interrupt stack is a bit strange. Why does it show multiple TTY interrupts?
+- possibly, there are calls to RTI from outside of interrupt -> this is strange, and should not be.
+  - but at least, DC-11 shows the same behavior.
+
+** project update <2023-11-20 Mon> [0/3]
+- still ~exactly the same~ stack at every execution
+- interrupt handling correct and tested (?)
+  - it is tested, and it is handling the clock, disk and terminal interrupts, so probably it is correct
+*** TODO is there anything I should actually look at in the terminal? sending wrong interrupt?
+*** TODO current and previous mode to be moved to the CPU directly
+*** TODO Why is the stack showing the user mode, if rti is being called -> this should operate in kernel mode

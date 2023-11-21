@@ -70,17 +70,21 @@ func (iq *InterruptQueue) SendInterrupt(priority, vector uint16) {
 		panic("Interrupt with Odd vector number")
 	}
 
+	// fast path:
+	if iq[0].Vector == 0 {
+		iq[0] = interrupt
+		return
+	}
+
 	var i int
 	for ; i < len(iq); i++ {
-		if iq[i].Vector == 0 ||
-			iq[i].Priority < interrupt.Priority {
+		if iq[i].Vector == 0 || iq[i].Priority < interrupt.Priority {
 			break
 		}
 	}
 
 	for ; i < len(iq); i++ {
-		if iq[i].Vector == 0 ||
-			iq[i].Vector >= interrupt.Vector {
+		if iq[i].Vector == 0 || iq[i].Vector >= interrupt.Vector {
 			break
 		}
 	}
@@ -89,7 +93,7 @@ func (iq *InterruptQueue) SendInterrupt(priority, vector uint16) {
 		panic("Interrupt table full")
 	}
 
-	for j := len(iq) - 1; j > i; j-- {
+	for j := i + 1; j < len(iq); j++ {
 		iq[j] = iq[j-1]
 	}
 	iq[i] = interrupt

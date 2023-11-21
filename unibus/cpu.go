@@ -6,44 +6,39 @@ import (
 	"strings"
 )
 
-// memory related constants (by far not all needed -- figuring out as  writing)
-const (
-	// CPU state: Run / Halt / Wait:
-	HALT   = 0
-	CPURUN = 1
-	WAIT   = 2
+type CpuState int
 
-	// KernelMode - kernel cpu mode const
-	KernelMode = 0
-	// UserMode - user cpu mode const
-	UserMode = 3
+const (
+	HALT CpuState = iota
+	CPURUN
+	WAIT
 )
+
+// KernelMode - kernel cpu mode const
+const KernelMode = 0
+
+// UserMode - user cpu mode const
+const UserMode = 3
 
 // add debug output to the console
 var (
-	debug     = false
-	trapDebug = true
-	plogger   *PLogger
+	debug      = false
+	plogger    *PLogger
+	debugQueue *DebugQueue
 )
 
 // CPU type:
 type CPU struct {
 	Registers [8]uint16
-	State     int // what is it doing? used for anything?
+	State     CpuState
 
-	// system stack pointers: kernel, super, illegal, user
-	// super won't be needed for pdp11/40:
-	KernelStackPointer uint16
-	UserStackPointer   uint16
+	KernelStackPointer, UserStackPointer uint16
 
-	// unibus
+	// CPU modes
+	currentMode, previousMode uint16
+
 	unibus *Unibus
-
-	// memory access is required:
 	mmunit MMU
-
-	// ClockCounter
-	ClockCounter uint16
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it
@@ -63,9 +58,12 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 
 	c := CPU{}
 	c.mmunit = mmunit
-	c.ClockCounter = 0
 	debug = debugMode
 	c.unibus = unibus
+
+	if debug {
+		debugQueue = NewQueue(40)
+	}
 
 	if debugMode {
 		plogger = initLogger("./debug-out.txt")
@@ -182,8 +180,9 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 // Fetch next instruction from memory
 // Address to fetch is kept in R7 (PC)
 func (c *CPU) Fetch() uint16 {
-	physicalAddress := c.mmunit.Decode(c.Registers[7], false, c.unibus.Psw.IsUserMode())
+	physicalAddress := c.mmunit.Decode(c.Registers[7], false, c.IsUserMode())
 	instruction := c.unibus.ReadIO(physicalAddress)
+
 	c.Registers[7] += 2
 	return instruction
 }
@@ -242,26 +241,44 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 	}
 
 	// at this point it can be only an invalid instruction:
-	fmt.Print(c.printState(instr))
-	c.mmunit.DumpMemory()
+	fmt.Printf("%s\n", c.printState(instr))
+	if debug {
+		for !debugQueue.IsEmpty() {
+			i, e := debugQueue.Dequeue()
+			if e != nil {
+				fmt.Errorf(e.Error())
+			}
+			fmt.Printf("%s\n", i)
+		}
+
+	}
 	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
 }
 
 // Execute decoded instruction
 func (c *CPU) Execute() {
-	instruction := c.Fetch()
-	opcode := c.Decode(instruction)
-
-	if debug {
-		plogger.debug(c.printState(instruction))
-		plogger.debug(c.unibus.Disasm(instruction))
-		// fmt.Print(c.printState(instruction))
-		// fmt.Printf("%s\n", c.unibus.Disasm(instruction))
+	// do nothing if CPU waits for interrupt
+	if c.State == WAIT {
+		return
 	}
+
+	instruction := c.Fetch()
+	if debug {
+		debugQueue.Enqueue(fmt.Sprintf("%s %s\n", c.printState(instruction), c.unibus.Disasm(instruction)))
+	}
+
+	opcode := c.Decode(instruction)
 	opcode(instruction)
 }
 
-// helper functions:
+func (c *CPU) IsUserMode() bool {
+	return c.currentMode == UserMode
+}
+
+func (c *CPU) IsPrevModeUser() bool {
+	return c.previousMode == UserMode
+}
+
 // readWord returns value specified by source or destination part of the operand.
 func (c *CPU) readWord(op uint16) uint16 {
 	addr := c.GetVirtualByMode(op, 0)
@@ -338,57 +355,29 @@ func (c *CPU) GetFlag(flag string) bool {
 
 // SwitchMode switches the kernel / user mode:
 func (c *CPU) SwitchMode(m uint16) {
+	c.previousMode = c.currentMode
+	c.currentMode = m
+
 	// save processor stack pointers:
-	if c.unibus.Psw.IsUserMode() {
+	if c.IsPrevModeUser() {
 		c.UserStackPointer = c.Registers[6]
 	} else {
 		c.KernelStackPointer = c.Registers[6]
 	}
 
 	// set processor stack:
-	if m > 0 {
+	if c.IsUserMode() {
 		c.Registers[6] = c.UserStackPointer
 	} else {
 		c.Registers[6] = c.KernelStackPointer
 	}
-	c.unibus.Psw.SwitchMode(m)
-}
-
-// Trap handles all Trap / abort events.
-func (c *CPU) Trap(trap interrupts.Trap) {
-	if debug || trapDebug {
-		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+	*c.unibus.Psw &= 000777
+	if c.IsUserMode() {
+		*c.unibus.Psw |= (1 << 15) | (1 << 14)
 	}
-	prevPSW := c.unibus.Psw.Get()
-
-	defer func(vec, prevPSW uint16) {
-		t := recover()
-		switch t := t.(type) {
-		case interrupts.Trap:
-			fmt.Printf("RED STACK TRAP!")
-			c.unibus.Memory[0] = c.Registers[7]
-			c.unibus.Memory[1] = prevPSW
-			vec = 4
-			panic("FATAL")
-		case nil:
-			break
-		default:
-			panic(t)
-		}
-		c.Registers[7] = c.unibus.ReadIO(Uint18(vec))
-		c.unibus.Psw.Set(c.unibus.ReadIO(Uint18(vec) + 2))
-		if prevPSW>>14 == 3 {
-			c.unibus.Psw.Set(c.unibus.Psw.Get() | (1 << 13) | (1 << 12))
-		}
-	}(trap.Vector, prevPSW)
-
-	if trap.Vector&1 == 1 {
-		panic("Trap called with odd vector number!")
+	if c.IsPrevModeUser() {
+		*c.unibus.Psw |= (1 << 13) | (1 << 12)
 	}
-
-	c.SwitchMode(KernelMode)
-	c.Push(prevPSW)
-	c.Push(c.Registers[7])
 }
 
 // GetVirtualByMode returns virtual address extracted from the CPU instruction
@@ -442,19 +431,12 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 // Push to processor stack
 func (c *CPU) Push(v uint16) {
 	c.Registers[6] -= 2
-	//if debug {
-	//		fmt.Printf("Pushing to stack. Value: %o. R6 value: %o\n", v, c.Registers[6])
-	//}
 	c.mmunit.WriteMemoryWord(c.Registers[6], v)
 }
 
 // Pop from CPU stack
 func (c *CPU) Pop() uint16 {
 	val := c.mmunit.ReadMemoryWord(c.Registers[6])
-
-	//	if debug {
-	//fmt.Printf("Popping from stack. Value: %o, R6 value %o\n", val, c.Registers[6])
-	//}
 	c.Registers[6] += 2
 	return val
 }
@@ -471,7 +453,6 @@ func (c *CPU) Reset() {
 	c.KernelStackPointer = 0
 	c.UserStackPointer = 0
 	c.mmunit.SetSR0(0)
-	c.ClockCounter = 0
 	c.unibus.Rk01.Reset()
 	c.State = CPURUN
 }

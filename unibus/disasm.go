@@ -77,7 +77,7 @@ var disasmtable = []struct {
 }
 
 func (u *Unibus) disasmaddr(m uint16, a uint16) string {
-	physicalAddress := u.Mmu.Decode(a, false, u.Psw.IsUserMode())
+	physicalAddress := u.Mmu.Decode(a, false, u.PdpCPU.IsUserMode())
 	if (m & 7) == 7 {
 		switch m {
 		case 027:
@@ -129,7 +129,8 @@ func (u *Unibus) Disasm(a uint16) string {
 			goto found
 		}
 	}
-	panic(fmt.Sprintf("disasm: cannot disassemble instruction %06o at %06o", ins, a))
+	// panic(fmt.Sprintf("disasm: cannot disassemble instruction %06o at %06o", ins, a))
+	return "??"
 
 found:
 	msg := l.msg

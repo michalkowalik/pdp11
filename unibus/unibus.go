@@ -51,6 +51,8 @@ type Unibus struct {
 	PdpCPU *CPU
 
 	Rk01 *RK11
+
+	InterruptStack InterruptStack
 }
 
 // New initializes and returns the Unibus variable
@@ -141,8 +143,16 @@ func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 	case physicalAddress < MEMSIZE:
 		u.Memory[physicalAddress>>1] = data
 	case physicalAddress == PSWAddr:
-		// switch mode
 		u.PdpCPU.SwitchMode(data >> 14)
+		switch (data >> 12) & 3 {
+		case 0:
+			u.PdpCPU.previousMode = KernelMode
+			break
+		case 3:
+			u.PdpCPU.previousMode = UserMode
+		default:
+			panic("invalid mode")
+		}
 		u.Psw.Set(data)
 	case physicalAddress&RegAddr == RegAddr:
 		u.setRegisterValue(uint32(physicalAddress), data)

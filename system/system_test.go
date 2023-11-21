@@ -1,10 +1,11 @@
 package system
 
 import (
-	"go/build"
 	"os"
 	"path/filepath"
 	"pdp/console"
+	"pdp/interrupts"
+	"pdp/psw"
 	"pdp/unibus"
 	"testing"
 )
@@ -24,7 +25,8 @@ func TestMain(m *testing.M) {
 	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
+	//if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
 	sys.unibus.Rk01.Reset()
@@ -165,5 +167,65 @@ func TestTriggerTrap(t *testing.T) {
 
 	for sys.CPU.State == unibus.CPURUN {
 		sys.CPU.Execute()
+	}
+}
+
+func TestInterruptHandling(t *testing.T) {
+	sys.CPU.KernelStackPointer = 0777 << 1
+	sys.CPU.UserStackPointer = 01776 << 1
+
+	memPointer := uint16(04000)
+	r7Value := uint16(0xfffe)
+	initialPSW := uint16(0xf000)
+
+	sys.unibus.Memory[memPointer>>1] = 06 // RTI
+
+	sys.unibus.Memory[interrupts.INTRK>>1] = memPointer
+
+	sys.CPU.Registers[7] = r7Value
+	sys.CPU.Registers[6] = sys.CPU.KernelStackPointer
+
+	sys.CPU.SwitchMode(psw.UserMode)
+	// mode = user, previousMode = user, no flags.
+	sys.unibus.WriteIO(unibus.PSWAddr, initialPSW)
+
+	sys.unibus.SendInterrupt(4, interrupts.INTRK)
+	if sys.unibus.InterruptQueue[0].Vector != interrupts.INTRK {
+		t.Errorf("Expected to have INTRK in the interrupt queue")
+	}
+
+	sys.processInterrupt(sys.unibus.InterruptQueue[0])
+
+	if sys.unibus.Psw.GetMode() != unibus.KernelMode {
+		t.Errorf("Expected processor to be in kernel mode")
+	}
+
+	if (sys.unibus.Psw.Get()>>12)&3 != unibus.UserMode {
+		t.Errorf("Expected previousMode to be USER")
+	}
+
+	if sys.CPU.Registers[6]>>1 != 0775 { // r7 and original psw should be on the stack
+		t.Errorf("Expected kernel stack pointer to be pointing to the address of 0775, got %o\n", sys.CPU.Registers[6])
+	}
+
+	instruction := sys.CPU.Fetch()
+	if instruction != 06 {
+		t.Errorf("Expected to fetch RTI at this point, but got %o\n", instruction)
+	}
+
+	// execute RTI
+	(sys.CPU.Decode(instruction))(instruction)
+
+	if sys.CPU.Registers[7] != r7Value {
+		t.Errorf("Expected SP to be set back to the original value, but got %o\n", sys.CPU.Registers[7])
+	}
+
+	// previous mode should be set to kernel
+	if sys.unibus.Psw.Get() != initialPSW {
+		t.Errorf("Expected PSW to be set to the original value, but got %x\n", sys.unibus.Psw.Get())
+	}
+
+	if sys.CPU.Registers[6] != sys.CPU.UserStackPointer {
+		t.Errorf("Stack pointer should be set to the user stack by now")
 	}
 }

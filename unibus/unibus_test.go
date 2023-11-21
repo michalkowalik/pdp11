@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"pdp/psw"
 	"testing"
 )
 
@@ -19,7 +20,7 @@ func TestUnibus_ReadIO(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u.Psw.Set(tt.want)
+			*u.Psw = psw.PSW(tt.want)
 			got := u.ReadIO(tt.args.physicalAddress)
 			if got != tt.want {
 				t.Errorf("Unibus.ReadIO() = %v, want %v", got, tt.want)
@@ -45,6 +46,7 @@ func TestUnibus_PSWStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.Psw.Set(tt.initialPSWValue)
+			u.PdpCPU.SwitchMode(tt.currentMode)
 			if tt.currentMode != u.Psw.GetMode() {
 				t.Errorf("current mode doesn't match. expected %d, got %d",
 					tt.currentMode, u.Psw.GetMode())
@@ -55,9 +57,10 @@ func TestUnibus_PSWStatus(t *testing.T) {
 				t.Errorf("Expected PSW mode doesn't match. expected %d, got %d",
 					tt.newMode, u.Psw.GetMode())
 			}
-			if tt.currentMode != u.Psw.GetPreviousMode() {
+			previousMode := (u.Psw.Get() >> 12) & 3
+			if tt.currentMode != previousMode {
 				t.Errorf("Expected psw previousMode doesn't macht. expected %d, got %d",
-					tt.currentMode, u.Psw.GetPreviousMode())
+					tt.currentMode, previousMode)
 			}
 		})
 	}

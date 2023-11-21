@@ -3,7 +3,7 @@ package unibus
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"pdp/interrupts"
 )
 
@@ -11,7 +11,6 @@ const (
 	// RKDEBUG flag to output extra info
 	RKDEBUG = false
 
-	rk5ImageLength = 2077696
 	// unibus Addresses:
 	rkdsAddress = 0777400
 	rkerAddress = 0777402
@@ -80,7 +79,7 @@ func NewRK(u *Unibus) *RK11 {
 
 // Attach reads disk image file and loads it to memory
 func (r *RK11) Attach(drive int, path string) error {
-	buf, err := ioutil.ReadFile(path)
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -93,9 +92,6 @@ func (r *RK11) Attach(drive int, path string) error {
 	}
 
 	r.unit[drive] = unit
-
-	// r.unibus.controlConsole.WriteConsole("disk mounted")
-
 	return nil
 }
 

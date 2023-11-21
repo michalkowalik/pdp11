@@ -26,6 +26,11 @@ type System struct {
 	regView      *gocui.View
 }
 
+var (
+	clockCounter uint16
+	trapDebug    = true
+)
+
 // InitializeSystem initializes the emulated PDP-11/40 hardware
 func InitializeSystem(
 	c console.Console, terminalView, regView *gocui.View, gui *gocui.Gui, debugMode bool) *System {
@@ -66,7 +71,7 @@ func (sys *System) run() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			sys.processTrap(t)
+			sys.trap(t)
 		case nil:
 			// ignore
 		default:
@@ -77,10 +82,6 @@ func (sys *System) run() {
 	for {
 		sys.step()
 	}
-}
-
-func (sys *System) processTrap(trap interrupts.Trap) {
-	sys.CPU.Trap(trap)
 }
 
 // single cpu step:
@@ -99,9 +100,9 @@ func (sys *System) step() {
 
 	// execute next CPU instruction
 	sys.CPU.Execute()
-	sys.CPU.ClockCounter++
-	if sys.CPU.ClockCounter >= 40000 {
-		sys.CPU.ClockCounter = 0
+	clockCounter++
+	if clockCounter >= 40000 {
+		clockCounter = 0
 		sys.unibus.LKS |= 1 << 7
 		if sys.unibus.LKS&(1<<6) != 0 {
 			sys.unibus.SendInterrupt(6, interrupts.INTClock)
@@ -119,27 +120,68 @@ func (sys *System) step() {
 //  5. Return from subprocedure cpu instruction at the end of interrupt procedure
 //     makes sure to set the stack and PSW back to where it belongs
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
-	prev := sys.psw.Get()
-	defer func(prev uint16) {
+	defer func() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			sys.CPU.Trap(t)
+			sys.trap(t)
 		case nil:
 			break
 		default:
 			panic(t)
 		}
-		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector) // TODO: fix
-		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
+	}()
 
-		if (prev & (1 << 14)) > 0 {
-			intPSW |= (1 << 13) | (1 << 12)
-		}
-		sys.psw.Set(intPSW)
-	}(prev)
-
+	prev := sys.psw.Get()
 	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prev)
 	sys.CPU.Push(sys.CPU.Registers[7])
+	sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
+	intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
+
+	if (prev & (1 << 14)) > 0 {
+		intPSW |= (1 << 13) | (1 << 12)
+	}
+	sys.psw.Set(intPSW)
+	sys.CPU.State = unibus.CPURUN
+
+}
+
+// Trap handles all Trap / abort events.
+func (sys *System) trap(trap interrupts.Trap) {
+	var prevPSW uint16
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			fmt.Printf("RED STACK TRAP!")
+			sys.unibus.Memory[0] = sys.CPU.Registers[7]
+			sys.unibus.Memory[1] = prevPSW
+			trap.Vector = 4
+			panic("FATAL")
+		case nil:
+			break
+		default:
+			panic(t)
+		}
+	}()
+
+	if trapDebug {
+		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+	}
+
+	if trap.Vector&1 == 1 {
+		panic("Trap called with odd vector number!")
+	}
+
+	prevPSW = sys.psw.Get()
+	sys.CPU.SwitchMode(psw.KernelMode)
+	sys.CPU.Push(prevPSW)
+	sys.CPU.Push(sys.CPU.Registers[7])
+
+	sys.CPU.Registers[7] = sys.unibus.ReadIO(unibus.Uint18(trap.Vector))
+	sys.unibus.Psw.Set(sys.unibus.ReadIO(unibus.Uint18(trap.Vector) + 2))
+	if sys.CPU.IsPrevModeUser() { // user mode
+		sys.psw.Set(sys.psw.Get() | (1 << 13) | (1 << 12))
+	}
 }
