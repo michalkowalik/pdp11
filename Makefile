@@ -8,6 +8,9 @@ clean:
 	$(GO) clean
 
 tests:
+	$(GO) test $(MODULES)
+
+tests_verbose:
 	$(GO) test -v $(MODULES)
 
 debug:

@@ -28,6 +28,7 @@ type System struct {
 
 var (
 	clockCounter uint16
+	trapDebug    = true
 )
 
 // InitializeSystem initializes the emulated PDP-11/40 hardware
@@ -70,7 +71,7 @@ func (sys *System) run() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			sys.CPU.Trap(t)
+			sys.trap(t)
 		case nil:
 			// ignore
 		default:
@@ -123,24 +124,13 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
-			sys.CPU.Trap(t)
+			sys.trap(t)
 		case nil:
 			break
 		default:
 			panic(t)
 		}
 	}()
-
-	/*
-		sys.unibus.InterruptStack.Push(interrupt.Vector)
-		if interrupt.Vector != interrupts.INTClock && interrupt.Vector != interrupts.INTRK {
-			fmt.Printf("Processing interrupt: ", interrupt.Vector)
-			for _, i := range sys.unibus.InterruptQueue {
-				fmt.Printf("<v: %o, p: %o> ", i.Vector, i.Priority)
-			}
-			fmt.Printf("\n")
-		}
-	*/
 
 	prev := sys.psw.Get()
 	sys.CPU.SwitchMode(psw.KernelMode)
@@ -155,4 +145,43 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	sys.psw.Set(intPSW)
 	sys.CPU.State = unibus.CPURUN
 
+}
+
+// Trap handles all Trap / abort events.
+func (sys *System) trap(trap interrupts.Trap) {
+	var prevPSW uint16
+	defer func() {
+		t := recover()
+		switch t := t.(type) {
+		case interrupts.Trap:
+			fmt.Printf("RED STACK TRAP!")
+			sys.unibus.Memory[0] = sys.CPU.Registers[7]
+			sys.unibus.Memory[1] = prevPSW
+			trap.Vector = 4
+			panic("FATAL")
+		case nil:
+			break
+		default:
+			panic(t)
+		}
+	}()
+
+	if trapDebug {
+		fmt.Printf("TRAP %o occured: %s\n", trap.Vector, trap.Msg)
+	}
+
+	if trap.Vector&1 == 1 {
+		panic("Trap called with odd vector number!")
+	}
+
+	prevPSW = sys.psw.Get()
+	sys.CPU.SwitchMode(psw.KernelMode)
+	sys.CPU.Push(prevPSW)
+	sys.CPU.Push(sys.CPU.Registers[7])
+
+	sys.CPU.Registers[7] = sys.unibus.ReadIO(unibus.Uint18(trap.Vector))
+	sys.unibus.Psw.Set(sys.unibus.ReadIO(unibus.Uint18(trap.Vector) + 2))
+	if sys.CPU.IsPrevModeUser() { // user mode
+		sys.psw.Set(sys.psw.Get() | (1 << 13) | (1 << 12))
+	}
 }

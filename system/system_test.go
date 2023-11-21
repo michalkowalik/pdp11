@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"pdp/console"
 	"pdp/interrupts"
+	"pdp/psw"
 	"pdp/unibus"
 	"testing"
 )
@@ -182,10 +183,11 @@ func TestInterruptHandling(t *testing.T) {
 	sys.unibus.Memory[interrupts.INTRK>>1] = memPointer
 
 	sys.CPU.Registers[7] = r7Value
-	sys.CPU.Registers[6] = sys.CPU.UserStackPointer
+	sys.CPU.Registers[6] = sys.CPU.KernelStackPointer
 
+	sys.CPU.SwitchMode(psw.UserMode)
 	// mode = user, previousMode = user, no flags.
-	sys.unibus.Psw.Set(initialPSW)
+	sys.unibus.WriteIO(unibus.PSWAddr, initialPSW)
 
 	sys.unibus.SendInterrupt(4, interrupts.INTRK)
 	if sys.unibus.InterruptQueue[0].Vector != interrupts.INTRK {
@@ -198,7 +200,7 @@ func TestInterruptHandling(t *testing.T) {
 		t.Errorf("Expected processor to be in kernel mode")
 	}
 
-	if sys.unibus.Psw.GetPreviousMode() != unibus.UserMode {
+	if (sys.unibus.Psw.Get()>>12)&3 != unibus.UserMode {
 		t.Errorf("Expected previousMode to be USER")
 	}
 
@@ -219,7 +221,7 @@ func TestInterruptHandling(t *testing.T) {
 	}
 
 	// previous mode should be set to kernel
-	if sys.unibus.Psw.Get() != (initialPSW & 0xCFFF) {
+	if sys.unibus.Psw.Get() != initialPSW {
 		t.Errorf("Expected PSW to be set to the original value, but got %x\n", sys.unibus.Psw.Get())
 	}
 

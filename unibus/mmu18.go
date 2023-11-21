@@ -51,7 +51,7 @@ func (m *MMU18) ReadMemoryWord(a uint16) uint16 {
 		return m.unibus.PdpCPU.Registers[a&7]
 	}
 
-	pAddr := m.Decode(a, false, m.unibus.Psw.IsUserMode())
+	pAddr := m.Decode(a, false, m.unibus.PdpCPU.IsUserMode())
 	return m.unibus.ReadIO(pAddr)
 }
 
@@ -60,7 +60,7 @@ func (m *MMU18) ReadMemoryByte(a uint16) byte {
 		return byte(m.unibus.PdpCPU.Registers[a&7] & 0xff)
 	}
 
-	pAddr := m.Decode(a, false, m.unibus.Psw.IsUserMode())
+	pAddr := m.Decode(a, false, m.unibus.PdpCPU.IsUserMode())
 	return byte(m.unibus.ReadIOByte(pAddr))
 }
 
@@ -93,7 +93,7 @@ func (m *MMU18) WriteMemoryWord(addr, data uint16) {
 		return
 	}
 
-	pAddr := m.Decode(addr, true, m.unibus.Psw.IsUserMode())
+	pAddr := m.Decode(addr, true, m.unibus.PdpCPU.IsUserMode())
 	m.unibus.WriteIO(pAddr, data)
 }
 
@@ -104,7 +104,7 @@ func (m *MMU18) WriteMemoryByte(addr uint16, data byte) {
 		return
 	}
 
-	pAddr := m.Decode(addr, true, m.unibus.Psw.IsUserMode())
+	pAddr := m.Decode(addr, true, m.unibus.PdpCPU.IsUserMode())
 	m.unibus.WriteIOByte(pAddr, uint16(data))
 }
 
