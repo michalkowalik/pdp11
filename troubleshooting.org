@@ -247,7 +247,7 @@ TRAP 10 occured: Invalid Instruction
 - RTI sets the SP to a wrong location, and a non-existent opcode is being executed
 
   
-** TODO TODOS [3/7]<2023-10-07 Sat>
+** TODO TODOS [6/8]<2023-10-07 Sat>
 - [X] write unit tests for RTI and RTS
   - [X] check both user and kernel mode.
   - [X] is it possible, that the system switches between the modes in this case?
@@ -256,13 +256,14 @@ TRAP 10 occured: Invalid Instruction
 - [X] PSW.Set -> there might be an issue iwth setting correct mode
   - that would be too easy.
 - [ ] create a breakpoint on the RTS with the exact register values. there must be something wrong latest at this point.
-- [ ] how often is RTI in user context called?
+- [X] how often is RTI in user context called?
+  - it should ~never~ be called in the user context. Interrupts are handled in the kernel context.
 - [X] test if RTI manages the mode switch and restore correctly
   - [X] user -> kernel -> user
   - [X] kernel -> kernel -> kernel
-- [ ] Do I switch between user and kernel in the MMU correctly? <- add test!
-- [ ] shouldn't be the previous mode set to Kernel after returning from the interrupt?
-
+- [X] Do I switch between user and kernel in the MMU correctly? <- add test!
+- [X] shouldn't be the previous mode set to Kernel after returning from the interrupt?
+  - I think it should. and it as a matter of fact does now. but it doesn't change the system behaviour sadly.
 
 - at least it looks like the interrupt management works fine. there are no nested interrupts,
   and only clock, rk5 and teletype are to be seen.
@@ -270,3 +271,10 @@ TRAP 10 occured: Invalid Instruction
 - possibly, there are calls to RTI from outside of interrupt -> this is strange, and should not be.
   - but at least, DC-11 shows the same behavior.
 
+** project update <2023-11-20 Mon> [0/3]
+- still ~exactly the same~ stack at every execution
+- interrupt handling correct and tested (?)
+  - it is tested, and it is handling the clock, disk and terminal interrupts, so probably it is correct
+*** TODO is there anything I should actually look at in the terminal? sending wrong interrupt?
+*** TODO current and previous mode to be moved to the CPU directly
+*** TODO Why is the stack showing the user mode, if rti is being called -> this should operate in kernel mode
