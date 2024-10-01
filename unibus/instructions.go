@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"fmt"
 	"pdp/psw"
 )
 
@@ -501,6 +502,7 @@ func (c *CPU) rtiOp(_ uint16) {
 	c.Registers[7] = c.Pop()
 	val := c.Pop()
 	if c.IsUserMode() {
+		fmt.Printf("!! interrupt in user mode\n")
 		val &= 047
 		val |= c.unibus.Psw.Get() & 0177730
 	}
@@ -509,6 +511,7 @@ func (c *CPU) rtiOp(_ uint16) {
 
 // rtt - return from trap
 func (c *CPU) rttOp(instruction uint16) {
+	fmt.Errorf("Someone called return from trap?\n")
 	c.rtiOp(instruction)
 }
 
