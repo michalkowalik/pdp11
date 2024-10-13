@@ -243,7 +243,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 		for !debugQueue.IsEmpty() {
 			i, e := debugQueue.Dequeue()
 			if e != nil {
-				fmt.Errorf(e.Error())
+				_ = fmt.Errorf(e.Error())
 			}
 			fmt.Printf("%s\n", i)
 		}
@@ -455,7 +455,7 @@ func (c *CPU) Reset() {
 
 /*
 // debug:
-// true if all registers have the same value. don't panic immediately, there might be a panic counter somewhere.
+// true if all registers have matching value. don't panic immediately, there might be a panic counter somewhere.
 func (c *CPU) timeToDie(registers []uint16) bool {
 	for i, v := range c.Registers {
 		if registers[i] != v {

@@ -503,8 +503,10 @@ func (c *CPU) rtiOp(_ uint16) {
 	val := c.Pop()      // pop the PSW
 	if c.IsUserMode() { // why does it happen at all?
 		fmt.Printf("!! interrupt in user mode\n")
-		//val &= 047                          // Save the flags
-		//val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
+
+		// why is that needed at all??
+		val &= 047                          // Save the flags
+		val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
 	}
 	c.unibus.WriteIO(PSWAddr, val)
 }

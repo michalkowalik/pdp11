@@ -14,7 +14,6 @@ import (
 // global resources
 var (
 	sys *System
-	mm  unibus.MMU
 	c   console.Console
 )
 
@@ -23,7 +22,6 @@ func TestMain(m *testing.M) {
 	sys = new(System)
 	c = console.NewSimple()
 	sys.unibus = unibus.New(&sys.psw, nil, &c, false)
-	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()
 	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {

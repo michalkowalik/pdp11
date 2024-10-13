@@ -54,7 +54,7 @@ const INTFault = 0250
 // INTClock : clock trap
 const INTClock = 0100
 
-// INTRK - RK disk drive (?) trap
+// INTRK - RK disk drive (?) interrupt
 const INTRK = 0220
 
 // InterruptQueue - to avoid keeping the insert to the queue login in unibus:
