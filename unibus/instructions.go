@@ -372,7 +372,7 @@ func (c *CPU) mfpiOp(instruction uint16) {
 
 	switch {
 	case dest == 0177706:
-		if c.currentMode == c.previousMode {
+		if c.IsUserMode() == c.IsPrevModeUser() {
 			val = c.Registers[6]
 		} else {
 			if c.IsPrevModeUser() { // user
@@ -402,10 +402,10 @@ func (c *CPU) mtpiOp(instruction uint16) {
 
 	switch {
 	case destAddr == 0177706:
-		if c.currentMode == c.previousMode {
+		if c.IsUserMode() == c.IsPrevModeUser() {
 			c.Registers[6] = val
 		} else {
-			if c.previousMode == 3 {
+			if c.IsPrevModeUser() {
 				c.UserStackPointer = val
 			} else {
 				c.KernelStackPointer = val

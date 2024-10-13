@@ -1,6 +1,7 @@
 package system
 
 import (
+	"go/build"
 	"os"
 	"path/filepath"
 	"pdp/console"
@@ -25,8 +26,8 @@ func TestMain(m *testing.M) {
 	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()
-	//if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
+		//if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
 	sys.unibus.Rk01.Reset()

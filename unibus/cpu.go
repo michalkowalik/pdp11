@@ -34,9 +34,6 @@ type CPU struct {
 
 	KernelStackPointer, UserStackPointer uint16
 
-	// CPU modes
-	currentMode, previousMode uint16
-
 	unibus *Unibus
 	mmunit MMU
 
@@ -272,11 +269,11 @@ func (c *CPU) Execute() {
 }
 
 func (c *CPU) IsUserMode() bool {
-	return c.currentMode == UserMode
+	return c.unibus.Psw.GetMode() == UserMode
 }
 
 func (c *CPU) IsPrevModeUser() bool {
-	return c.previousMode == UserMode
+	return c.unibus.Psw.GetPreviousMode() == UserMode
 }
 
 // readWord returns value specified by source or destination part of the operand.
@@ -354,28 +351,27 @@ func (c *CPU) GetFlag(flag string) bool {
 }
 
 // SwitchMode switches the kernel / user mode:
-func (c *CPU) SwitchMode(m uint16) {
-	c.previousMode = c.currentMode
-	c.currentMode = m
+func (c *CPU) SwitchMode(mode uint16) {
+	previousMode := c.unibus.Psw.GetMode()
 
 	// save processor stack pointers:
-	if c.IsPrevModeUser() {
+	if previousMode == UserMode {
 		c.UserStackPointer = c.Registers[6]
 	} else {
 		c.KernelStackPointer = c.Registers[6]
 	}
 
 	// set processor stack:
-	if c.IsUserMode() {
+	if mode == UserMode {
 		c.Registers[6] = c.UserStackPointer
 	} else {
 		c.Registers[6] = c.KernelStackPointer
 	}
 	*c.unibus.Psw &= 000777
-	if c.IsUserMode() {
+	if mode == UserMode {
 		*c.unibus.Psw |= (1 << 15) | (1 << 14)
 	}
-	if c.IsPrevModeUser() {
+	if previousMode == UserMode {
 		*c.unibus.Psw |= (1 << 13) | (1 << 12)
 	}
 }
