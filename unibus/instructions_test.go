@@ -632,9 +632,15 @@ func TestCPU_rti(t *testing.T) {
 }
 
 func TestCPU_rts(t *testing.T) {
-	u.PdpCPU.Registers[6] = 0777 << 1
+	var stackAddr uint16 = 0777 << 1
+	u.PdpCPU.Registers[6] = stackAddr
 	u.PdpCPU.Registers[5] = 0xff // this needs to be loaded to the PC
 	u.PdpCPU.Push(1)             // this should end up in R5
+
+	// stack pointer should be decreased
+	if u.PdpCPU.Registers[6] != stackAddr-2 {
+		t.Errorf("expected RTS to be set to %v, got %v", stackAddr-2, u.PdpCPU.Registers[6])
+	}
 
 	u.PdpCPU.rtsOp(0205) // RTS R5
 
@@ -644,6 +650,11 @@ func TestCPU_rts(t *testing.T) {
 
 	if u.PdpCPU.Registers[5] != 1 {
 		t.Errorf("Expected R5 to be set to 1, got %v", u.PdpCPU.Registers[5])
+	}
+
+	// stack address should be back to where it started
+	if u.PdpCPU.Registers[6] != stackAddr {
+		t.Errorf("Expected R6 to be set to %v, got %v", stackAddr, u.PdpCPU.Registers[6])
 	}
 }
 

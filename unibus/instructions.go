@@ -500,11 +500,11 @@ func (c *CPU) iotOp(_ uint16) {
 // rti - return from interrupt
 func (c *CPU) rtiOp(_ uint16) {
 	c.Registers[7] = c.Pop()
-	val := c.Pop()
-	if c.IsUserMode() {
+	val := c.Pop()      // pop the PSW
+	if c.IsUserMode() { // why does it happen at all?
 		fmt.Printf("!! interrupt in user mode\n")
-		val &= 047
-		val |= c.unibus.Psw.Get() & 0177730
+		//val &= 047                          // Save the flags
+		//val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
 	}
 	c.unibus.WriteIO(PSWAddr, val)
 }

@@ -115,6 +115,7 @@ func TestRunCode(t *testing.T) {
 // the instruction is to start at memory address 0xff
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
+// TODO: Assertions for the code
 func TestRunBranchCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 	code := []uint16{
