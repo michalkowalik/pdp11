@@ -354,6 +354,11 @@ func (c *CPU) GetFlag(flag string) bool {
 func (c *CPU) SwitchMode(mode uint16) {
 	previousMode := c.unibus.Psw.GetMode()
 
+	// do nothing, if request is to switch to the current mode
+	if previousMode == mode {
+		return
+	}
+
 	// save processor stack pointers:
 	if previousMode == UserMode {
 		c.UserStackPointer = c.Registers[6]

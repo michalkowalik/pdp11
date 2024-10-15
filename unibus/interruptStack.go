@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"errors"
 	"fmt"
 	"pdp/interrupts"
 )
@@ -24,10 +25,10 @@ func (i *InterruptStack) Push(interrupt uint16) {
 
 }
 
-func (i *InterruptStack) Pop() uint16 {
+func (i *InterruptStack) Pop() (uint16, error) {
 	if len(*i) == 0 {
 		fmt.Printf("popping from an empty interrupt stack \n")
-		return 0
+		return 0, errors.New("interrupt stack is empty")
 	}
 
 	index := len(*i) - 1
@@ -36,5 +37,5 @@ func (i *InterruptStack) Pop() uint16 {
 	if element != uint16(interrupts.INTClock) {
 		fmt.Printf("popping %o from interrupt stack\n", element)
 	}
-	return element
+	return element, nil
 }

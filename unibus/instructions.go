@@ -502,7 +502,16 @@ func (c *CPU) rtiOp(_ uint16) {
 	c.Registers[7] = c.Pop()
 	val := c.Pop()      // pop the PSW
 	if c.IsUserMode() { // why does it happen at all?
+		// DEBUG code
 		fmt.Printf("!! interrupt in user mode\n")
+		for {
+			interrupt, err := c.unibus.InterruptStack.Pop()
+			if err != nil {
+				break
+			}
+			fmt.Printf("interrupt: %v\n", interrupt)
+		}
+		// DEBUG code
 
 		// why is that needed at all??
 		val &= 047                          // Save the flags
