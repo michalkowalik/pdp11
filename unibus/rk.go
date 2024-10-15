@@ -265,7 +265,7 @@ func (r *RK11) Step() {
 		fmt.Printf("\nRK DEBUG. Starting position: %o\n", pos)
 	}
 
-	// reaad complete sector:
+	// read / write complete sector:
 	for i := 0; i < 256 && r.RKWC != 0; i++ {
 		if isWrite {
 			if RKDEBUG {
@@ -287,7 +287,6 @@ func (r *RK11) Step() {
 		r.RKBA += 2
 		pos += 2
 		r.RKWC = (r.RKWC + 1) & 0xffff
-		//r.RKWC++
 	}
 	r.sector++
 	if RKDEBUG {

@@ -1,6 +1,7 @@
 package unibus
 
 import (
+	"fmt"
 	"pdp/psw"
 )
 
@@ -371,7 +372,7 @@ func (c *CPU) mfpiOp(instruction uint16) {
 
 	switch {
 	case dest == 0177706:
-		if c.currentMode == c.previousMode {
+		if c.IsUserMode() == c.IsPrevModeUser() {
 			val = c.Registers[6]
 		} else {
 			if c.IsPrevModeUser() { // user
@@ -401,10 +402,10 @@ func (c *CPU) mtpiOp(instruction uint16) {
 
 	switch {
 	case destAddr == 0177706:
-		if c.currentMode == c.previousMode {
+		if c.IsUserMode() == c.IsPrevModeUser() {
 			c.Registers[6] = val
 		} else {
-			if c.previousMode == 3 {
+			if c.IsPrevModeUser() {
 				c.UserStackPointer = val
 			} else {
 				c.KernelStackPointer = val
@@ -499,16 +500,29 @@ func (c *CPU) iotOp(_ uint16) {
 // rti - return from interrupt
 func (c *CPU) rtiOp(_ uint16) {
 	c.Registers[7] = c.Pop()
-	val := c.Pop()
-	if c.IsUserMode() {
-		val &= 047
-		val |= c.unibus.Psw.Get() & 0177730
+	val := c.Pop()      // pop the PSW
+	if c.IsUserMode() { // why does it happen at all?
+		// DEBUG code
+		fmt.Printf("!! interrupt in user mode\n")
+		for {
+			interrupt, err := c.unibus.InterruptStack.Pop()
+			if err != nil {
+				break
+			}
+			fmt.Printf("interrupt: %v\n", interrupt)
+		}
+		// DEBUG code
+
+		// why is that needed at all??
+		val &= 047                          // Save the flags
+		val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
 	}
 	c.unibus.WriteIO(PSWAddr, val)
 }
 
 // rtt - return from trap
 func (c *CPU) rttOp(instruction uint16) {
+	fmt.Errorf("Someone called return from trap?\n")
 	c.rtiOp(instruction)
 }
 
