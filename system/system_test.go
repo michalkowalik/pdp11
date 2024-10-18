@@ -1,6 +1,7 @@
 package system
 
 import (
+	"go/build"
 	"os"
 	"path/filepath"
 	"pdp/console"
@@ -13,7 +14,6 @@ import (
 // global resources
 var (
 	sys *System
-	mm  unibus.MMU
 	c   console.Console
 )
 
@@ -22,11 +22,10 @@ func TestMain(m *testing.M) {
 	sys = new(System)
 	c = console.NewSimple()
 	sys.unibus = unibus.New(&sys.psw, nil, &c, false)
-	mm = sys.unibus.Mmu
 
 	sys.unibus.PdpCPU.Reset()
-	//if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
+		//if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
 	sys.unibus.Rk01.Reset()
@@ -115,6 +114,7 @@ func TestRunCode(t *testing.T) {
 // the instruction is to start at memory address 0xff
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
+// TODO: Assertions for the code
 func TestRunBranchCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 	code := []uint16{
