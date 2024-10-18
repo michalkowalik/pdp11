@@ -504,13 +504,6 @@ func (c *CPU) rtiOp(_ uint16) {
 	if c.IsUserMode() { // why does it happen at all?
 		// DEBUG code
 		fmt.Printf("!! interrupt in user mode\n")
-		for {
-			interrupt, err := c.unibus.InterruptStack.Pop()
-			if err != nil {
-				break
-			}
-			fmt.Printf("interrupt: %v\n", interrupt)
-		}
 		// DEBUG code
 
 		// why is that needed at all??
