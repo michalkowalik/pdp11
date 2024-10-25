@@ -499,12 +499,17 @@ func (c *CPU) iotOp(_ uint16) {
 
 // rti - return from interrupt
 func (c *CPU) rtiOp(_ uint16) {
+
+	// DEBUG: POP from interrupt stack
+	//interrupt, _ := c.unibus.InterruptStack.Pop()
+
 	c.Registers[7] = c.Pop()
 	val := c.Pop()      // pop the PSW
 	if c.IsUserMode() { // why does it happen at all?
 		// DEBUG code
 		fmt.Printf("!! interrupt in user mode\n")
 		// DEBUG code
+		//fmt.Printf("interrupt: %v\n", interrupt)
 
 		// why is that needed at all??
 		val &= 047                          // Save the flags

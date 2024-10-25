@@ -180,7 +180,7 @@ func TestInterruptHandling(t *testing.T) {
 
 	sys.unibus.Memory[memPointer>>1] = 06 // RTI
 
-	sys.unibus.Memory[interrupts.INTRK>>1] = memPointer
+	sys.unibus.Memory[interrupts.IntRK>>1] = memPointer
 
 	sys.CPU.Registers[7] = r7Value
 	sys.CPU.Registers[6] = sys.CPU.KernelStackPointer
@@ -189,9 +189,9 @@ func TestInterruptHandling(t *testing.T) {
 	// mode = user, previousMode = user, no flags.
 	sys.unibus.WriteIO(unibus.PSWAddr, initialPSW)
 
-	sys.unibus.SendInterrupt(4, interrupts.INTRK)
-	if sys.unibus.InterruptQueue[0].Vector != interrupts.INTRK {
-		t.Errorf("Expected to have INTRK in the interrupt queue")
+	sys.unibus.SendInterrupt(4, interrupts.IntRK)
+	if sys.unibus.InterruptQueue[0].Vector != interrupts.IntRK {
+		t.Errorf("Expected to have IntRK in the interrupt queue")
 	}
 
 	sys.processInterrupt(sys.unibus.InterruptQueue[0])

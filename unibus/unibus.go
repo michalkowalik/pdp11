@@ -94,7 +94,7 @@ func (u *Unibus) ReadIO(physicalAddress Uint18) uint16 {
 	switch {
 	case physicalAddress&1 == 1:
 		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
+			Vector: interrupts.IntBUS,
 			Msg:    fmt.Sprintf("Read from the odd address %06o", physicalAddress)})
 	case physicalAddress < MEMSIZE:
 		return u.Memory[physicalAddress>>1]
@@ -120,7 +120,7 @@ func (u *Unibus) ReadIO(physicalAddress Uint18) uint16 {
 		return u.Mmu.Read16(physicalAddress)
 	default:
 		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
+			Vector: interrupts.IntBUS,
 			Msg:    fmt.Sprintf("Read from invalid address %06o", physicalAddress)})
 	}
 }
@@ -138,7 +138,7 @@ func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 	switch {
 	case physicalAddress&1 == 1:
 		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
+			Vector: interrupts.IntBUS,
 			Msg:    fmt.Sprintf("Write the odd address %06o", physicalAddress)})
 	case physicalAddress < MEMSIZE:
 		u.Memory[physicalAddress>>1] = data
@@ -161,7 +161,7 @@ func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 		u.Mmu.Write16(physicalAddress, data)
 	default:
 		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
+			Vector: interrupts.IntBUS,
 			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
 }

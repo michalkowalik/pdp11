@@ -33,29 +33,26 @@ const TTYin = 0060
  * trap vectors:
  ********************************/
 
-// INTBus internal bus error?
-const INTBus = 04
+// IntBUS internal bus error?
+const IntBUS = 04
 
-// INTInval  - invalid (?)
-const INTInval = 010
+// IntINVAL  - invalid (?)
+const IntINVAL = 010
 
-// INTDebug - debug trap
-const INTDebug = 014
+// IntDEBUG - debug trap
+const IntDEBUG = 014
 
-// INTIot - IO trap (?)
-const INTIot = 020
+// IntIOT - IO trap (?)
+const IntIOT = 020
 
-// INTTtyIn - TTY trap
-const INTTtyIn = 060
+// IntFAULT - fault trap
+const IntFAULT = 0250
 
-// INTFault - fault trap
-const INTFault = 0250
+// IntCLOCK : clock trap
+const IntCLOCK = 0100
 
-// INTClock : clock trap
-const INTClock = 0100
-
-// INTRK - RK disk drive (?) interrupt
-const INTRK = 0220
+// IntRK - RK disk drive (?) interrupt
+const IntRK = 0220
 
 // InterruptQueue - to avoid keeping the insert to the queue login in unibus:
 type InterruptQueue [8]Interrupt

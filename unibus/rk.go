@@ -313,7 +313,7 @@ func (r *RK11) Step() {
 		r.running = false
 		r.rkReady()
 		if r.RKCS&(1<<6) != 0 {
-			r.unibus.SendInterrupt(5, interrupts.INTRK)
+			r.unibus.SendInterrupt(5, interrupts.IntRK)
 		}
 	}
 }

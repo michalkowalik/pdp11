@@ -14,28 +14,30 @@ import (
  - at no point an RTI should be attempted on an empty stack
 */
 
-type InterruptStack []uint16
+type InterruptStack []interrupts.Interrupt
 
-func (i *InterruptStack) Push(interrupt uint16) {
+func (i *InterruptStack) Push(interrupt interrupts.Interrupt) {
 	*i = append(*i, interrupt)
 
-	if interrupt != interrupts.INTClock {
-		fmt.Printf("stack after push: %o\n", *i)
-	}
+	//if interrupt.Vector != interrupts.IntCLOCK {
+	//	fmt.Printf("stack after push: %v\n", *i)
+	//}
 
 }
 
-func (i *InterruptStack) Pop() (uint16, error) {
+func (i *InterruptStack) Pop() (interrupts.Interrupt, error) {
+
 	if len(*i) == 0 {
 		fmt.Printf("popping from an empty interrupt stack \n")
-		return 0, errors.New("interrupt stack is empty")
+		return interrupts.Interrupt{}, errors.New("interrupt stack is empty")
 	}
 
 	index := len(*i) - 1
 	element := (*i)[index]
 	*i = (*i)[:index] // truncate from stack
-	if element != uint16(interrupts.INTClock) {
-		fmt.Printf("popping %o from interrupt stack\n", element)
-	}
+
+	//if element.Vector != uint16(interrupts.IntCLOCK) {
+	//	fmt.Printf("popping %v from interrupt stack\n", element)
+	//}
 	return element, nil
 }

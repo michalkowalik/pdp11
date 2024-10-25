@@ -105,7 +105,7 @@ func (sys *System) step() {
 		clockCounter = 0
 		sys.unibus.LKS |= 1 << 7
 		if sys.unibus.LKS&(1<<6) != 0 {
-			sys.unibus.SendInterrupt(6, interrupts.INTClock)
+			sys.unibus.SendInterrupt(6, interrupts.IntCLOCK)
 		}
 	}
 	sys.unibus.Rk01.Step()
@@ -130,21 +130,28 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		default:
 			panic(t)
 		}
+
+		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
+		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
+
+		if sys.unibus.Psw.GetPreviousMode() == psw.UserMode {
+			intPSW |= (1 << 13) | (1 << 12)
+		}
+		sys.psw.Set(intPSW)
+		sys.CPU.State = unibus.CPURUN
 	}()
+
+	// DEBUG: push to interrupt stack
+	//if interrupt.Vector != interrupts.IntCLOCK {
+	//		fmt.Printf("processing interrupt with the vector %o\n", interrupt.Vector)
+	//	}
+
+	//sys.unibus.InterruptStack.Push(interrupt)
 
 	prev := sys.psw.Get()
 	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prev)
 	sys.CPU.Push(sys.CPU.Registers[7])
-	sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
-	intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
-
-	if (prev & (1 << 14)) > 0 {
-		intPSW |= (1 << 13) | (1 << 12)
-	}
-	sys.psw.Set(intPSW)
-	sys.CPU.State = unibus.CPURUN
-
 }
 
 // Trap handles all Trap / abort events.

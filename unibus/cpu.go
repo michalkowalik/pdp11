@@ -249,7 +249,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 		}
 
 	}
-	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
+	panic(interrupts.Trap{Vector: interrupts.IntINVAL, Msg: "Invalid Instruction"})
 }
 
 // Execute decoded instruction
@@ -353,11 +353,6 @@ func (c *CPU) GetFlag(flag string) bool {
 // SwitchMode switches the kernel / user mode:
 func (c *CPU) SwitchMode(mode uint16) {
 	previousMode := c.unibus.Psw.GetMode()
-
-	// do nothing, if request is to switch to the current mode
-	if previousMode == mode {
-		return
-	}
 
 	// save processor stack pointers:
 	if previousMode == UserMode {
