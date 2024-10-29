@@ -271,7 +271,7 @@ TRAP 10 occured: Invalid Instruction
 - possibly, there are calls to RTI from outside of interrupt -> this is strange, and should not be.
   - but at least, DC-11 shows the same behavior.
 
-** project update <2023-11-20 Mon> [1/5]
+** project update <2023-11-20 Mon> [2/5]
 - still ~exactly the same~ stack at every execution
 - interrupt handling correct and tested (?)
   - it is tested, and it is handling the clock, disk and terminal interrupts, so probably it is correct
@@ -283,7 +283,22 @@ TRAP 10 occured: Invalid Instruction
   - [ ] as mentioned above, can the RTS have anything to do with that?
   - RTI should always happen in the kernel mode. this is very very strange.<2024-10-05 Sat>
     
-*** TODO Stack operations - do they update the SP accordingly?? <2024-10-03 Thu>
+*** DONE Stack operations - do they update the SP accordingly?? <2024-10-03 Thu>
 - they do, so it seems
 *** TODO WAIT state - used / what is it needed for?
- 
+
+** TODO project update <2024-10-29 Tue> [0/3]
+- [ ] The ~RTI~ happens in the user mode.
+  - this is not the case in the DCs implementation
+  - this also makes no sense actually.
+- [ ] what are those RTIs happening on an empty stack? 
+  - They are to be seen in the DCs implementation as well, but they seem to be of no consequence?
+- [ ] find out why the RTI is happening in user mode [0/1]
+  - [ ] add more logging
+    - [ ] log to file
+    - [ ] keep the cpu history buffer longer -> 500 ops?
+    - [ ] add more debug information regarding the interrupts:
+      - which interrupt
+      - Vector address
+      - fetched PSW
+      - effective psw after applying previous mode (and why is really the previous mode need in the interrupt processing?)

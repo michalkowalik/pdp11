@@ -134,6 +134,17 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
 		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
 
+		/* DEBUG
+		if interrupt.Vector == interrupts.TTYin || interrupt.Vector == interrupts.TTYout {
+			fmt.Printf("Fetched Interrupt Vector address: %o\n", sys.CPU.Registers[7])
+			fmt.Printf("Fetched Interrupt PSW: %o\n", intPSW)
+		}
+		*/
+		
+		if (intPSW & (1 << 14)) != 0 {
+			fmt.Printf("ALERT: Fetched Interrupt PSW is in user mode")
+		}
+
 		if sys.unibus.Psw.GetPreviousMode() == psw.UserMode {
 			intPSW |= (1 << 13) | (1 << 12)
 		}

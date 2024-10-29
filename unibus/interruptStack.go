@@ -19,9 +19,9 @@ type InterruptStack []interrupts.Interrupt
 func (i *InterruptStack) Push(interrupt interrupts.Interrupt) {
 	*i = append(*i, interrupt)
 
-	//if interrupt.Vector != interrupts.IntCLOCK {
-	//	fmt.Printf("stack after push: %v\n", *i)
-	//}
+	if interrupt.Vector != interrupts.IntCLOCK {
+		fmt.Printf("stack after push: %v\n", *i)
+	}
 
 }
 
@@ -36,8 +36,8 @@ func (i *InterruptStack) Pop() (interrupts.Interrupt, error) {
 	element := (*i)[index]
 	*i = (*i)[:index] // truncate from stack
 
-	//if element.Vector != uint16(interrupts.IntCLOCK) {
-	//	fmt.Printf("popping %v from interrupt stack\n", element)
-	//}
+	if element.Vector != uint16(interrupts.IntCLOCK) {
+		fmt.Printf("popping %v from interrupt stack\n", element)
+	}
 	return element, nil
 }

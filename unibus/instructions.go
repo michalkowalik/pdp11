@@ -507,10 +507,7 @@ func (c *CPU) rtiOp(_ uint16) {
 	val := c.Pop()      // pop the PSW
 	if c.IsUserMode() { // why does it happen at all?
 		// DEBUG code
-		fmt.Printf("!! interrupt in user mode\n")
-		// DEBUG code
-		//fmt.Printf("interrupt: %v\n", interrupt)
-
+		fmt.Printf("ALERT: interrupt in user mode\n")
 		// why is that needed at all??
 		val &= 047                          // Save the flags
 		val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
