@@ -40,7 +40,7 @@ const IntBUS = 04
 const IntINVAL = 010
 
 // IntDEBUG - debug trap
-const IntDEBUG = 014
+const TrapBRKPT = 014
 
 // IntIOT - IO trap (?)
 const IntIOT = 020

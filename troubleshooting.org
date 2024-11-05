@@ -302,3 +302,4 @@ TRAP 10 occured: Invalid Instruction
       - Vector address
       - fetched PSW
       - effective psw after applying previous mode (and why is really the previous mode need in the interrupt processing?)
+- why are there tons of RTTs being called? what is going on there? what trap?

@@ -59,7 +59,7 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 	c.unibus = unibus
 
 	if debug {
-		debugQueue = NewQueue(40)
+		debugQueue = NewQueue(400)
 	}
 
 	if debugMode {
