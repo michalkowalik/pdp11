@@ -2,7 +2,6 @@ package unibus
 
 import (
 	"fmt"
-	"pdp/interrupts"
 	"pdp/psw"
 )
 
@@ -502,7 +501,7 @@ func (c *CPU) iotOp(_ uint16) {
 func (c *CPU) rtiOp(_ uint16) {
 	fmt.Printf("calling rti \n")
 	// DEBUG: POP from interrupt stack
-	c.unibus.InterruptStack.Pop()
+	//c.unibus.InterruptStack.Pop()
 
 	c.Registers[7] = c.Pop()
 	val := c.Pop()      // pop the PSW
@@ -519,7 +518,7 @@ func (c *CPU) rtiOp(_ uint16) {
 // rtt - return from trap
 func (c *CPU) rttOp(instruction uint16) {
 
-	c.unibus.InterruptStack.Pop()
+	//c.unibus.InterruptStack.Pop()
 
 	c.Registers[7] = c.Pop()
 	val := c.Pop()      // pop the PSW
@@ -864,7 +863,7 @@ func (c *CPU) trapOpcode(vector uint16) {
 	c.SwitchMode(psw.KernelMode)
 
 	// debug
-	c.unibus.InterruptStack.Push(interrupts.Interrupt{Vector: vector, Priority: 6}) // TODO: does it make sense?
+	// c.unibus.InterruptStack.Push(interrupts.Interrupt{Vector: vector, Priority: 6})
 
 	// push current PS and PC to stack
 	c.Push(prevPs)
@@ -873,7 +872,6 @@ func (c *CPU) trapOpcode(vector uint16) {
 	// load PC and PS from trap vector location
 	c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
 	newPsw := c.mmunit.ReadMemoryWord(vector + 2)
-
 	if prevPs&(1<<14) > 0 {
 		newPsw |= (1 << 13) | (1 << 12)
 	}

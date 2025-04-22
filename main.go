@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"pdp/console"
@@ -33,7 +34,7 @@ func main() {
 
 		// start emulation
 		g.Update(startPdp)
-		if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
+		if err := g.MainLoop(); err != nil && !errors.Is(err, gocui.ErrQuit) {
 			log.Panicln(err)
 		}
 	}

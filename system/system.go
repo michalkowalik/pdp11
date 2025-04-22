@@ -146,10 +146,10 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	}()
 
 	// DEBUG: push to interrupt stack
-	if interrupt.Vector != interrupts.IntCLOCK {
-		fmt.Printf("processing interrupt with the vector 0%o\n", interrupt.Vector)
-	}
-	sys.unibus.InterruptStack.Push(interrupt)
+	//if interrupt.Vector != interrupts.IntCLOCK {
+	//	fmt.Printf("processing interrupt with the vector 0%o\n", interrupt.Vector)
+	//}
+	//sys.unibus.InterruptStack.Push(interrupt)
 
 	prev := sys.psw.Get()
 	sys.CPU.SwitchMode(psw.KernelMode)
