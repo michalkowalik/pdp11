@@ -393,6 +393,7 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 	case 0:
 		// register contains operand
 		virtAddress = 0177700 | reg
+		//virtAddress = c.Registers[reg]
 	case 1:
 		// register contains the address of the operand
 		virtAddress = c.Registers[reg]

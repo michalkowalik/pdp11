@@ -716,3 +716,172 @@ func TestCPU_swabOp(t *testing.T) {
 		})
 	}
 }
+
+func TestCPU_beqOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name       string
+		args       args
+		zFlag      bool
+		initialPC  uint16
+		expectedPC uint16
+	}{
+		{"Branch taken when Z flag set",
+			args{001400}, true, 1000, 1000 + 2}, // offset of 1 word
+		{"Branch not taken when Z flag clear",
+			args{001400}, false, 1000, 1000},
+		{"Branch backward when Z flag set",
+			args{001777}, true, 1000, 1000 - 2}, // negative offset
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u.PdpCPU.Registers[7] = tt.initialPC // Set PC
+			u.PdpCPU.SetFlag("Z", tt.zFlag)      // Set Z flag
+
+			opcode := u.PdpCPU.Decode(tt.args.instruction)
+			opcode(tt.args.instruction)
+
+			if u.PdpCPU.Registers[7] != tt.expectedPC {
+				t.Errorf("PC value incorrect. Expected: %o, got: %o\n",
+					tt.expectedPC, u.PdpCPU.Registers[7])
+			}
+		})
+	}
+}
+
+func TestCPU_tstOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		regVal  uint16
+		flags   flags
+		wantErr bool
+	}{
+		{"Test positive value",
+			args{005700}, 0x0001, flags{false, false, false, false}, false},
+		{"Test zero value",
+			args{005700}, 0x0000, flags{false, false, true, false}, false},
+		{"Test negative value",
+			args{005700}, 0x8000, flags{false, false, false, true}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u.PdpCPU.Registers[0] = tt.regVal
+			u.PdpCPU.SetFlag("C", true) // TST should clear C flag
+			u.PdpCPU.SetFlag("V", true) // TST should clear V flag
+
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
+			instruction(tt.args.instruction)
+
+			// Check flags
+			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
+				t.Errorf("Flag error: %s", err.Error())
+			}
+
+			// Value should remain unchanged
+			if u.PdpCPU.Registers[0] != tt.regVal {
+				t.Errorf("Register value changed: expected %04x, got %04x",
+					tt.regVal, u.PdpCPU.Registers[0])
+			}
+		})
+	}
+}
+
+func TestCPU_rorOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		regVal  uint16
+		dst     uint16
+		wantErr bool
+		cFlag   bool
+		nFlag   bool
+		zFlag   bool
+	}{
+		{"Rotate 0x0001 right",
+			args{006000}, 0x0001, 0x8000, false, true, true, false},
+		{"Rotate 0x0002 right",
+			args{006000}, 0x0002, 0x0001, false, false, false, false},
+		{"Rotate zero right",
+			args{006000}, 0x0000, 0x0000, false, false, false, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u.PdpCPU.Registers[0] = tt.regVal
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
+			instruction(tt.args.instruction)
+
+			if u.PdpCPU.Registers[0] != tt.dst {
+				t.Errorf("Expected value: %04x, got: %04x", tt.dst, u.PdpCPU.Registers[0])
+			}
+			if c := u.PdpCPU.GetFlag("C"); c != tt.cFlag {
+				t.Errorf("C flag error. Expected %v, got %v", tt.cFlag, c)
+			}
+			if n := u.PdpCPU.GetFlag("N"); n != tt.nFlag {
+				t.Errorf("N flag error. Expected %v, got %v", tt.nFlag, n)
+			}
+			if z := u.PdpCPU.GetFlag("Z"); z != tt.zFlag {
+				t.Errorf("Z flag error. Expected %v, got %v", tt.zFlag, z)
+			}
+		})
+	}
+}
+
+func TestCPU_jsrOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name       string
+		args       args
+		initialPC  uint16
+		initialSP  uint16
+		dstAddr    uint16
+		expectedSP uint16
+	}{
+		{"JSR R1, destination",
+			args{004100}, 0x1000, 0x1000, 0x2000, 0x0FFE},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup initial conditions
+			u.PdpCPU.Registers[7] = tt.initialPC // PC
+			u.PdpCPU.Registers[6] = tt.initialSP // SP
+			u.PdpCPU.Registers[0] = tt.dstAddr   // Destination address
+
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
+			instruction(tt.args.instruction)
+
+			// Check if PC was updated to destination
+			if u.PdpCPU.Registers[7] != tt.dstAddr {
+				t.Errorf("PC not set to destination. Expected: %04x, got: %04x",
+					tt.dstAddr, u.PdpCPU.Registers[7])
+			}
+
+			// Check if SP was decremented
+			if u.PdpCPU.Registers[6] != tt.expectedSP {
+				t.Errorf("SP not correctly updated. Expected: %04x, got: %04x",
+					tt.expectedSP, u.PdpCPU.Registers[6])
+			}
+
+			// Check if return address was pushed to stack
+			stackTop := u.Memory[tt.expectedSP>>1]
+			if stackTop != tt.initialPC {
+				t.Errorf("Return address not properly pushed. Expected: %04x, got: %04x",
+					tt.initialPC, stackTop)
+			}
+		})
+	}
+}
