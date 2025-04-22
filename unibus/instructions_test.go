@@ -729,7 +729,7 @@ func TestCPU_beqOp(t *testing.T) {
 		expectedPC uint16
 	}{
 		{"Branch taken when Z flag set",
-			args{001400}, true, 1000, 1000 + 2}, // offset of 1 word
+			args{001401}, true, 1000, 1000 + 2}, // offset of 1 word
 		{"Branch not taken when Z flag clear",
 			args{001400}, false, 1000, 1000},
 		{"Branch backward when Z flag set",
