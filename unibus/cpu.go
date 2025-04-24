@@ -384,7 +384,7 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 	addressMode := (instruction >> 3) & 7
 	var virtAddress uint16
 
-	// byte mode
+	// byte mode do not apply to the SP and PC
 	if accessMode == 1 && reg < 6 {
 		addressInc = 1
 	}
@@ -393,7 +393,6 @@ func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
 	case 0:
 		// register contains operand
 		virtAddress = 0177700 | reg
-		//virtAddress = c.Registers[reg]
 	case 1:
 		// register contains the address of the operand
 		virtAddress = c.Registers[reg]
