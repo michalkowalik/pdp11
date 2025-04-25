@@ -54,18 +54,18 @@ var virtualAddressTests = []struct {
 func TestGetVirtualAddress(t *testing.T) {
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
-		sys.unibus.Memory[8] = 040
-		sys.unibus.Memory[4] = 8
-		sys.unibus.Memory[2] = 2
-		sys.unibus.Memory[1] = 1
-		sys.unibus.Memory[0] = 4
-		sys.CPU.Registers[0] = 2
+		sys.unibus.Memory[010] = 040
+		sys.unibus.Memory[004] = 8
+		sys.unibus.Memory[002] = 2
+		sys.unibus.Memory[001] = 1
+		sys.unibus.Memory[000] = 4
+		sys.CPU.Registers[000] = 2
 
 		// setup memory and registers for index mode:
 		sys.CPU.Registers[7] = 010
 		sys.CPU.Registers[1] = 010
 
-		virtualAddress := sys.CPU.GetVirtualByMode(test.op, 0)
+		virtualAddress := sys.CPU.GetVirtualAddress(test.op, 0)
 		if virtualAddress != test.virtualAddress {
 			t.Errorf("T: %o : Expected virtual address %o got %o\n", test.op, test.virtualAddress, virtualAddress)
 		}

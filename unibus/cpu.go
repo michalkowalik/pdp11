@@ -278,19 +278,19 @@ func (c *CPU) IsPrevModeUser() bool {
 
 // readWord returns value specified by source or destination part of the operand.
 func (c *CPU) readWord(op uint16) uint16 {
-	addr := c.GetVirtualByMode(op, 0)
+	addr := c.GetVirtualAddress(op, 0)
 	return c.mmunit.ReadMemoryWord(addr)
 }
 
 // read byte
 func (c *CPU) readByte(op uint16) byte {
-	addr := c.GetVirtualByMode(op, 1)
+	addr := c.GetVirtualAddress(op, 1)
 	return c.mmunit.ReadMemoryByte(addr)
 }
 
 // writeWord writes word value into specified memory address
 func (c *CPU) writeWord(op, value uint16) {
-	addr := c.GetVirtualByMode(op, 0)
+	addr := c.GetVirtualAddress(op, 0)
 	c.mmunit.WriteMemoryWord(addr, value)
 }
 
@@ -376,9 +376,48 @@ func (c *CPU) SwitchMode(mode uint16) {
 	}
 }
 
-// GetVirtualByMode returns virtual address extracted from the CPU instruction
+// GetVirtualAddress returns virtual address extracted from the CPU instruction
 // access mode: 0 for Word, 1 for Byte
-func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
+/*
+func (c *CPU) GetVirtualAddress(instruction, accessMode uint16) uint16 {
+	register := instruction & 7
+	addressMode := (instruction >> 3) & 7
+	var length uint16
+	var address uint16
+
+	if addressMode == 0 {
+		return 0177700 | register
+	}
+
+	if accessMode != 1 || register >= 6 || (addressMode&1 == 1) {
+		length = 2
+	} else {
+		length = 1
+	}
+
+	switch addressMode & 6 {
+	case 0:
+		address = c.Registers[register]
+	case 2:
+		address = c.Registers[register]
+		c.Registers[register] += length
+	case 4:
+		c.Registers[register] -= length
+		address = c.Registers[register]
+	case 6:
+		offset := c.Fetch()
+		address = offset + c.Registers[register]
+	}
+
+	// deferred modes (1,3,5,7):
+	if addressMode&1 == 1 {
+		address = c.readWord(address)
+	}
+
+	return address
+}
+*/
+func (c *CPU) GetVirtualAddress(instruction, accessMode uint16) uint16 {
 	addressInc := uint16(2)
 	reg := instruction & 7
 	addressMode := (instruction >> 3) & 7
