@@ -702,6 +702,11 @@ func (c *CPU) jsrOp(instruction uint16) {
 	destination := instruction & 077
 	val := c.GetVirtualAddress(destination, 0)
 
+	// check if destination is register address. it shouldn't be
+	if (val & 0177770) == 0170000 {
+		panic("JSR to register. That should not happen")
+	}
+
 	c.Push(c.Registers[register])
 	c.Registers[register] = c.Registers[7]
 	c.Registers[7] = val

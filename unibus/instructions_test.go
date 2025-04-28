@@ -845,24 +845,31 @@ func TestCPU_jsrOp(t *testing.T) {
 	tests := []struct {
 		name       string
 		args       args
+		initialReg uint16
 		initialPC  uint16
 		initialSP  uint16
 		dstAddr    uint16
 		expectedSP uint16
 	}{
 		{"JSR R1, destination",
-			args{004100}, 0x1000, 0x1000, 0x2000, 0x0FFE},
+			args{004110}, 0x0002, 0x1000, 0x1000, 0x2000, 0x0FFE},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup initial conditions
-			u.PdpCPU.Registers[7] = tt.initialPC // PC
-			u.PdpCPU.Registers[6] = tt.initialSP // SP
-			u.PdpCPU.Registers[0] = tt.dstAddr   // Destination address
+			u.PdpCPU.Registers[7] = tt.initialPC  // PC
+			u.PdpCPU.Registers[6] = tt.initialSP  // SP
+			u.PdpCPU.Registers[1] = tt.initialReg // initial value of the R1
+			u.PdpCPU.Registers[0] = tt.dstAddr    // Destination address
 
 			instruction := u.PdpCPU.Decode(tt.args.instruction)
 			instruction(tt.args.instruction)
+
+			if u.PdpCPU.Registers[1] != tt.initialPC {
+				t.Errorf("PC not copied to the Register. Expected value: %04x, got: %04x",
+					tt.initialPC, u.PdpCPU.Registers[1])
+			}
 
 			// Check if PC was updated to destination
 			if u.PdpCPU.Registers[7] != tt.dstAddr {
@@ -878,9 +885,9 @@ func TestCPU_jsrOp(t *testing.T) {
 
 			// Check if return address was pushed to stack
 			stackTop := u.Memory[tt.expectedSP>>1]
-			if stackTop != tt.initialPC {
+			if stackTop != tt.initialReg {
 				t.Errorf("Return address not properly pushed. Expected: %04x, got: %04x",
-					tt.initialPC, stackTop)
+					tt.initialReg, stackTop)
 			}
 		})
 	}
