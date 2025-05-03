@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 	sys.unibus = unibus.New(&sys.psw, nil, &c, false)
 
 	sys.unibus.PdpCPU.Reset()
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "../src/pdp11/rk0")); err != nil {
 		//if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
@@ -41,12 +41,12 @@ var virtualAddressTests = []struct {
 	virtualAddress uint16
 	errorNil       bool
 }{
-	{0, 0177700, true}, // <- Unibus register address
-	{010, 2, true},
-	{020, 2, true},
-	{030, 1, true},
-	{040, 0, true},
-	{050, 4, true},
+	{000, 0177700, true}, // <- Unibus register address
+	{010, 002, true},
+	{020, 002, true},
+	{030, 001, true},
+	{040, 000, true},
+	{050, 004, true},
 	{061, 020, true},
 	{071, 040, true},
 }
@@ -55,11 +55,11 @@ func TestGetVirtualAddress(t *testing.T) {
 	for _, test := range virtualAddressTests {
 		// load some value into memory address
 		sys.unibus.Memory[010] = 040
-		sys.unibus.Memory[004] = 8
-		sys.unibus.Memory[002] = 2
-		sys.unibus.Memory[001] = 1
-		sys.unibus.Memory[000] = 4
-		sys.CPU.Registers[000] = 2
+		sys.unibus.Memory[004] = 010
+		sys.unibus.Memory[002] = 002
+		sys.unibus.Memory[001] = 001
+		sys.unibus.Memory[000] = 004
+		sys.CPU.Registers[000] = 002
 
 		// setup memory and registers for index mode:
 		sys.CPU.Registers[7] = 010
