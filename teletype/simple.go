@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"pdp/interrupts"
+	//"pdp/logger"
 )
 
 // Simple type  - simplest terminal emulator possible.
@@ -35,10 +36,14 @@ type Simple struct {
 	interruptQueue *interrupts.InterruptQueue
 }
 
+//var plogger *logger.PLogger
+
 // NewSimple returns new teletype object
 func NewSimple(interruptQueue *interrupts.InterruptQueue) *Simple {
 	tele := Simple{}
 	tele.interruptQueue = interruptQueue
+
+	//	plogger = logger.InitLogger("./teletype-debug.log")
 
 	// initialize channels
 	tele.keyboardInput = make(chan uint8)
@@ -91,10 +96,17 @@ func (t *Simple) stdin() {
 		t.keyboardInput <- v
 	}
 
+	// stupid, but let's try
+	/*	for _, v := range []byte("LS\n") {
+			t.keyboardInput <- v
+		}
+	*/
+
 	var b [1]byte
 	for {
 		n, err := os.Stdin.Read(b[:])
 		if n == 1 {
+			log.Println("registered keystroke", string(b[:n]))
 			t.keyboardInput <- b[0]
 		}
 		if err != nil {
@@ -139,6 +151,7 @@ func (t *Simple) getChar() uint16 {
 }
 
 func (t *Simple) addChar(char byte) {
+	log.Println("adding char", char)
 	switch char {
 	case 42:
 		t.TKB = 4

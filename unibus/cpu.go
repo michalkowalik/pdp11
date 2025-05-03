@@ -3,6 +3,7 @@ package unibus
 import (
 	"fmt"
 	"pdp/interrupts"
+	"pdp/logger"
 	"strings"
 )
 
@@ -23,7 +24,7 @@ const UserMode = 3
 // add debug output to the console
 var (
 	debug      = false
-	plogger    *PLogger
+	plogger    *logger.PLogger
 	debugQueue *DebugQueue
 )
 
@@ -63,7 +64,7 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 	}
 
 	if debugMode {
-		plogger = initLogger("./debug-out.txt")
+		plogger = logger.InitLogger("./debug-out.txt")
 	}
 
 	// single operand

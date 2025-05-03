@@ -1,4 +1,4 @@
-package unibus
+package logger
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ type PLogger struct {
 	logger *log.Logger
 }
 
-func initLogger(path string) *PLogger {
+func InitLogger(path string) *PLogger {
 	logger := new(PLogger)
 	if len(path) < 1 {
 		fmt.Printf("logging to stdout")
