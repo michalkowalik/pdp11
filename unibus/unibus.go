@@ -37,7 +37,8 @@ type Unibus struct {
 	controlConsole console.Console
 
 	// terminal emulator
-	TermEmulator teletype.Teletype
+	TermEmulator  teletype.Teletype
+	KeyboardInput chan uint8
 
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	InterruptQueue interrupts.InterruptQueue
@@ -67,7 +68,8 @@ func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMod
 	unibus.PdpCPU = NewCPU(unibus.Mmu, &unibus, debugMode)
 
 	// TODO: it needs to be modified, in order to allow the GUI!
-	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue)
+	unibus.KeyboardInput = make(chan uint8)
+	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue, unibus.KeyboardInput)
 	if err := unibus.TermEmulator.Run(); err != nil {
 		panic("Can't initialize terminal emulator")
 	}

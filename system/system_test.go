@@ -1,7 +1,6 @@
 package system
 
 import (
-	"go/build"
 	"os"
 	"path/filepath"
 	"pdp/console"
@@ -24,7 +23,7 @@ func TestMain(m *testing.M) {
 	sys.unibus = unibus.New(&sys.psw, nil, &c, false)
 
 	sys.unibus.PdpCPU.Reset()
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "../src/pdp11/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join("/home/mkowalik", "src/pdp11/rk0")); err != nil {
 		//if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
@@ -53,7 +52,7 @@ var virtualAddressTests = []struct {
 
 func TestGetVirtualAddress(t *testing.T) {
 	for _, test := range virtualAddressTests {
-		// load some value into memory address
+		// load some value into a memory address
 		sys.unibus.Memory[010] = 040
 		sys.unibus.Memory[004] = 010
 		sys.unibus.Memory[002] = 002
@@ -72,9 +71,9 @@ func TestGetVirtualAddress(t *testing.T) {
 	}
 }
 
-// try running few lines of machine code
+// try running a few lines of machine code
 // The memory array is using words, addressing is happening in bytes,
-// hence the value pointing to word 0xff is 0x1FE (or 0776 in octal)
+// hence the value pointing to the word 0xff is 0x1FE (or 0776 in octal)
 func TestRunCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 
@@ -83,7 +82,7 @@ func TestRunCode(t *testing.T) {
 	code := []uint16{
 		012701, // 001000 mov 0xff R1
 		000776, // 001002 000377
-		062711, // 001004 add 2  to memory pointed by R1 -> mem[0xff]  = 4
+		062711, // 001004 add 2 to memory pointed by R1 -> mem[0xff] = 4
 		000002, // 001006
 		000000, // 001010 done, halt
 		000776, // 001012 0377 -> memory address to be loaded to R1
@@ -97,7 +96,7 @@ func TestRunCode(t *testing.T) {
 		memPointer++
 	}
 
-	// set PC to starting point:
+	// set PC to the starting point:
 	sys.CPU.Registers[7] = 002000
 
 	for sys.CPU.State == unibus.CPURUN {
@@ -138,7 +137,7 @@ func TestRunBranchCode(t *testing.T) {
 		memPointer += 2
 	}
 
-	// set PC to starting point
+	// set PC to the starting point
 	sys.CPU.Registers[7] = 001000
 
 	for sys.CPU.State == unibus.CPURUN {
@@ -162,7 +161,7 @@ func TestTriggerTrap(t *testing.T) {
 		memPointer += 2
 	}
 
-	// set PC to starting point
+	// set PC to a starting point
 	sys.CPU.Registers[7] = 001000
 
 	for sys.CPU.State == unibus.CPURUN {
@@ -220,7 +219,7 @@ func TestInterruptHandling(t *testing.T) {
 		t.Errorf("Expected SP to be set back to the original value, but got %o\n", sys.CPU.Registers[7])
 	}
 
-	// previous mode should be set to kernel
+	// the previous mode should be set to kernel
 	if sys.unibus.Psw.Get() != initialPSW {
 		t.Errorf("Expected PSW to be set to the original value, but got %x\n", sys.unibus.Psw.Get())
 	}

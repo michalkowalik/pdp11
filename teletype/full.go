@@ -11,7 +11,7 @@ import (
 	"github.com/jroimartin/gocui"
 )
 
-// Instruction - Incomming instruction type
+// Instruction - Incoming instruction types
 // if Read is set to false -> write instruction
 type Instruction struct {
 	Address uint32
@@ -21,7 +21,7 @@ type Instruction struct {
 
 // Full type  - simplest terminal emulator possible.
 type Full struct {
-	// use gocui view, not a raw terminal
+	// use the gocui view, not a raw terminal
 	termView *gocui.View
 	gui      *gocui.Gui
 
@@ -163,7 +163,7 @@ func (t *Full) Run() error {
 	return nil
 }
 
-//getChar - return char from keybuffer set registers accordingly
+// getChar - return char from keybuffer set registers accordingly
 func (t *Full) getChar() uint16 {
 	if t.TKS&0x80 != 0 {
 		t.TKS &= 0xFF7E
@@ -196,7 +196,7 @@ func (t *Full) WriteTerm(address uint32, data uint16) error {
 	// output
 	// side note:
 	// The original implementation introduces 1ms timeouts before setting the register value
-	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
+	// I'm not sure what it should be good for. anyhow, it looks like it works anyway,
 	// so I'm skipping that part.
 	case 0566:
 		data = data & 0xFF
@@ -227,7 +227,7 @@ func (t *Full) WriteTerm(address uint32, data uint16) error {
 	return nil
 }
 
-// ReadTerm : read from terminal memory at address address
+// ReadTerm - read from terminal memory at address
 func (t *Full) ReadTerm(address uint32) (uint16, error) {
 	switch address & 0777 {
 	case 0560:
@@ -239,6 +239,10 @@ func (t *Full) ReadTerm(address uint32) (uint16, error) {
 	case 0566:
 		return 0, nil
 	default:
-		return 0, fmt.Errorf("Read from invalid address: %o", address)
+		return 0, fmt.Errorf("read from the invalid address: %o", address)
 	}
+}
+
+func (t *Full) AddChar(c byte) {
+	fmt.Errorf("not implemented")
 }

@@ -532,9 +532,10 @@ func (c *CPU) rttOp(instruction uint16) {
 }
 
 // wait for interrupt
-// TODO check for interrupts here!! (?)
 func (c *CPU) waitOp(_ uint16) {
-	c.State = WAIT
+	if !c.IsUserMode() {
+		c.State = WAIT
+	}
 }
 
 // Sends INIT on UNIBUS for 10ms. All devices on the UNIBUS are reset and power up
