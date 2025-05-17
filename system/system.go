@@ -151,6 +151,10 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	//}
 	//sys.unibus.InterruptStack.Push(interrupt)
 
+	if sys.psw.GetMode() == psw.UserMode {
+		fmt.Printf("User mode interrupt\n")
+	}
+
 	prev := sys.psw.Get()
 	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prev)

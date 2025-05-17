@@ -611,26 +611,6 @@ func TestCPU_bicOp(t *testing.T) {
 	}
 }
 
-func TestCPU_rti(t *testing.T) {
-	psw := uint16(0xffff)
-	pc := uint16(0x1111)
-
-	u.PdpCPU.Registers[6] = 0x200 // set SP
-
-	u.PdpCPU.Push(psw)
-	u.PdpCPU.Push(pc)
-
-	u.PdpCPU.rtiOp(0x0)
-
-	if u.PdpCPU.Registers[7] != pc {
-		t.Errorf("expected R7 to be set to %v, got %v", pc, u.PdpCPU.Registers[7])
-	}
-
-	if u.Psw.Get() != psw {
-		t.Errorf("Expected PSW to be set to %v, got %v", psw, u.Psw.Get())
-	}
-}
-
 func TestCPU_rts(t *testing.T) {
 	var stackAddr uint16 = 0777 << 1
 	u.PdpCPU.Registers[6] = stackAddr
@@ -890,5 +870,78 @@ func TestCPU_jsrOp(t *testing.T) {
 					tt.initialReg, stackTop)
 			}
 		})
+	}
+}
+
+func TestCPU_rtiOp(t *testing.T) {
+	tests := []struct {
+		name       string
+		psw        uint16
+		pc         uint16
+		initialSP  uint16
+		expectedSP uint16
+	}{
+		{"RTI to kernel mode",
+			0b0000000011110000, // Test with various flags set
+			0x2000,             // Return address
+			0x2000,             // Initial stack pointer
+			0x2004,             // SP should be incremented by 4 (2 words)
+		},
+		{
+			"RTI to user mode",
+			0xFFFF,
+			0x1000,
+			0x1000,
+			0x1004,
+		},
+	}
+
+	for _, tt := range tests {
+
+		// CPU should be in the kernel mode while servicing interrupt
+		u.Psw.Set(u.Psw.Get() & 0xFFF)
+
+		// set user stack to the expectedSP value
+		// otherwise, the rti to user mode won't work
+		u.PdpCPU.UserStackPointer = tt.initialSP
+
+		if u.PdpCPU.IsUserMode() {
+			t.Errorf("User mode detected")
+		}
+
+		// set the initial stack state
+		u.PdpCPU.Registers[6] = tt.initialSP
+
+		// push test values to the stack
+		u.PdpCPU.Push(tt.psw)
+		u.PdpCPU.Push(tt.pc)
+
+		// set
+		u.PdpCPU.Registers[7] = tt.pc + 2
+		// call RTI
+		u.PdpCPU.rtiOp(0)
+
+		// check if the PC was restored correctly
+		if u.PdpCPU.Registers[7] != tt.pc {
+			t.Errorf("PC not restored correctly. Expected: %04x, got: %04x",
+				tt.pc, u.PdpCPU.Registers[7])
+		}
+
+		// check if the PSW was restored correctly
+		if u.Psw.Get() != tt.psw {
+			t.Errorf("PSW not restored correctly. Expected: %04x, got: %04x",
+				tt.psw, u.Psw.Get())
+		}
+
+		// check if the SP was updated correctly
+		if u.PdpCPU.Registers[6] != tt.initialSP {
+			t.Errorf("SP not restored correctly. Expected: %04x, got: %04x",
+				tt.initialSP, u.PdpCPU.Registers[6])
+		}
+
+		if (tt.psw >> 14) != u.Psw.GetMode() {
+			t.Errorf("Processor mode not restored. Expected: %04x, got: %04x",
+				tt.psw, u.Psw.GetMode())
+		}
 	}
 }

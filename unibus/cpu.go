@@ -391,7 +391,7 @@ func (c *CPU) GetVirtualAddress(instruction, accessMode uint16) uint16 {
 	addressMode := (instruction >> 3) & 7
 	var virtAddress uint16
 
-	// byte mode do not apply to the SP and PC
+	// byte mode does not apply to the SP and PC
 	if accessMode == 1 && reg < 6 {
 		addressInc = 1
 	}

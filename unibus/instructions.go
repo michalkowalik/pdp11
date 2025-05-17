@@ -516,7 +516,7 @@ func (c *CPU) rtiOp(_ uint16) {
 }
 
 // rtt - return from trap
-func (c *CPU) rttOp(instruction uint16) {
+func (c *CPU) rttOp(_ uint16) {
 
 	//c.unibus.InterruptStack.Pop()
 
