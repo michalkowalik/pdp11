@@ -2,6 +2,7 @@ package unibus
 
 import (
 	"fmt"
+	"log"
 	"pdp/console"
 	"pdp/interrupts"
 	"pdp/psw"
@@ -54,22 +55,25 @@ type Unibus struct {
 	Rk01 *RK11
 
 	InterruptStack InterruptStack
+
+	log *log.Logger
 }
 
 // New initializes and returns the Unibus variable
-func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMode bool) *Unibus {
+func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMode bool, log *log.Logger) *Unibus {
 	unibus := Unibus{}
 
 	unibus.controlConsole = *controlConsole
 	unibus.Psw = psw
+	unibus.log = log
 
 	// initialize attached devices:
 	unibus.Mmu = NewMMU18(&unibus)
-	unibus.PdpCPU = NewCPU(unibus.Mmu, &unibus, debugMode)
+	unibus.PdpCPU = NewCPU(unibus.Mmu, &unibus, debugMode, log)
 
 	// TODO: it needs to be modified, in order to allow the GUI!
 	unibus.KeyboardInput = make(chan uint8)
-	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue, unibus.KeyboardInput)
+	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue, unibus.KeyboardInput, unibus.log)
 	if err := unibus.TermEmulator.Run(); err != nil {
 		panic("Can't initialize terminal emulator")
 	}

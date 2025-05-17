@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"pdp/console"
+	"pdp/logger"
 	"pdp/system"
 	"time"
 
@@ -111,16 +112,19 @@ func startPdp(g *gocui.Gui) error {
 		c = console.NewSimple()
 	}
 
+	log := logger.New("pdp11.log")
+
 	c.WriteConsole("Starting PDP-11/40 emulator.")
-	pdp := system.InitializeSystem(c, terminalView, regView, g, *debugMode)
+	pdp := system.InitializeSystem(c, terminalView, regView, g, *debugMode, log)
 
 	// update registers:
 	if g != nil {
 		updateRegisters(pdp, g)
 	}
 	pdp.Boot()
+	log.Printf("Booting pdp..")
 
-	// default return value -> no errors encoutered
+	// default return value -> no errors encountered
 	return nil
 }
 

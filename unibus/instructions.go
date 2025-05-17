@@ -507,7 +507,8 @@ func (c *CPU) rtiOp(_ uint16) {
 	val := c.Pop()      // pop the PSW
 	if c.IsUserMode() { // why does it happen at all?
 		// DEBUG code
-		fmt.Printf("ALERT: interrupt in user mode\n")
+		c.log.Printf("interrupt return in user mode\n")
+
 		// why is that needed at all??
 		val &= 047                          // Save the flags
 		val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
@@ -523,7 +524,7 @@ func (c *CPU) rttOp(_ uint16) {
 	c.Registers[7] = c.Pop()
 	val := c.Pop()      // pop the PSW
 	if c.IsUserMode() { // why does it happen at all?
-		fmt.Printf("ALERT: trap return in user mode\n")
+		c.log.Printf("Trap return in user mode\n")
 		val &= 047                          // Save the flags
 		val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
 	}

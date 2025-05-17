@@ -34,16 +34,18 @@ type Simple struct {
 	count uint8
 
 	interruptQueue *interrupts.InterruptQueue
+
+	log *log.Logger
 }
 
 //var plogger *logger.PLogger
 
 // NewSimple returns the new teletype object
-func NewSimple(interruptQueue *interrupts.InterruptQueue, keyboardInput chan uint8) *Simple {
+func NewSimple(interruptQueue *interrupts.InterruptQueue, keyboardInput chan uint8, log *log.Logger) *Simple {
 	tele := Simple{}
 	tele.interruptQueue = interruptQueue
 
-	//	plogger = logger.InitLogger("./teletype-debug.log")
+	tele.log = log
 
 	// initialize channels
 	tele.KeyboardInput = keyboardInput
@@ -100,7 +102,7 @@ func (t *Simple) stdin() {
 	for {
 		n, err := os.Stdin.Read(b[:])
 		if n == 1 {
-			log.Println("registered keystroke", string(b[:n]))
+			t.log.Println("registered keystroke", string(b[:n]))
 			t.KeyboardInput <- b[0]
 		}
 		if err != nil {
@@ -145,7 +147,7 @@ func (t *Simple) getChar() uint16 {
 }
 
 func (t *Simple) AddChar(char byte) {
-	log.Println("adding char", char)
+	t.log.Println("adding char", char)
 	switch char {
 	case 42:
 		t.TKB = 4

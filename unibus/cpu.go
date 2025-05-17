@@ -2,8 +2,8 @@ package unibus
 
 import (
 	"fmt"
+	"log"
 	"pdp/interrupts"
-	"pdp/logger"
 	"strings"
 )
 
@@ -24,7 +24,6 @@ const UserMode = 3
 // add debug output to the console
 var (
 	debug      = false
-	plogger    *logger.PLogger
 	debugQueue *DebugQueue
 )
 
@@ -37,6 +36,7 @@ type CPU struct {
 
 	unibus *Unibus
 	mmunit MMU
+	log    *log.Logger
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it
@@ -52,19 +52,15 @@ type CPU struct {
 }
 
 // NewCPU initializes and returns the CPU variable:
-func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
-
+func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool, log *log.Logger) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	debug = debugMode
 	c.unibus = unibus
+	c.log = log
 
 	if debug {
 		debugQueue = NewQueue(1000)
-	}
-
-	if debugMode {
-		plogger = logger.InitLogger("./debug-out.txt")
 	}
 
 	// single operand
@@ -255,8 +251,6 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 
 // Execute decoded instruction
 func (c *CPU) Execute() {
-	// do nothing if CPU waits for interrupt
-	// todo: which is probably wrong. We should be doing the console pulling if cpu is in the wait state
 	if c.State == WAIT {
 		select {
 		case v, ok := <-c.unibus.KeyboardInput:
