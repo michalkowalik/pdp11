@@ -1,6 +1,7 @@
 package system
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"pdp/console"
@@ -18,9 +19,11 @@ var (
 
 // TestMain : initialize memory and CPU
 func TestMain(m *testing.M) {
+	l := log.New(os.Stdout, "PDP: ", log.LstdFlags)
 	sys = new(System)
+	sys.log = l
 	c = console.NewSimple()
-	sys.unibus = unibus.New(&sys.psw, nil, &c, false)
+	sys.unibus = unibus.New(&sys.psw, nil, &c, false, l)
 
 	sys.unibus.PdpCPU.Reset()
 	if err := sys.unibus.Rk01.Attach(0, filepath.Join("/home/mkowalik", "src/pdp11/rk0")); err != nil {

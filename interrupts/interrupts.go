@@ -23,7 +23,7 @@ type Trap struct {
 
 // interrupt vectors:
 
-// TTYout : sent when character is being printed on the teletype
+// TTYout : sent when a character is being printed on the teletype
 const TTYout = 0064
 
 // TTYin : sent when a key is punched on a teletype keyboard

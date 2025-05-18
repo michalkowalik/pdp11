@@ -62,7 +62,7 @@ func (t *Simple) GetIncoming() chan Instruction {
 // initialize the go routine to read from the incoming channel.
 func (t *Simple) Run() error {
 	t.ClearTerminal()
-	fmt.Printf("starting teletype terminal\n")
+	fmt.Printf("Starting teletype terminal\n")
 	go t.stdin()
 	return nil
 }
@@ -89,6 +89,7 @@ func (t *Simple) Step() {
 		t.TPS |= 0x80
 		if t.TPS&(1<<6) != 0 {
 			t.interruptQueue.SendInterrupt(4, interrupts.TTYout)
+			t.log.Printf("Senging TTY interrupt %o\n", interrupts.TTYout)
 		}
 	}
 }
@@ -135,7 +136,7 @@ func (t *Simple) writeTerminal(char int) {
 	}
 }
 
-// getChar - return char from keybuffer set registers accordingly
+// getChar - return char from key buffer set registers accordingly
 func (t *Simple) getChar() uint16 {
 	// fmt.Printf("GET CHAR: TKS:%x, TKB:%x\n", t.TKS, t.TKB)
 	if t.TKS&0x80 != 0 {

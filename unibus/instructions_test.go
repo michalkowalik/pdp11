@@ -3,6 +3,7 @@ package unibus
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"pdp/console"
 	"pdp/psw"
@@ -24,12 +25,12 @@ var u *Unibus
 // TestMain to rescue -> initialize memory and CPU
 func TestMain(m *testing.M) {
 	p := psw.PSW(0)
-
+	l := log.New(os.Stdout, "TestUnibus: ", log.LstdFlags)
 	var cons console.Console = console.NewSimple()
-	u = New(&p, nil, &cons, false)
+	u = New(&p, nil, &cons, false, l)
 	u.Psw = &p
 	mmu := u.Mmu
-	c = NewCPU(mmu, u, false)
+	c = NewCPU(mmu, u, false, l)
 	os.Exit(m.Run())
 }
 

@@ -1,6 +1,8 @@
 package unibus
 
 import (
+	"log"
+	"os"
 	"pdp/console"
 	"pdp/psw"
 	"testing"
@@ -9,7 +11,8 @@ import (
 func TestMMU_DecodeAddress(t *testing.T) {
 	p := psw.PSW(0)
 	var cons console.Console = console.NewSimple()
-	u := New(&p, nil, &cons, false)
+	l := log.New(os.Stdout, "PDP", log.Ldate|log.Ltime|log.Lshortfile)
+	u := New(&p, nil, &cons, false, l)
 
 	// enable mmu:
 	u.Mmu.SetSR0(u.Mmu.GetSR0() | 1)

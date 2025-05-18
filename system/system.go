@@ -20,6 +20,7 @@ type System struct {
 
 	// Unibus
 	unibus *unibus.Unibus
+	log    *log.Logger
 
 	// console and status output:
 	console      console.Console
@@ -39,6 +40,7 @@ func InitializeSystem(
 	sys.console = c
 	sys.terminalView = terminalView
 	sys.regView = regView
+	sys.log = log
 
 	// unibus
 	sys.unibus = unibus.New(&sys.psw, gui, &c, debugMode, log)
@@ -151,6 +153,11 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	//	fmt.Printf("processing interrupt with the vector 0%o\n", interrupt.Vector)
 	//}
 	//sys.unibus.InterruptStack.Push(interrupt)
+
+	if interrupt.Vector != interrupts.IntCLOCK {
+		sys.log.Printf("processing interrupt with the vector 0%o\n", interrupt.Vector)
+
+	}
 
 	if sys.psw.GetMode() == psw.UserMode {
 		fmt.Printf("User mode interrupt\n")

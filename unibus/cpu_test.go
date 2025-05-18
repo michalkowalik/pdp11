@@ -1,6 +1,8 @@
 package unibus
 
 import (
+	"log"
+	"os"
 	"pdp/console"
 	"pdp/psw"
 	"testing"
@@ -20,10 +22,11 @@ func Test_cpu_Fetch(t *testing.T) {
 
 func TestCPU_GetFlag(t *testing.T) {
 	p := psw.PSW(0)
+	l := log.New(os.Stdout, "PDP", log.Ldate|log.Ltime|log.Lshortfile)
 	var cons console.Console = console.NewSimple()
-	u := New(&p, nil, &cons, false)
+	u := New(&p, nil, &cons, false, l)
 
-	var c = NewCPU(u.Mmu, u, false)
+	var c = NewCPU(u.Mmu, u, false, l)
 
 	tests := []struct {
 		name       string

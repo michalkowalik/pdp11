@@ -1,7 +1,6 @@
 package unibus
 
 import (
-	"fmt"
 	"pdp/psw"
 )
 
@@ -499,7 +498,7 @@ func (c *CPU) iotOp(_ uint16) {
 
 // rti - return from interrupt
 func (c *CPU) rtiOp(_ uint16) {
-	fmt.Printf("calling rti \n")
+	c.log.Printf("calling rti \n")
 	// DEBUG: POP from interrupt stack
 	//c.unibus.InterruptStack.Pop()
 
@@ -518,7 +517,6 @@ func (c *CPU) rtiOp(_ uint16) {
 
 // rtt - return from trap
 func (c *CPU) rttOp(_ uint16) {
-
 	//c.unibus.InterruptStack.Pop()
 
 	c.Registers[7] = c.Pop()
