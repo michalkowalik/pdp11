@@ -74,6 +74,7 @@ func (sys *System) run() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			sys.log.Printf("SENDING TRAP %o in the run sys.run : %s\n", t.Vector, t.Msg)
 			sys.trap(t)
 		case nil:
 			// ignore
@@ -127,6 +128,7 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			sys.log.Printf("SENDING TRAP %o while processing interrupt: %s\n", t.Vector, t.Msg)
 			sys.trap(t)
 		case nil:
 			break

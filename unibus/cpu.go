@@ -246,6 +246,8 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 		}
 
 	}
+	// this should really never happen. replace with Fatalf, and the program will stop here
+	c.log.Fatalf("ERROR: Invalid instruction: %06o", instr)
 	panic(interrupts.Trap{Vector: interrupts.IntINVAL, Msg: "Invalid Instruction"})
 }
 

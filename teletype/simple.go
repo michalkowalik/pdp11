@@ -89,7 +89,7 @@ func (t *Simple) Step() {
 		t.TPS |= 0x80
 		if t.TPS&(1<<6) != 0 {
 			t.interruptQueue.SendInterrupt(4, interrupts.TTYout)
-			t.log.Printf("Senging TTY interrupt %o\n", interrupts.TTYout)
+			t.log.Printf("Sending TTY interrupt %o\n", interrupts.TTYout)
 		}
 	}
 }
@@ -103,7 +103,7 @@ func (t *Simple) stdin() {
 	for {
 		n, err := os.Stdin.Read(b[:])
 		if n == 1 {
-			t.log.Println("registered keystroke", string(b[:n]))
+			t.log.Println("Registered keystroke", string(b[:n]))
 			t.KeyboardInput <- b[0]
 		}
 		if err != nil {
@@ -148,7 +148,7 @@ func (t *Simple) getChar() uint16 {
 }
 
 func (t *Simple) AddChar(char byte) {
-	t.log.Println("adding char", char)
+	t.log.Println("Adding char", char)
 	switch char {
 	case 42:
 		t.TKB = 4
