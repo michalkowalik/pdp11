@@ -120,8 +120,8 @@ func (sys *System) step() {
 //  1. push current PSW and PC to stack
 //  2. load PC from interrupt vector
 //  3. load PSW from (interrupt vector) + 2
-//  4. if previous state mode was User, then set the corresponding bits in PSW
-//  5. Return from subprocedure cpu instruction at the end of interrupt procedure
+//  4. if the previous state mode was User, then set the corresponding bits in PSW
+//  5. Return from subprocedure cpu instruction at the end of the interrupt procedure
 //     makes sure to set the stack and PSW back to where it belongs
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	defer func() {

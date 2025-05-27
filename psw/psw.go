@@ -31,7 +31,7 @@ func (psw *PSW) Set(p uint16) {
 	*psw = PSW(p)
 }
 
-// Priority - current cpu priority
+// Priority - current interrupt priority
 func (psw *PSW) Priority() uint16 {
 	return uint16((*psw >> 5) & 7)
 }

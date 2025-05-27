@@ -867,9 +867,6 @@ func (c *CPU) trapOpcode(vector uint16) {
 	prevPs := c.unibus.Psw.Get()
 	c.SwitchMode(psw.KernelMode)
 
-	// debug
-	// c.unibus.InterruptStack.Push(interrupts.Interrupt{Vector: vector, Priority: 6})
-
 	// push current PS and PC to stack
 	c.Push(prevPs)
 	c.Push(c.Registers[7])
@@ -880,6 +877,9 @@ func (c *CPU) trapOpcode(vector uint16) {
 	if prevPs&(1<<14) > 0 {
 		newPsw |= (1 << 13) | (1 << 12)
 	}
+
+	// todo -> can the new PSW set the cpu to the user mode?
+
 	c.unibus.Psw.Set(newPsw)
 }
 
@@ -888,7 +888,7 @@ func (c *CPU) emtOp(_ uint16) {
 	c.trapOpcode(030)
 }
 
-// trap vector for TRAP is hardcoded for all PDP11s to memory location 34
+// trap vector for TRAP is hardcoded for all PDP11s to memory location 034
 func (c *CPU) trapOp(_ uint16) {
 	c.trapOpcode(034)
 }

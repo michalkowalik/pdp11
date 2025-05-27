@@ -1,6 +1,7 @@
 package system
 
 import (
+	"go/build"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,8 +27,7 @@ func TestMain(m *testing.M) {
 	sys.unibus = unibus.New(&sys.psw, nil, &c, false, l)
 
 	sys.unibus.PdpCPU.Reset()
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join("/home/mkowalik", "src/pdp11/rk0")); err != nil {
-		//if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
 	sys.unibus.Rk01.Reset()
@@ -231,3 +231,5 @@ func TestInterruptHandling(t *testing.T) {
 		t.Errorf("Stack pointer should be set to the user stack by now")
 	}
 }
+
+// test interrupt handling when CPU in user mode
