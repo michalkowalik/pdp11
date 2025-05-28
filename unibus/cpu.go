@@ -372,7 +372,6 @@ func (c *CPU) SwitchMode(mode uint16) {
 
 	// set processor stack:
 	if mode == UserMode {
-		c.log.Printf("Stack pointer set to %04x", c.KernelStackPointer)
 		c.Registers[6] = c.UserStackPointer
 	} else {
 		c.Registers[6] = c.KernelStackPointer

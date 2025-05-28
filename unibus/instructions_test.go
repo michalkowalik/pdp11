@@ -898,57 +898,87 @@ func TestCPU_rtiOp(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// CPU should be in the kernel mode while servicing interrupt
+			u.Psw.Set(u.Psw.Get() & 0xFFF)
 
-		// CPU should be in the kernel mode while servicing interrupt
-		u.Psw.Set(u.Psw.Get() & 0xFFF)
+			// set user stack to the expectedSP value
+			// otherwise, the rti to user mode won't work
+			u.PdpCPU.UserStackPointer = tt.initialSP
 
-		// set user stack to the expectedSP value
-		// otherwise, the rti to user mode won't work
-		u.PdpCPU.UserStackPointer = tt.initialSP
+			if u.PdpCPU.IsUserMode() {
+				t.Errorf("User mode detected")
+			}
 
-		if u.PdpCPU.IsUserMode() {
-			t.Errorf("User mode detected")
-		}
+			// set the initial stack state
+			u.PdpCPU.Registers[6] = tt.initialSP
 
-		// set the initial stack state
-		u.PdpCPU.Registers[6] = tt.initialSP
+			// push test values to the stack
+			u.PdpCPU.Push(tt.psw)
+			u.PdpCPU.Push(tt.pc)
 
-		// push test values to the stack
-		u.PdpCPU.Push(tt.psw)
-		u.PdpCPU.Push(tt.pc)
+			// set
+			u.PdpCPU.Registers[7] = tt.pc + 2
+			// call RTI
+			u.PdpCPU.rtiOp(0)
 
-		// set
-		u.PdpCPU.Registers[7] = tt.pc + 2
-		// call RTI
-		u.PdpCPU.rtiOp(0)
+			// check if the PC was restored correctly
+			if u.PdpCPU.Registers[7] != tt.pc {
+				t.Errorf("PC not restored correctly. Expected: %04x, got: %04x",
+					tt.pc, u.PdpCPU.Registers[7])
+			}
 
-		// check if the PC was restored correctly
-		if u.PdpCPU.Registers[7] != tt.pc {
-			t.Errorf("PC not restored correctly. Expected: %04x, got: %04x",
-				tt.pc, u.PdpCPU.Registers[7])
-		}
+			// check if the PSW was restored correctly
+			if u.Psw.Get() != tt.psw {
+				t.Errorf("PSW not restored correctly. Expected: %04x, got: %04x",
+					tt.psw, u.Psw.Get())
+			}
 
-		// check if the PSW was restored correctly
-		if u.Psw.Get() != tt.psw {
-			t.Errorf("PSW not restored correctly. Expected: %04x, got: %04x",
-				tt.psw, u.Psw.Get())
-		}
+			// check if the SP was updated correctly
+			if u.PdpCPU.Registers[6] != tt.initialSP {
+				t.Errorf("SP not restored correctly. Expected: %04x, got: %04x",
+					tt.initialSP, u.PdpCPU.Registers[6])
+			}
 
-		// check if the SP was updated correctly
-		if u.PdpCPU.Registers[6] != tt.initialSP {
-			t.Errorf("SP not restored correctly. Expected: %04x, got: %04x",
-				tt.initialSP, u.PdpCPU.Registers[6])
-		}
-
-		if (tt.psw >> 14) != u.Psw.GetMode() {
-			t.Errorf("Processor mode not restored. Expected: %04x, got: %04x",
-				tt.psw, u.Psw.GetMode())
-		}
+			if (tt.psw >> 14) != u.Psw.GetMode() {
+				t.Errorf("Processor mode not restored. Expected: %04x, got: %04x",
+					tt.psw, u.Psw.GetMode())
+			}
+		})
 	}
 }
 
 // TODO: Set initial PSW to 0177777 -> the test should fail. Find out why.
 func TestCPU_trapOp(t *testing.T) {
+
+	tests := []struct {
+		name string
+		psw  uint16
+		pc   uint16
+	}{
+		{"Trap with CPU initially in User mode",
+			0140000, // PSW value
+			0x4000},
+		{"trap with cpu initially in user mode, with previous mode = user",
+			0170000,
+			0x4000},
+		{"trap with cpu initially in kernel mode",
+			0,
+			0x4000},
+		{"trap with cpu initially in kernel mode, with previous mode = user",
+			030000,
+			0x4000},
+	}
+
+	var userStackPointer uint16 = 0x2F00
+	var kernelStackPointer uint16 = 0x2000
+	var trapVector uint16 = 0x1000
+
+	// when commented out, the test fails.
+	// todo: check why. might be interesting!
+	u.PdpCPU.SwitchMode(0)
+	u.Psw.Set(0)
+
 	// set the PC at the trap vector
 	u.PdpCPU.unibus.Memory[034>>1] = 0x1000
 
@@ -956,65 +986,86 @@ func TestCPU_trapOp(t *testing.T) {
 	u.PdpCPU.unibus.Memory[036>>1] = 0
 
 	// set the stack pointers
-	u.PdpCPU.Registers[6] = 0x2000
-	u.PdpCPU.UserStackPointer = 0x2F00
+	u.PdpCPU.Registers[6] = kernelStackPointer
+	u.PdpCPU.UserStackPointer = userStackPointer
 
-	// initial PC
-	u.PdpCPU.Registers[7] = 0x4000
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// initial PC
+			u.PdpCPU.Registers[7] = tt.pc
+			// set mode and psw
+			if tt.psw&0140000 != 0 {
+				u.PdpCPU.SwitchMode(3)
+			} else {
+				u.PdpCPU.SwitchMode(0)
+			}
+			u.Psw.Set(tt.psw)
+			u.PdpCPU.log.Printf("PSW in Test: %O", *u.PdpCPU.unibus.Psw)
+			u.PdpCPU.log.Printf("Current CPU Mode: %O", u.Psw.GetMode())
 
-	// set psw
-	u.Psw.Set(0)
+			// make sure the stack pointer points to the correct stack
+			if u.Psw.GetMode() == 3 && u.PdpCPU.Registers[6] != userStackPointer {
+				t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+					userStackPointer, u.PdpCPU.Registers[6])
+			}
 
-	u.PdpCPU.log.Printf("PSW in Test: %O", *u.PdpCPU.unibus.Psw)
+			if u.Psw.GetMode() == 0 && u.PdpCPU.Registers[6] != kernelStackPointer {
+				t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+					kernelStackPointer, u.PdpCPU.Registers[6])
+			}
 
-	// start in user mode
-	u.PdpCPU.SwitchMode(3)
+			// execute
+			u.PdpCPU.trapOp(0)
 
-	// make sure the stack pointer points to the user stack
-	if u.PdpCPU.Registers[6] != 0x2F00 {
-		t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
-			0x2F00, u.PdpCPU.Registers[6])
-	}
+			// run assertions
+			// PC set to the address saved under the vector 034
+			if u.PdpCPU.Registers[7] != trapVector {
+				t.Errorf("PC not set correctly. Expected: %04x, got: %04x",
+					trapVector, u.PdpCPU.Registers[7])
+			}
 
-	// execute
-	u.PdpCPU.trapOp(0)
+			// Processor is in kernel mode
+			if u.Psw.GetMode() != 0 {
+				t.Errorf("Expected processor to be in the kernel mode")
+			}
 
-	// run assertions
-	// PC set to the address saved under the vector 034
-	if u.PdpCPU.Registers[7] != 0x1000 {
-		t.Errorf("PC not set correctly. Expected: %04x, got: %04x",
-			0x1000, u.PdpCPU.Registers[7])
-	}
+			if u.PdpCPU.Registers[6] != kernelStackPointer-4 {
+				t.Errorf("Stack pointer not set correctly after popping pc and psw. Expected: %04x, got: %04x",
+					kernelStackPointer-4, u.PdpCPU.Registers[6])
+			}
 
-	// Processor is in kernel mode
-	if u.Psw.GetMode() != 0 {
-		t.Errorf("Processor mode not set correctly. Expected: %04x, got: %04x",
-			0, u.Psw.GetMode())
-	}
+			// Run RTT directly after calling the trap
+			u.PdpCPU.unibus.Memory[trapVector>>1] = 6
+			u.PdpCPU.rttOp(0)
 
-	if u.PdpCPU.Registers[6] != 0x2000-4 {
-		t.Errorf("Stack pointer not set correctly after popping pc and psw. Expected: %04x, got: %04x",
-			0x2000-4, u.PdpCPU.Registers[6])
-	}
+			// is processor mode restored?
+			if u.Psw.GetMode() != (tt.psw>>14)&3 {
+				t.Errorf("Processor mode not set correctly. Expected: %04x, got: %04x",
+					tt.psw>>14, u.Psw.GetMode())
+			}
 
-	// Run RTT directly after calling the trap
-	u.PdpCPU.unibus.Memory[0x1000>>1] = 6
-	u.PdpCPU.rttOp(0)
+			// is psw restored?
+			if u.Psw.Get() != tt.psw {
+				t.Errorf("PSW not restored correctly. Expected: %04x, got: %04x",
+					tt.psw, u.Psw.Get())
+			}
 
-	// are we in the user mode again?
-	if !u.PdpCPU.IsUserMode() {
-		t.Errorf("Processor mode not set correctly. Expected: %04x, got: %04x",
-			3, u.PdpCPU.Registers[6])
-	}
+			// PC and SP are restored to their original values
+			if u.PdpCPU.Registers[7] != tt.pc {
+				t.Errorf("PC not set correctly. Expected: %04x, got: %04x",
+					tt.pc, u.PdpCPU.Registers[7])
+			}
 
-	// PC and SP are restored to their original values
-	if u.PdpCPU.Registers[7] != 0x4000 {
-		t.Errorf("PC not set correctly. Expected: %04x, got: %04x",
-			0x4000, u.PdpCPU.Registers[7])
-	}
+			if u.Psw.GetMode() == 3 && u.PdpCPU.Registers[6] != userStackPointer {
+				t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+					userStackPointer, u.PdpCPU.Registers[6])
+			}
 
-	if u.PdpCPU.Registers[6] != 0x2f00 {
-		t.Errorf("Stack pointer not restored correctly. Expected: %04x, got: %04x",
-			0x2f00, u.PdpCPU.Registers[6])
+			if u.Psw.GetMode() == 0 && u.PdpCPU.Registers[6] != kernelStackPointer {
+				t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+					kernelStackPointer, u.PdpCPU.Registers[6])
+			}
+
+		})
 	}
 }
