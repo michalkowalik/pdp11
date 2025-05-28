@@ -947,6 +947,7 @@ func TestCPU_rtiOp(t *testing.T) {
 	}
 }
 
+// TODO: Set initial PSW to 0177777 -> the test should fail. Find out why.
 func TestCPU_trapOp(t *testing.T) {
 	// set the PC at the trap vector
 	u.PdpCPU.unibus.Memory[034>>1] = 0x1000
@@ -960,6 +961,11 @@ func TestCPU_trapOp(t *testing.T) {
 
 	// initial PC
 	u.PdpCPU.Registers[7] = 0x4000
+
+	// set psw
+	u.Psw.Set(0)
+
+	u.PdpCPU.log.Printf("PSW in Test: %O", *u.PdpCPU.unibus.Psw)
 
 	// start in user mode
 	u.PdpCPU.SwitchMode(3)
@@ -987,8 +993,8 @@ func TestCPU_trapOp(t *testing.T) {
 	}
 
 	if u.PdpCPU.Registers[6] != 0x2000-4 {
-		t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
-			0x2000, u.PdpCPU.Registers[6])
+		t.Errorf("Stack pointer not set correctly after popping pc and psw. Expected: %04x, got: %04x",
+			0x2000-4, u.PdpCPU.Registers[6])
 	}
 
 	// Run RTT directly after calling the trap
@@ -1008,7 +1014,7 @@ func TestCPU_trapOp(t *testing.T) {
 	}
 
 	if u.PdpCPU.Registers[6] != 0x2f00 {
-		t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+		t.Errorf("Stack pointer not restored correctly. Expected: %04x, got: %04x",
 			0x2f00, u.PdpCPU.Registers[6])
 	}
 }
