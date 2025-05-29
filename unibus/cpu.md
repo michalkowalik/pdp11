@@ -8,13 +8,14 @@ Instruction operands are six bits in length - three bits for the mode and three 
 The 17th I/D bit in the resulting virtual address represents whether the reference is to **Instruction space** or **Data space** - which depends on combination of the mode and whether the register is the Program Counter (register 7).
 
 ### Registers:
-7 -> PC
-6 -> SP
-0-5 -> General Usage
+* 7 -> PC
+* 6 -> SP
+* 5 -> General Usage
 
 
 ### Addressing Modes:
-The eight modes are:-
+The eight modes are:
+
 |Mode|Mnemonic|Description|
 |----|--------|-----------|
 |0|R|no valid virtual address|
@@ -36,4 +37,4 @@ Also need to keep CPU.MMR1 updated as this stores which registers have been incr
 #### RTI and RTT
 `RTI` and `RTT` instructions are identical on PDP 11/40.
 They differ slightly on /70 and /45, where the nested traps are allowed.
-As this project is currently conentrating on /40 model, the nested traps are removed from the current scope.
+As this project is currently concentrating on /40 model, the nested traps are removed from the current scope.

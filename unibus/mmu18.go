@@ -41,7 +41,7 @@ func (m *MMU18) Read16(addr Uint18) uint16 {
 		return m.pages[i+8].par
 	}
 	panic(interrupts.Trap{
-		Vector: interrupts.INTBus,
+		Vector: interrupts.IntBUS,
 		Msg:    fmt.Sprintf("Attempt to read from invalid address %06o", addr)})
 
 }
@@ -83,7 +83,7 @@ func (m *MMU18) Write16(addr Uint18, data uint16) {
 		return
 	}
 	panic(interrupts.Trap{
-		Vector: interrupts.INTBus,
+		Vector: interrupts.IntBUS,
 		Msg:    fmt.Sprintf("Attempt to write to an invalid address %06o", addr)})
 }
 
@@ -137,7 +137,7 @@ func (m *MMU18) Decode(a uint16, w, user bool) (addr Uint18) {
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
-			Vector: interrupts.INTFault,
+			Vector: interrupts.IntFAULT,
 			Msg:    fmt.Sprintf("Abort: write on read-only page %o\n", a)})
 	}
 	if !p.read() {
@@ -148,7 +148,7 @@ func (m *MMU18) Decode(a uint16, w, user bool) (addr Uint18) {
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
-			Vector: interrupts.INTFault,
+			Vector: interrupts.IntFAULT,
 			Msg:    fmt.Sprintf("read from no-access page %06o", a),
 		})
 	}
@@ -162,7 +162,7 @@ func (m *MMU18) Decode(a uint16, w, user bool) (addr Uint18) {
 		}
 		m.SR2 = m.unibus.PdpCPU.Registers[7]
 		panic(interrupts.Trap{
-			Vector: interrupts.INTFault,
+			Vector: interrupts.IntFAULT,
 			Msg: fmt.Sprintf("page length exceeded, address %06o (block %03o) is beyond %03o",
 				a, block, p.len())})
 	}

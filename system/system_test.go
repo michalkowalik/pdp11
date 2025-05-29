@@ -1,6 +1,8 @@
 package system
 
 import (
+	"go/build"
+	"log"
 	"os"
 	"path/filepath"
 	"pdp/console"
@@ -13,20 +15,19 @@ import (
 // global resources
 var (
 	sys *System
-	mm  unibus.MMU
 	c   console.Console
 )
 
 // TestMain : initialize memory and CPU
 func TestMain(m *testing.M) {
+	l := log.New(os.Stdout, "PDP: ", log.LstdFlags)
 	sys = new(System)
+	sys.log = l
 	c = console.NewSimple()
-	sys.unibus = unibus.New(&sys.psw, nil, &c, false)
-	mm = sys.unibus.Mmu
+	sys.unibus = unibus.New(&sys.psw, nil, &c, false, l)
 
 	sys.unibus.PdpCPU.Reset()
-	//if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
-	if err := sys.unibus.Rk01.Attach(0, filepath.Join("/Users/mkowalik", "src/pdp11/rk0")); err != nil {
+	if err := sys.unibus.Rk01.Attach(0, filepath.Join(build.Default.GOPATH, "src/pdp11/rk0")); err != nil {
 		panic("Can't mount the drive")
 	}
 	sys.unibus.Rk01.Reset()
@@ -42,40 +43,40 @@ var virtualAddressTests = []struct {
 	virtualAddress uint16
 	errorNil       bool
 }{
-	{0, 0177700, true}, // <- Unibus register address
-	{010, 2, true},
-	{020, 2, true},
-	{030, 1, true},
-	{040, 0, true},
-	{050, 4, true},
+	{000, 0177700, true}, // <- Unibus register address
+	{010, 002, true},
+	{020, 002, true},
+	{030, 001, true},
+	{040, 000, true},
+	{050, 004, true},
 	{061, 020, true},
 	{071, 040, true},
 }
 
 func TestGetVirtualAddress(t *testing.T) {
 	for _, test := range virtualAddressTests {
-		// load some value into memory address
-		sys.unibus.Memory[8] = 040
-		sys.unibus.Memory[4] = 8
-		sys.unibus.Memory[2] = 2
-		sys.unibus.Memory[1] = 1
-		sys.unibus.Memory[0] = 4
-		sys.CPU.Registers[0] = 2
+		// load some value into a memory address
+		sys.unibus.Memory[010] = 040
+		sys.unibus.Memory[004] = 010
+		sys.unibus.Memory[002] = 002
+		sys.unibus.Memory[001] = 001
+		sys.unibus.Memory[000] = 004
+		sys.CPU.Registers[000] = 002
 
 		// setup memory and registers for index mode:
 		sys.CPU.Registers[7] = 010
 		sys.CPU.Registers[1] = 010
 
-		virtualAddress := sys.CPU.GetVirtualByMode(test.op, 0)
+		virtualAddress := sys.CPU.GetVirtualAddress(test.op, 0)
 		if virtualAddress != test.virtualAddress {
 			t.Errorf("T: %o : Expected virtual address %o got %o\n", test.op, test.virtualAddress, virtualAddress)
 		}
 	}
 }
 
-// try running few lines of machine code
+// try running a few lines of machine code
 // The memory array is using words, addressing is happening in bytes,
-// hence the value pointing to word 0xff is 0x1FE (or 0776 in octal)
+// hence the value pointing to the word 0xff is 0x1FE (or 0776 in octal)
 func TestRunCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 
@@ -84,7 +85,7 @@ func TestRunCode(t *testing.T) {
 	code := []uint16{
 		012701, // 001000 mov 0xff R1
 		000776, // 001002 000377
-		062711, // 001004 add 2  to memory pointed by R1 -> mem[0xff]  = 4
+		062711, // 001004 add 2 to memory pointed by R1 -> mem[0xff] = 4
 		000002, // 001006
 		000000, // 001010 done, halt
 		000776, // 001012 0377 -> memory address to be loaded to R1
@@ -98,7 +99,7 @@ func TestRunCode(t *testing.T) {
 		memPointer++
 	}
 
-	// set PC to starting point:
+	// set PC to the starting point:
 	sys.CPU.Registers[7] = 002000
 
 	for sys.CPU.State == unibus.CPURUN {
@@ -115,6 +116,7 @@ func TestRunCode(t *testing.T) {
 // the instruction is to start at memory address 0xff
 // and fill the next 256 memory addresses with increasing values
 // bne should break the loop
+// TODO: Assertions for the code
 func TestRunBranchCode(t *testing.T) {
 	sys.CPU.State = unibus.CPURUN
 	code := []uint16{
@@ -138,7 +140,7 @@ func TestRunBranchCode(t *testing.T) {
 		memPointer += 2
 	}
 
-	// set PC to starting point
+	// set PC to the starting point
 	sys.CPU.Registers[7] = 001000
 
 	for sys.CPU.State == unibus.CPURUN {
@@ -162,7 +164,7 @@ func TestTriggerTrap(t *testing.T) {
 		memPointer += 2
 	}
 
-	// set PC to starting point
+	// set PC to a starting point
 	sys.CPU.Registers[7] = 001000
 
 	for sys.CPU.State == unibus.CPURUN {
@@ -180,7 +182,7 @@ func TestInterruptHandling(t *testing.T) {
 
 	sys.unibus.Memory[memPointer>>1] = 06 // RTI
 
-	sys.unibus.Memory[interrupts.INTRK>>1] = memPointer
+	sys.unibus.Memory[interrupts.IntRK>>1] = memPointer
 
 	sys.CPU.Registers[7] = r7Value
 	sys.CPU.Registers[6] = sys.CPU.KernelStackPointer
@@ -189,9 +191,9 @@ func TestInterruptHandling(t *testing.T) {
 	// mode = user, previousMode = user, no flags.
 	sys.unibus.WriteIO(unibus.PSWAddr, initialPSW)
 
-	sys.unibus.SendInterrupt(4, interrupts.INTRK)
-	if sys.unibus.InterruptQueue[0].Vector != interrupts.INTRK {
-		t.Errorf("Expected to have INTRK in the interrupt queue")
+	sys.unibus.SendInterrupt(4, interrupts.IntRK)
+	if sys.unibus.InterruptQueue[0].Vector != interrupts.IntRK {
+		t.Errorf("Expected to have IntRK in the interrupt queue")
 	}
 
 	sys.processInterrupt(sys.unibus.InterruptQueue[0])
@@ -220,7 +222,7 @@ func TestInterruptHandling(t *testing.T) {
 		t.Errorf("Expected SP to be set back to the original value, but got %o\n", sys.CPU.Registers[7])
 	}
 
-	// previous mode should be set to kernel
+	// the previous mode should be set to kernel
 	if sys.unibus.Psw.Get() != initialPSW {
 		t.Errorf("Expected PSW to be set to the original value, but got %x\n", sys.unibus.Psw.Get())
 	}
@@ -229,3 +231,5 @@ func TestInterruptHandling(t *testing.T) {
 		t.Errorf("Stack pointer should be set to the user stack by now")
 	}
 }
+
+// test interrupt handling when CPU in user mode

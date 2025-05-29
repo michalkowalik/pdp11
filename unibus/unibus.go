@@ -2,6 +2,7 @@ package unibus
 
 import (
 	"fmt"
+	"log"
 	"pdp/console"
 	"pdp/interrupts"
 	"pdp/psw"
@@ -37,7 +38,8 @@ type Unibus struct {
 	controlConsole console.Console
 
 	// terminal emulator
-	TermEmulator teletype.Teletype
+	TermEmulator  teletype.Teletype
+	KeyboardInput chan uint8
 
 	// InterruptQueue queue to keep incoming interrupts before processing them
 	InterruptQueue interrupts.InterruptQueue
@@ -53,21 +55,25 @@ type Unibus struct {
 	Rk01 *RK11
 
 	InterruptStack InterruptStack
+
+	log *log.Logger
 }
 
 // New initializes and returns the Unibus variable
-func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMode bool) *Unibus {
+func New(psw *psw.PSW, gui *gocui.Gui, controlConsole *console.Console, debugMode bool, log *log.Logger) *Unibus {
 	unibus := Unibus{}
 
 	unibus.controlConsole = *controlConsole
 	unibus.Psw = psw
+	unibus.log = log
 
 	// initialize attached devices:
 	unibus.Mmu = NewMMU18(&unibus)
-	unibus.PdpCPU = NewCPU(unibus.Mmu, &unibus, debugMode)
+	unibus.PdpCPU = NewCPU(unibus.Mmu, &unibus, debugMode, log)
 
 	// TODO: it needs to be modified, in order to allow the GUI!
-	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue)
+	unibus.KeyboardInput = make(chan uint8)
+	unibus.TermEmulator = teletype.NewSimple(&unibus.InterruptQueue, unibus.KeyboardInput, unibus.log)
 	if err := unibus.TermEmulator.Run(); err != nil {
 		panic("Can't initialize terminal emulator")
 	}
@@ -94,7 +100,7 @@ func (u *Unibus) ReadIO(physicalAddress Uint18) uint16 {
 	switch {
 	case physicalAddress&1 == 1:
 		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
+			Vector: interrupts.IntBUS,
 			Msg:    fmt.Sprintf("Read from the odd address %06o", physicalAddress)})
 	case physicalAddress < MEMSIZE:
 		return u.Memory[physicalAddress>>1]
@@ -120,7 +126,7 @@ func (u *Unibus) ReadIO(physicalAddress Uint18) uint16 {
 		return u.Mmu.Read16(physicalAddress)
 	default:
 		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
+			Vector: interrupts.IntBUS,
 			Msg:    fmt.Sprintf("Read from invalid address %06o", physicalAddress)})
 	}
 }
@@ -138,21 +144,12 @@ func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 	switch {
 	case physicalAddress&1 == 1:
 		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
+			Vector: interrupts.IntBUS,
 			Msg:    fmt.Sprintf("Write the odd address %06o", physicalAddress)})
 	case physicalAddress < MEMSIZE:
 		u.Memory[physicalAddress>>1] = data
 	case physicalAddress == PSWAddr:
 		u.PdpCPU.SwitchMode(data >> 14)
-		switch (data >> 12) & 3 {
-		case 0:
-			u.PdpCPU.previousMode = KernelMode
-			break
-		case 3:
-			u.PdpCPU.previousMode = UserMode
-		default:
-			panic("invalid mode")
-		}
 		u.Psw.Set(data)
 	case physicalAddress&RegAddr == RegAddr:
 		u.setRegisterValue(uint32(physicalAddress), data)
@@ -170,7 +167,7 @@ func (u *Unibus) WriteIO(physicalAddress Uint18, data uint16) {
 		u.Mmu.Write16(physicalAddress, data)
 	default:
 		panic(interrupts.Trap{
-			Vector: interrupts.INTBus,
+			Vector: interrupts.IntBUS,
 			Msg:    fmt.Sprintf("Write to invalid address %06o", physicalAddress)})
 	}
 }

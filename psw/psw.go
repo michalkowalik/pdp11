@@ -31,7 +31,7 @@ func (psw *PSW) Set(p uint16) {
 	*psw = PSW(p)
 }
 
-// Priority - current cpu priority
+// Priority - current interrupt priority
 func (psw *PSW) Priority() uint16 {
 	return uint16((*psw >> 5) & 7)
 }
@@ -41,7 +41,7 @@ func (psw *PSW) GetMode() uint16 {
 	return uint16(*psw >> 14)
 }
 
-func (psw *PSW) getPreviousMode() uint16 {
+func (psw *PSW) GetPreviousMode() uint16 {
 	return uint16((*psw >> 12) & 03)
 }
 
@@ -112,7 +112,7 @@ func (psw *PSW) setFlag(flag uint, status bool) {
 // GetFlags returns set flags
 func (psw *PSW) GetFlags() string {
 	var flags string
-	if psw.getPreviousMode() > 0 {
+	if psw.GetPreviousMode() > 0 {
 		flags = "u"
 	} else {
 		flags = "k"

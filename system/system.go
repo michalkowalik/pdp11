@@ -3,6 +3,7 @@ package system
 import (
 	"fmt"
 	"go/build"
+	"log"
 	"path/filepath"
 	"pdp/console"
 	"pdp/interrupts"
@@ -19,6 +20,7 @@ type System struct {
 
 	// Unibus
 	unibus *unibus.Unibus
+	log    *log.Logger
 
 	// console and status output:
 	console      console.Console
@@ -33,14 +35,15 @@ var (
 
 // InitializeSystem initializes the emulated PDP-11/40 hardware
 func InitializeSystem(
-	c console.Console, terminalView, regView *gocui.View, gui *gocui.Gui, debugMode bool) *System {
+	c console.Console, terminalView, regView *gocui.View, gui *gocui.Gui, debugMode bool, log *log.Logger) *System {
 	sys := new(System)
 	sys.console = c
 	sys.terminalView = terminalView
 	sys.regView = regView
+	sys.log = log
 
 	// unibus
-	sys.unibus = unibus.New(&sys.psw, gui, &c, debugMode)
+	sys.unibus = unibus.New(&sys.psw, gui, &c, debugMode, log)
 	sys.unibus.PdpCPU.Reset()
 
 	// mount drive
@@ -71,6 +74,7 @@ func (sys *System) run() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			sys.log.Printf("SENDING TRAP %o in the run sys.run : %s\n", t.Vector, t.Msg)
 			sys.trap(t)
 		case nil:
 			// ignore
@@ -105,7 +109,7 @@ func (sys *System) step() {
 		clockCounter = 0
 		sys.unibus.LKS |= 1 << 7
 		if sys.unibus.LKS&(1<<6) != 0 {
-			sys.unibus.SendInterrupt(6, interrupts.INTClock)
+			sys.unibus.SendInterrupt(6, interrupts.IntCLOCK)
 		}
 	}
 	sys.unibus.Rk01.Step()
@@ -116,35 +120,55 @@ func (sys *System) step() {
 //  1. push current PSW and PC to stack
 //  2. load PC from interrupt vector
 //  3. load PSW from (interrupt vector) + 2
-//  4. if previous state mode was User, then set the corresponding bits in PSW
-//  5. Return from subprocedure cpu instruction at the end of interrupt procedure
+//  4. if the previous state mode was User, then set the corresponding bits in PSW
+//  5. Return from subprocedure cpu instruction at the end of the interrupt procedure
 //     makes sure to set the stack and PSW back to where it belongs
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 	defer func() {
 		t := recover()
 		switch t := t.(type) {
 		case interrupts.Trap:
+			sys.log.Printf("SENDING TRAP %o while processing interrupt: %s\n", t.Vector, t.Msg)
 			sys.trap(t)
 		case nil:
 			break
 		default:
 			panic(t)
 		}
+
+		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
+		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
+
+		if (intPSW & (1 << 14)) != 0 {
+			fmt.Printf("ALERT: Fetched Interrupt PSW is in user mode")
+		}
+
+		if sys.unibus.Psw.GetPreviousMode() == psw.UserMode {
+			intPSW |= (1 << 13) | (1 << 12)
+		}
+		sys.psw.Set(intPSW)
+		sys.CPU.State = unibus.CPURUN
 	}()
+
+	// DEBUG: push to interrupt stack
+	//if interrupt.Vector != interrupts.IntCLOCK {
+	//	fmt.Printf("processing interrupt with the vector 0%o\n", interrupt.Vector)
+	//}
+	//sys.unibus.InterruptStack.Push(interrupt)
+
+	if interrupt.Vector != interrupts.IntCLOCK {
+		sys.log.Printf("processing interrupt with the vector 0%o\n", interrupt.Vector)
+
+	}
+
+	if sys.psw.GetMode() == psw.UserMode {
+		fmt.Printf("User mode interrupt\n")
+	}
 
 	prev := sys.psw.Get()
 	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prev)
 	sys.CPU.Push(sys.CPU.Registers[7])
-	sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
-	intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
-
-	if (prev & (1 << 14)) > 0 {
-		intPSW |= (1 << 13) | (1 << 12)
-	}
-	sys.psw.Set(intPSW)
-	sys.CPU.State = unibus.CPURUN
-
 }
 
 // Trap handles all Trap / abort events.

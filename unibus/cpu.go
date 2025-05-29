@@ -2,6 +2,7 @@ package unibus
 
 import (
 	"fmt"
+	"log"
 	"pdp/interrupts"
 	"strings"
 )
@@ -23,7 +24,6 @@ const UserMode = 3
 // add debug output to the console
 var (
 	debug      = false
-	plogger    *PLogger
 	debugQueue *DebugQueue
 )
 
@@ -34,11 +34,9 @@ type CPU struct {
 
 	KernelStackPointer, UserStackPointer uint16
 
-	// CPU modes
-	currentMode, previousMode uint16
-
 	unibus *Unibus
 	mmunit MMU
+	log    *log.Logger
 
 	// instructions is a map, where key is the opcode,
 	// and value is the function executing it
@@ -54,19 +52,15 @@ type CPU struct {
 }
 
 // NewCPU initializes and returns the CPU variable:
-func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
-
+func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool, log *log.Logger) *CPU {
 	c := CPU{}
 	c.mmunit = mmunit
 	debug = debugMode
 	c.unibus = unibus
+	c.log = log
 
 	if debug {
-		debugQueue = NewQueue(40)
-	}
-
-	if debugMode {
-		plogger = initLogger("./debug-out.txt")
+		debugQueue = NewQueue(1000)
 	}
 
 	// single operand
@@ -157,7 +151,7 @@ func NewCPU(mmunit MMU, unibus *Unibus, debugMode bool) *CPU {
 	c.controlOpcodes[0103000] = c.bhisOp
 	c.controlOpcodes[0103400] = c.bloOp
 
-	// single register & condition code opcodes
+	// single register and condition code opcodes
 	c.singleRegisterOpcodes[0200] = c.rtsOp
 	c.singleRegisterOpcodes[0240] = c.setFlagOp
 	c.singleRegisterOpcodes[0250] = c.setFlagOp
@@ -246,19 +240,27 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 		for !debugQueue.IsEmpty() {
 			i, e := debugQueue.Dequeue()
 			if e != nil {
-				fmt.Errorf(e.Error())
+				_ = fmt.Errorf(e.Error())
 			}
 			fmt.Printf("%s\n", i)
 		}
 
 	}
-	panic(interrupts.Trap{Vector: interrupts.INTInval, Msg: "Invalid Instruction"})
+	// this should really never happen. replace with Fatalf, and the program will stop here
+	c.log.Fatalf("ERROR: Invalid instruction: %06o", instr)
+	panic(interrupts.Trap{Vector: interrupts.IntINVAL, Msg: "Invalid Instruction"})
 }
 
 // Execute decoded instruction
 func (c *CPU) Execute() {
-	// do nothing if CPU waits for interrupt
 	if c.State == WAIT {
+		select {
+		case v, ok := <-c.unibus.KeyboardInput:
+			if ok {
+				c.unibus.TermEmulator.AddChar(v)
+			}
+		default:
+		}
 		return
 	}
 
@@ -272,28 +274,28 @@ func (c *CPU) Execute() {
 }
 
 func (c *CPU) IsUserMode() bool {
-	return c.currentMode == UserMode
+	return c.unibus.Psw.GetMode() == UserMode
 }
 
 func (c *CPU) IsPrevModeUser() bool {
-	return c.previousMode == UserMode
+	return c.unibus.Psw.GetPreviousMode() == UserMode
 }
 
 // readWord returns value specified by source or destination part of the operand.
 func (c *CPU) readWord(op uint16) uint16 {
-	addr := c.GetVirtualByMode(op, 0)
+	addr := c.GetVirtualAddress(op, 0)
 	return c.mmunit.ReadMemoryWord(addr)
 }
 
 // read byte
 func (c *CPU) readByte(op uint16) byte {
-	addr := c.GetVirtualByMode(op, 1)
+	addr := c.GetVirtualAddress(op, 1)
 	return c.mmunit.ReadMemoryByte(addr)
 }
 
-// writeWord writes word value into specified memory address
+// writeWord writes word value into the specified memory address
 func (c *CPU) writeWord(op, value uint16) {
-	addr := c.GetVirtualByMode(op, 0)
+	addr := c.GetVirtualAddress(op, 0)
 	c.mmunit.WriteMemoryWord(addr, value)
 }
 
@@ -354,41 +356,42 @@ func (c *CPU) GetFlag(flag string) bool {
 }
 
 // SwitchMode switches the kernel / user mode:
-func (c *CPU) SwitchMode(m uint16) {
-	c.previousMode = c.currentMode
-	c.currentMode = m
+func (c *CPU) SwitchMode(mode uint16) {
+	previousMode := c.unibus.Psw.GetMode()
+
+	if mode != previousMode {
+		c.log.Printf("Switching CPU from %d to %d mode", previousMode, mode)
+	}
 
 	// save processor stack pointers:
-	if c.IsPrevModeUser() {
+	if previousMode == UserMode {
 		c.UserStackPointer = c.Registers[6]
 	} else {
 		c.KernelStackPointer = c.Registers[6]
 	}
 
 	// set processor stack:
-	if c.IsUserMode() {
+	if mode == UserMode {
 		c.Registers[6] = c.UserStackPointer
 	} else {
 		c.Registers[6] = c.KernelStackPointer
 	}
 	*c.unibus.Psw &= 000777
-	if c.IsUserMode() {
+	if mode == UserMode {
 		*c.unibus.Psw |= (1 << 15) | (1 << 14)
 	}
-	if c.IsPrevModeUser() {
+	if previousMode == UserMode {
 		*c.unibus.Psw |= (1 << 13) | (1 << 12)
 	}
 }
 
-// GetVirtualByMode returns virtual address extracted from the CPU instruction
-// access mode: 0 for Word, 1 for Byte
-func (c *CPU) GetVirtualByMode(instruction, accessMode uint16) uint16 {
+func (c *CPU) GetVirtualAddress(instruction, accessMode uint16) uint16 {
 	addressInc := uint16(2)
 	reg := instruction & 7
 	addressMode := (instruction >> 3) & 7
 	var virtAddress uint16
 
-	// byte mode
+	// byte mode does not apply to the SP and PC
 	if accessMode == 1 && reg < 6 {
 		addressInc = 1
 	}
@@ -459,7 +462,7 @@ func (c *CPU) Reset() {
 
 /*
 // debug:
-// true if all registers have the same value. don't panic immediately, there might be a panic counter somewhere.
+// true if all registers have matching value. don't panic immediately, there might be a panic counter somewhere.
 func (c *CPU) timeToDie(registers []uint16) bool {
 	for i, v := range c.Registers {
 		if registers[i] != v {

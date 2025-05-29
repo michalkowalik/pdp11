@@ -1,9 +1,9 @@
-
 #+AUTHOR: Michał Kowalik
 #+TITLE: PDP11 Troubleshooting
+#+DATE: <2024-10-03 Thu>
 
 * Troubleshooting
-** The Deadly Trap 250
+** DONE The Deadly Trap 250
     - System starts ok. as a matter of fact identical as DCs
     - which means, that until then it is able to 
         - read from disk
@@ -271,10 +271,35 @@ TRAP 10 occured: Invalid Instruction
 - possibly, there are calls to RTI from outside of interrupt -> this is strange, and should not be.
   - but at least, DC-11 shows the same behavior.
 
-** project update <2023-11-20 Mon> [0/3]
+** project update <2023-11-20 Mon> [2/5]
 - still ~exactly the same~ stack at every execution
 - interrupt handling correct and tested (?)
   - it is tested, and it is handling the clock, disk and terminal interrupts, so probably it is correct
 *** TODO is there anything I should actually look at in the terminal? sending wrong interrupt?
-*** TODO current and previous mode to be moved to the CPU directly
+*** DONE current and previous mode to be moved to the CPU directly
 *** TODO Why is the stack showing the user mode, if rti is being called -> this should operate in kernel mode
+- I don't know how, but here we are - there is an RTI called in the user mode.
+  - [ ] try to figure out what are we returning from?
+  - [ ] as mentioned above, can the RTS have anything to do with that?
+  - RTI should always happen in the kernel mode. this is very very strange.<2024-10-05 Sat>
+    
+*** DONE Stack operations - do they update the SP accordingly?? <2024-10-03 Thu>
+- they do, so it seems
+*** TODO WAIT state - used / what is it needed for?
+
+** TODO project update <2024-10-29 Tue> [0/3]
+- [ ] The ~RTI~ happens in the user mode.
+  - this is not the case in the DCs implementation
+  - this also makes no sense actually.
+- [ ] what are those RTIs happening on an empty stack? 
+  - They are to be seen in the DCs implementation as well, but they seem to be of no consequence?
+- [ ] find out why the RTI is happening in user mode [0/1]
+  - [ ] add more logging
+    - [ ] log to file
+    - [ ] keep the cpu history buffer longer -> 500 ops?
+    - [ ] add more debug information regarding the interrupts:
+      - which interrupt
+      - Vector address
+      - fetched PSW
+      - effective psw after applying previous mode (and why is really the previous mode need in the interrupt processing?)
+- why are there tons of RTTs being called? what is going on there? what trap?

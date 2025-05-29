@@ -5,11 +5,12 @@ import (
 	"log"
 	"os"
 	"pdp/interrupts"
+	//"pdp/logger"
 )
 
 // Simple type  - simplest terminal emulator possible.
 type Simple struct {
-	keyboardInput chan uint8
+	KeyboardInput chan uint8
 
 	// TKS : Reader status Register (addr. xxxx560)
 	// bits in register:
@@ -26,36 +27,42 @@ type Simple struct {
 	// ??
 	TPB uint16
 
-	// ready to receive next order
+	// ready to receive the next order
 	ready bool
 
 	// step delay
 	count uint8
 
 	interruptQueue *interrupts.InterruptQueue
+
+	log *log.Logger
 }
 
-// NewSimple returns new teletype object
-func NewSimple(interruptQueue *interrupts.InterruptQueue) *Simple {
+//var plogger *logger.PLogger
+
+// NewSimple returns the new teletype object
+func NewSimple(interruptQueue *interrupts.InterruptQueue, keyboardInput chan uint8, log *log.Logger) *Simple {
 	tele := Simple{}
 	tele.interruptQueue = interruptQueue
 
+	tele.log = log
+
 	// initialize channels
-	tele.keyboardInput = make(chan uint8)
+	tele.KeyboardInput = keyboardInput
 	return &tele
 }
 
 // GetIncoming returns incoming channel - needed for interface to work
-// dummy method to keep the interface definition happy
+// A placeholder method to keep the interface definition happy
 func (t *Simple) GetIncoming() chan Instruction {
 	return nil
 }
 
-// Run : Start the teletype
+// Run - Start the teletype
 // initialize the go routine to read from the incoming channel.
 func (t *Simple) Run() error {
 	t.ClearTerminal()
-	fmt.Printf("starting teletype terminal\n")
+	fmt.Printf("Starting teletype terminal\n")
 	go t.stdin()
 	return nil
 }
@@ -64,9 +71,9 @@ func (t *Simple) Run() error {
 func (t *Simple) Step() {
 	if t.ready {
 		select {
-		case v, ok := <-t.keyboardInput:
+		case v, ok := <-t.KeyboardInput:
 			if ok {
-				t.addChar(v)
+				t.AddChar(v)
 			}
 		default:
 		}
@@ -82,20 +89,22 @@ func (t *Simple) Step() {
 		t.TPS |= 0x80
 		if t.TPS&(1<<6) != 0 {
 			t.interruptQueue.SendInterrupt(4, interrupts.TTYout)
+			t.log.Printf("Sending TTY interrupt %o\n", interrupts.TTYout)
 		}
 	}
 }
 
 func (t *Simple) stdin() {
 	for _, v := range []byte("unix\n") {
-		t.keyboardInput <- v
+		t.KeyboardInput <- v
 	}
 
 	var b [1]byte
 	for {
 		n, err := os.Stdin.Read(b[:])
 		if n == 1 {
-			t.keyboardInput <- b[0]
+			t.log.Println("Registered keystroke", string(b[:n]))
+			t.KeyboardInput <- b[0]
 		}
 		if err != nil {
 			log.Fatal(err)
@@ -127,7 +136,7 @@ func (t *Simple) writeTerminal(char int) {
 	}
 }
 
-// getChar - return char from keybuffer set registers accordingly
+// getChar - return char from key buffer set registers accordingly
 func (t *Simple) getChar() uint16 {
 	// fmt.Printf("GET CHAR: TKS:%x, TKB:%x\n", t.TKS, t.TKB)
 	if t.TKS&0x80 != 0 {
@@ -138,7 +147,8 @@ func (t *Simple) getChar() uint16 {
 	return 0
 }
 
-func (t *Simple) addChar(char byte) {
+func (t *Simple) AddChar(char byte) {
+	t.log.Println("Adding char", char)
 	switch char {
 	case 42:
 		t.TKB = 4
@@ -182,7 +192,7 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	// output
 	// side note:
 	// The original implementation introduces 1ms timeouts before setting the register value
-	// I'm not sure what should it be good for. anyhow, it looks like it works anyway,
+	// I'm not sure what it should be good for. anyhow, it looks like it works anyway,
 	// so I'm skipping that part.
 	case 0566:
 		t.TPB = data & 0xFF
@@ -194,7 +204,7 @@ func (t *Simple) WriteTerm(address uint32, data uint16) error {
 	return nil
 }
 
-// ReadTerm : read from terminal memory at address
+// ReadTerm - read from terminal memory at address
 func (t *Simple) ReadTerm(address uint32) uint16 {
 	switch address & 0777 {
 	case 0560:

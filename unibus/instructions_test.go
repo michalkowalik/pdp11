@@ -3,6 +3,7 @@ package unibus
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"pdp/console"
 	"pdp/psw"
@@ -17,19 +18,19 @@ type flags struct {
 	n bool
 }
 
-// global shared resources: CPU, memory etc.
+// global shared resources: CPU, memory, etc.
 var c *CPU
 var u *Unibus
 
 // TestMain to rescue -> initialize memory and CPU
 func TestMain(m *testing.M) {
 	p := psw.PSW(0)
-
+	l := log.New(os.Stdout, "TestUnibus: ", log.LstdFlags)
 	var cons console.Console = console.NewSimple()
-	u = New(&p, nil, &cons, false)
+	u = New(&p, nil, &cons, false, l)
 	u.Psw = &p
 	mmu := u.Mmu
-	c = NewCPU(mmu, u, false)
+	c = NewCPU(mmu, u, false, l)
 	os.Exit(m.Run())
 }
 
@@ -48,7 +49,7 @@ func TestCPU_clrOp(t *testing.T) {
 	u.PdpCPU.Registers[0] = 0xff
 	u.PdpCPU.Registers[1] = 0xfe
 
-	// and let's give CPU stack some place to breath:
+	// and let's give the CPU stack some place to breath:
 	u.PdpCPU.Registers[6] = 0xfe
 
 	// come back here!!
@@ -57,7 +58,7 @@ func TestCPU_clrOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			u.PdpCPU.clrOp(tt.args.instruction)
-			// also: check if value is really 0:
+			// also: check if the value is really 0:
 			op := uint16(tt.args.instruction) & 077
 			t.Logf("instruction: %x, op: %x\n", tt.args.instruction, op)
 			w := u.PdpCPU.readWord(op)
@@ -510,7 +511,7 @@ func TestCPU_ashOp(t *testing.T) {
 		carrySet     bool
 	}{
 		{"left shift, no carry", 1, 1, 2, false},
-		{"right shift, no carry", 2, 077, 1, false}, // 077 is -1 for a 6 bit signed number, so shift right by 1
+		{"right shift, no carry", 2, 077, 1, false}, // 077 is -1 for a 6-bit signed number, so shift right by 1
 		{"left shift, carry", 0x8000, 1, 0, true},
 		{"right shift, carry", 1, 077, 0, true},
 	}
@@ -611,30 +612,16 @@ func TestCPU_bicOp(t *testing.T) {
 	}
 }
 
-func TestCPU_rti(t *testing.T) {
-	psw := uint16(0xffff)
-	pc := uint16(0x1111)
-
-	u.PdpCPU.Registers[6] = 0x200 // set SP
-
-	u.PdpCPU.Push(psw)
-	u.PdpCPU.Push(pc)
-
-	u.PdpCPU.rtiOp(0x0)
-
-	if u.PdpCPU.Registers[7] != pc {
-		t.Errorf("expected R7 to be set to %v, got %v", pc, u.PdpCPU.Registers[7])
-	}
-
-	if u.Psw.Get() != psw {
-		t.Errorf("Expected PSW to be set to %v, got %v", psw, u.Psw.Get())
-	}
-}
-
 func TestCPU_rts(t *testing.T) {
-	u.PdpCPU.Registers[6] = 0777 << 1
+	var stackAddr uint16 = 0777 << 1
+	u.PdpCPU.Registers[6] = stackAddr
 	u.PdpCPU.Registers[5] = 0xff // this needs to be loaded to the PC
 	u.PdpCPU.Push(1)             // this should end up in R5
+
+	// stack pointer should be decreased
+	if u.PdpCPU.Registers[6] != stackAddr-2 {
+		t.Errorf("expected RTS to be set to %v, got %v", stackAddr-2, u.PdpCPU.Registers[6])
+	}
 
 	u.PdpCPU.rtsOp(0205) // RTS R5
 
@@ -644,6 +631,11 @@ func TestCPU_rts(t *testing.T) {
 
 	if u.PdpCPU.Registers[5] != 1 {
 		t.Errorf("Expected R5 to be set to 1, got %v", u.PdpCPU.Registers[5])
+	}
+
+	// stack address should be back to where it started
+	if u.PdpCPU.Registers[6] != stackAddr {
+		t.Errorf("Expected R6 to be set to %v, got %v", stackAddr, u.PdpCPU.Registers[6])
 	}
 }
 
@@ -702,6 +694,378 @@ func TestCPU_swabOp(t *testing.T) {
 			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
 				t.Error(err.Error())
 			}
+		})
+	}
+}
+
+func TestCPU_beqOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name       string
+		args       args
+		zFlag      bool
+		initialPC  uint16
+		expectedPC uint16
+	}{
+		{"Branch taken when Z flag set",
+			args{001401}, true, 1000, 1000 + 2}, // offset of 1 word
+		{"Branch not taken when Z flag clear",
+			args{001400}, false, 1000, 1000},
+		{"Branch backward when Z flag set",
+			args{001777}, true, 1000, 1000 - 2}, // negative offset
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u.PdpCPU.Registers[7] = tt.initialPC // Set PC
+			u.PdpCPU.SetFlag("Z", tt.zFlag)      // Set Z flag
+
+			opcode := u.PdpCPU.Decode(tt.args.instruction)
+			opcode(tt.args.instruction)
+
+			if u.PdpCPU.Registers[7] != tt.expectedPC {
+				t.Errorf("PC value incorrect. Expected: %o, got: %o\n",
+					tt.expectedPC, u.PdpCPU.Registers[7])
+			}
+		})
+	}
+}
+
+func TestCPU_tstOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		regVal  uint16
+		flags   flags
+		wantErr bool
+	}{
+		{"Test positive value",
+			args{005700}, 0x0001, flags{false, false, false, false}, false},
+		{"Test zero value",
+			args{005700}, 0x0000, flags{false, false, true, false}, false},
+		{"Test negative value",
+			args{005700}, 0x8000, flags{false, false, false, true}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u.PdpCPU.Registers[0] = tt.regVal
+			u.PdpCPU.SetFlag("C", true) // TST should clear C flag
+			u.PdpCPU.SetFlag("V", true) // TST should clear V flag
+
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
+			instruction(tt.args.instruction)
+
+			// Check flags
+			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
+				t.Errorf("Flag error: %s", err.Error())
+			}
+
+			// Value should remain unchanged
+			if u.PdpCPU.Registers[0] != tt.regVal {
+				t.Errorf("Register value changed: expected %04x, got %04x",
+					tt.regVal, u.PdpCPU.Registers[0])
+			}
+		})
+	}
+}
+
+func TestCPU_rorOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name    string
+		args    args
+		regVal  uint16
+		dst     uint16
+		wantErr bool
+		cFlag   bool
+		nFlag   bool
+		zFlag   bool
+	}{
+		{"Rotate 0x0001 right",
+			args{006000}, 0x0001, 0x8000, false, true, true, false},
+		{"Rotate 0x0002 right",
+			args{006000}, 0x0002, 0x0001, false, false, false, false},
+		{"Rotate zero right",
+			args{006000}, 0x0000, 0x0000, false, false, false, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u.PdpCPU.Registers[0] = tt.regVal
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
+			instruction(tt.args.instruction)
+
+			if u.PdpCPU.Registers[0] != tt.dst {
+				t.Errorf("Expected value: %04x, got: %04x", tt.dst, u.PdpCPU.Registers[0])
+			}
+			if c := u.PdpCPU.GetFlag("C"); c != tt.cFlag {
+				t.Errorf("C flag error. Expected %v, got %v", tt.cFlag, c)
+			}
+			if n := u.PdpCPU.GetFlag("N"); n != tt.nFlag {
+				t.Errorf("N flag error. Expected %v, got %v", tt.nFlag, n)
+			}
+			if z := u.PdpCPU.GetFlag("Z"); z != tt.zFlag {
+				t.Errorf("Z flag error. Expected %v, got %v", tt.zFlag, z)
+			}
+		})
+	}
+}
+
+func TestCPU_jsrOp(t *testing.T) {
+	type args struct {
+		instruction uint16
+	}
+	tests := []struct {
+		name       string
+		args       args
+		initialReg uint16
+		initialPC  uint16
+		initialSP  uint16
+		dstAddr    uint16
+		expectedSP uint16
+	}{
+		{"JSR R1, destination",
+			args{004110}, 0x0002, 0x1000, 0x1000, 0x2000, 0x0FFE},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup initial conditions
+			u.PdpCPU.Registers[7] = tt.initialPC  // PC
+			u.PdpCPU.Registers[6] = tt.initialSP  // SP
+			u.PdpCPU.Registers[1] = tt.initialReg // initial value of the R1
+			u.PdpCPU.Registers[0] = tt.dstAddr    // Destination address
+
+			instruction := u.PdpCPU.Decode(tt.args.instruction)
+			instruction(tt.args.instruction)
+
+			if u.PdpCPU.Registers[1] != tt.initialPC {
+				t.Errorf("PC not copied to the Register. Expected value: %04x, got: %04x",
+					tt.initialPC, u.PdpCPU.Registers[1])
+			}
+
+			// Check if PC was updated to destination
+			if u.PdpCPU.Registers[7] != tt.dstAddr {
+				t.Errorf("PC not set to destination. Expected: %04x, got: %04x",
+					tt.dstAddr, u.PdpCPU.Registers[7])
+			}
+
+			// Check if SP was decremented
+			if u.PdpCPU.Registers[6] != tt.expectedSP {
+				t.Errorf("SP not correctly updated. Expected: %04x, got: %04x",
+					tt.expectedSP, u.PdpCPU.Registers[6])
+			}
+
+			// Check if return address was pushed to stack
+			stackTop := u.Memory[tt.expectedSP>>1]
+			if stackTop != tt.initialReg {
+				t.Errorf("Return address not properly pushed. Expected: %04x, got: %04x",
+					tt.initialReg, stackTop)
+			}
+		})
+	}
+}
+
+func TestCPU_rtiOp(t *testing.T) {
+	tests := []struct {
+		name       string
+		psw        uint16
+		pc         uint16
+		initialSP  uint16
+		expectedSP uint16
+	}{
+		{"RTI to kernel mode",
+			0b0000000011110000, // Test with various flags set
+			0x2000,             // Return address
+			0x2000,             // Initial stack pointer
+			0x2004,             // SP should be incremented by 4 (2 words)
+		},
+		{
+			"RTI to user mode",
+			0xFFFF,
+			0x1000,
+			0x1000,
+			0x1004,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// CPU should be in the kernel mode while servicing interrupt
+			u.Psw.Set(u.Psw.Get() & 0xFFF)
+
+			// set user stack to the expectedSP value
+			// otherwise, the rti to user mode won't work
+			u.PdpCPU.UserStackPointer = tt.initialSP
+
+			if u.PdpCPU.IsUserMode() {
+				t.Errorf("User mode detected")
+			}
+
+			// set the initial stack state
+			u.PdpCPU.Registers[6] = tt.initialSP
+
+			// push test values to the stack
+			u.PdpCPU.Push(tt.psw)
+			u.PdpCPU.Push(tt.pc)
+
+			// set
+			u.PdpCPU.Registers[7] = tt.pc + 2
+			// call RTI
+			u.PdpCPU.rtiOp(0)
+
+			// check if the PC was restored correctly
+			if u.PdpCPU.Registers[7] != tt.pc {
+				t.Errorf("PC not restored correctly. Expected: %04x, got: %04x",
+					tt.pc, u.PdpCPU.Registers[7])
+			}
+
+			// check if the PSW was restored correctly
+			if u.Psw.Get() != tt.psw {
+				t.Errorf("PSW not restored correctly. Expected: %04x, got: %04x",
+					tt.psw, u.Psw.Get())
+			}
+
+			// check if the SP was updated correctly
+			if u.PdpCPU.Registers[6] != tt.initialSP {
+				t.Errorf("SP not restored correctly. Expected: %04x, got: %04x",
+					tt.initialSP, u.PdpCPU.Registers[6])
+			}
+
+			if (tt.psw >> 14) != u.Psw.GetMode() {
+				t.Errorf("Processor mode not restored. Expected: %04x, got: %04x",
+					tt.psw, u.Psw.GetMode())
+			}
+		})
+	}
+}
+
+// TODO: Set initial PSW to 0177777 -> the test should fail. Find out why.
+func TestCPU_trapOp(t *testing.T) {
+
+	tests := []struct {
+		name string
+		psw  uint16
+		pc   uint16
+	}{
+		{"Trap with CPU initially in User mode",
+			0140000, // PSW value
+			0x4000},
+		{"trap with cpu initially in user mode, with previous mode = user",
+			0170000,
+			0x4000},
+		{"trap with cpu initially in kernel mode",
+			0,
+			0x4000},
+		{"trap with cpu initially in kernel mode, with previous mode = user",
+			030000,
+			0x4000},
+	}
+
+	var userStackPointer uint16 = 0x2F00
+	var kernelStackPointer uint16 = 0x2000
+	var trapVector uint16 = 0x1000
+
+	// when commented out, the test fails.
+	// todo: check why. might be interesting!
+	u.PdpCPU.SwitchMode(0)
+	u.Psw.Set(0)
+
+	// set the PC at the trap vector
+	u.PdpCPU.unibus.Memory[034>>1] = 0x1000
+
+	// new PSW
+	u.PdpCPU.unibus.Memory[036>>1] = 0
+
+	// set the stack pointers
+	u.PdpCPU.Registers[6] = kernelStackPointer
+	u.PdpCPU.UserStackPointer = userStackPointer
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// initial PC
+			u.PdpCPU.Registers[7] = tt.pc
+			// set mode and psw
+			if tt.psw&0140000 != 0 {
+				u.PdpCPU.SwitchMode(3)
+			} else {
+				u.PdpCPU.SwitchMode(0)
+			}
+			u.Psw.Set(tt.psw)
+			u.PdpCPU.log.Printf("PSW in Test: %O", *u.PdpCPU.unibus.Psw)
+			u.PdpCPU.log.Printf("Current CPU Mode: %O", u.Psw.GetMode())
+
+			// make sure the stack pointer points to the correct stack
+			if u.Psw.GetMode() == 3 && u.PdpCPU.Registers[6] != userStackPointer {
+				t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+					userStackPointer, u.PdpCPU.Registers[6])
+			}
+
+			if u.Psw.GetMode() == 0 && u.PdpCPU.Registers[6] != kernelStackPointer {
+				t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+					kernelStackPointer, u.PdpCPU.Registers[6])
+			}
+
+			// execute
+			u.PdpCPU.trapOp(0)
+
+			// run assertions
+			// PC set to the address saved under the vector 034
+			if u.PdpCPU.Registers[7] != trapVector {
+				t.Errorf("PC not set correctly. Expected: %04x, got: %04x",
+					trapVector, u.PdpCPU.Registers[7])
+			}
+
+			// Processor is in kernel mode
+			if u.Psw.GetMode() != 0 {
+				t.Errorf("Expected processor to be in the kernel mode")
+			}
+
+			if u.PdpCPU.Registers[6] != kernelStackPointer-4 {
+				t.Errorf("Stack pointer not set correctly after popping pc and psw. Expected: %04x, got: %04x",
+					kernelStackPointer-4, u.PdpCPU.Registers[6])
+			}
+
+			// Run RTT directly after calling the trap
+			u.PdpCPU.unibus.Memory[trapVector>>1] = 6
+			u.PdpCPU.rttOp(0)
+
+			// is processor mode restored?
+			if u.Psw.GetMode() != (tt.psw>>14)&3 {
+				t.Errorf("Processor mode not set correctly. Expected: %04x, got: %04x",
+					tt.psw>>14, u.Psw.GetMode())
+			}
+
+			// is psw restored?
+			if u.Psw.Get() != tt.psw {
+				t.Errorf("PSW not restored correctly. Expected: %04x, got: %04x",
+					tt.psw, u.Psw.Get())
+			}
+
+			// PC and SP are restored to their original values
+			if u.PdpCPU.Registers[7] != tt.pc {
+				t.Errorf("PC not set correctly. Expected: %04x, got: %04x",
+					tt.pc, u.PdpCPU.Registers[7])
+			}
+
+			if u.Psw.GetMode() == 3 && u.PdpCPU.Registers[6] != userStackPointer {
+				t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+					userStackPointer, u.PdpCPU.Registers[6])
+			}
+
+			if u.Psw.GetMode() == 0 && u.PdpCPU.Registers[6] != kernelStackPointer {
+				t.Errorf("Stack pointer not set correctly. Expected: %04x, got: %04x",
+					kernelStackPointer, u.PdpCPU.Registers[6])
+			}
+
 		})
 	}
 }

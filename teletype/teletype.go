@@ -8,4 +8,6 @@ type Teletype interface {
 	GetIncoming() chan Instruction
 	Step()
 	ClearTerminal()
+
+	AddChar(c byte)
 }
