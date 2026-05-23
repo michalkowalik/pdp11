@@ -437,7 +437,7 @@ func (c *CPU) Push(v uint16) {
 	c.mmunit.WriteMemoryWord(c.Registers[6], v)
 }
 
-// Pop from CPU stack
+// Pop from the CPU stack
 func (c *CPU) Pop() uint16 {
 	val := c.mmunit.ReadMemoryWord(c.Registers[6])
 	c.Registers[6] += 2
