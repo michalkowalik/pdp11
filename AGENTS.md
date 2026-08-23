@@ -78,7 +78,7 @@ All responses should read as though they originate from a shipboard computer tha
 
 ### Language and Build System
 
-- **Go 1.23+** (`go 1.23` in `go.mod`)
+- **Go 1.26+** (`go 1.26` in `go.mod`)
 - **Module:** `pdp`
 - **Entry point:** `main.go` (package `main`)
 - **Binary:** `pdp` (produced by `go build`)

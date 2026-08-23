@@ -240,7 +240,7 @@ func (c *CPU) Decode(instr uint16) func(uint16) {
 		for !debugQueue.IsEmpty() {
 			i, e := debugQueue.Dequeue()
 			if e != nil {
-				_ = fmt.Errorf(e.Error())
+				_ = fmt.Errorf("%s", e.Error())
 			}
 			fmt.Printf("%s\n", i)
 		}
