@@ -88,11 +88,11 @@ func (u *Unibus) SendInterrupt(priority uint16, vector uint16) {
 
 // get Register value for address:
 func (u *Unibus) getRegisterValue(addr Uint18) uint16 {
-	return u.PdpCPU.Registers[addr&07]
+	return u.PdpCPU.Registers[(addr>>1)&07]
 }
 
 func (u *Unibus) setRegisterValue(addr uint32, data uint16) {
-	u.PdpCPU.Registers[addr&07] = data
+	u.PdpCPU.Registers[(addr>>1)&07] = data
 }
 
 // ReadIO reads from unibus devices.

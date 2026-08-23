@@ -974,23 +974,24 @@ func TestCPU_trapOp(t *testing.T) {
 	var kernelStackPointer uint16 = 0x2000
 	var trapVector uint16 = 0x1000
 
-	// when commented out, the test fails.
-	// todo: check why. might be interesting!
-	u.PdpCPU.SwitchMode(0)
-	u.Psw.Set(0)
-
 	// set the PC at the trap vector
 	u.PdpCPU.unibus.Memory[034>>1] = 0x1000
 
 	// new PSW
 	u.PdpCPU.unibus.Memory[036>>1] = 0
 
-	// set the stack pointers
-	u.PdpCPU.Registers[6] = kernelStackPointer
+	u.PdpCPU.KernelStackPointer = kernelStackPointer
 	u.PdpCPU.UserStackPointer = userStackPointer
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// initial stack pointer
+			if u.Psw.GetMode() == 3 {
+				u.PdpCPU.Registers[6] = userStackPointer
+			} else {
+				u.PdpCPU.Registers[6] = kernelStackPointer
+			}
+
 			// initial PC
 			u.PdpCPU.Registers[7] = tt.pc
 			// set mode and psw

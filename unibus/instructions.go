@@ -359,7 +359,7 @@ func (c *CPU) swabOp(instruction uint16) {
 
 // mark - used as a part of subroutine return convention on pdp11
 func (c *CPU) markOp(instruction uint16) {
-	c.Registers[6] = c.Registers[7] + (instruction&0xFFFF)<<1
+	c.Registers[6] = c.Registers[7] + (instruction&077)<<1
 	c.Registers[7] = c.Registers[5]
 	c.Registers[5] = c.Pop()
 }
@@ -370,7 +370,7 @@ func (c *CPU) mfpiOp(instruction uint16) {
 	dest := c.GetVirtualAddress(instruction&077, 0)
 
 	switch {
-	case dest == 0177706:
+	case dest == 0177715:
 		if c.IsUserMode() == c.IsPrevModeUser() {
 			val = c.Registers[6]
 		} else {
@@ -400,7 +400,7 @@ func (c *CPU) mtpiOp(instruction uint16) {
 	val := c.Pop()
 
 	switch {
-	case destAddr == 0177706:
+	case destAddr == 0177715:
 		if c.IsUserMode() == c.IsPrevModeUser() {
 			c.Registers[6] = val
 		} else {
@@ -498,36 +498,17 @@ func (c *CPU) iotOp(_ uint16) {
 
 // rti - return from interrupt
 func (c *CPU) rtiOp(_ uint16) {
-	c.log.Printf("calling rti \n")
-	// DEBUG: POP from interrupt stack
-	//c.unibus.InterruptStack.Pop()
-
 	c.Registers[7] = c.Pop()
-	val := c.Pop()      // pop the PSW
-	if c.IsUserMode() { // why does it happen at all?
-		// DEBUG code
-		c.log.Printf("interrupt return in user mode\n")
-
-		// why is that needed at all??
-		val &= 047                          // Save the flags
-		val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
-	}
+	val := c.Pop() // pop the PSW
 	c.unibus.WriteIO(PSWAddr, val)
 }
 
 // rtt - return from trap
+// On the PDP-11/40, RTI and RTT are identical.
 func (c *CPU) rttOp(_ uint16) {
-	//c.unibus.InterruptStack.Pop()
-
 	c.Registers[7] = c.Pop()
-	val := c.Pop()      // pop the PSW
-	if c.IsUserMode() { // why does it happen at all?
-		c.log.Printf("Trap return in user mode\n")
-		val &= 047                          // Save the flags
-		val |= c.unibus.Psw.Get() & 0177730 // how is that correct?
-	}
+	val := c.Pop() // pop the PSW
 	c.unibus.WriteIO(PSWAddr, val)
-	// c.rtiOp(instruction)
 }
 
 // wait for interrupt
@@ -865,6 +846,8 @@ func (c *CPU) sobOp(instruction uint16) {
 // todo: add test
 func (c *CPU) trapOpcode(vector uint16) {
 	prevPs := c.unibus.Psw.Get()
+	oldMode := prevPs >> 14
+
 	c.SwitchMode(psw.KernelMode)
 
 	// push current PS and PC to stack
@@ -874,11 +857,10 @@ func (c *CPU) trapOpcode(vector uint16) {
 	// load PC and PS from trap vector location
 	c.Registers[7] = c.mmunit.ReadMemoryWord(vector)
 	newPsw := c.mmunit.ReadMemoryWord(vector + 2)
-	if prevPs&(1<<14) > 0 {
-		newPsw |= (1 << 13) | (1 << 12)
-	}
 
-	// todo -> can the new PSW set the cpu to the user mode?
+	// current mode becomes kernel, previous mode is the mode we came from
+	newPsw = (newPsw &^ (03 << 14)) | (psw.KernelMode << 14)
+	newPsw = (newPsw &^ (03 << 12)) | (oldMode << 12)
 
 	c.unibus.Psw.Set(newPsw)
 }
