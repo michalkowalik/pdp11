@@ -43,7 +43,7 @@ var virtualAddressTests = []struct {
 	virtualAddress uint16
 	errorNil       bool
 }{
-	{000, 0177700, true}, // <- Unibus register address
+	{000, 0177701, true}, // <- Unibus register address (mode 0 synthetic odd address)
 	{010, 002, true},
 	{020, 002, true},
 	{030, 001, true},
