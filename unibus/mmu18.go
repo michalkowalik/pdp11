@@ -47,8 +47,8 @@ func (m *MMU18) Read16(addr Uint18) uint16 {
 }
 
 func (m *MMU18) ReadMemoryWord(a uint16) uint16 {
-	if a&0177770 == RegisterAddressVirtual {
-		return m.unibus.PdpCPU.Registers[a&7]
+	if a&0177760 == RegisterAddressVirtual && a&1 == 1 {
+		return m.unibus.PdpCPU.Registers[(a>>1)&7]
 	}
 
 	pAddr := m.Decode(a, false, m.unibus.PdpCPU.IsUserMode())
@@ -56,8 +56,8 @@ func (m *MMU18) ReadMemoryWord(a uint16) uint16 {
 }
 
 func (m *MMU18) ReadMemoryByte(a uint16) byte {
-	if a&0177770 == RegisterAddressVirtual {
-		return byte(m.unibus.PdpCPU.Registers[a&7] & 0xff)
+	if a&0177760 == RegisterAddressVirtual && a&1 == 1 {
+		return byte(m.unibus.PdpCPU.Registers[(a>>1)&7] & 0xff)
 	}
 
 	pAddr := m.Decode(a, false, m.unibus.PdpCPU.IsUserMode())
@@ -88,8 +88,8 @@ func (m *MMU18) Write16(addr Uint18, data uint16) {
 }
 
 func (m *MMU18) WriteMemoryWord(addr, data uint16) {
-	if addr&0177770 == RegisterAddressVirtual {
-		m.unibus.PdpCPU.Registers[addr&7] = data
+	if addr&0177760 == RegisterAddressVirtual && addr&1 == 1 {
+		m.unibus.PdpCPU.Registers[(addr>>1)&7] = data
 		return
 	}
 
@@ -99,8 +99,8 @@ func (m *MMU18) WriteMemoryWord(addr, data uint16) {
 
 func (m *MMU18) WriteMemoryByte(addr uint16, data byte) {
 	// modify register directly:
-	if (addr & 0177770) == 0177700 {
-		m.unibus.PdpCPU.Registers[addr&7] = uint16(data)
+	if (addr&0177760 == RegisterAddressVirtual) && addr&1 == 1 {
+		m.unibus.PdpCPU.Registers[(addr>>1)&7] = uint16(data)
 		return
 	}
 

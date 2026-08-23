@@ -92,7 +92,7 @@ func (sys *System) run() {
 func (sys *System) step() {
 	// handle interrupts
 	if sys.unibus.InterruptQueue[0].Vector > 0 &&
-		sys.unibus.InterruptQueue[0].Priority >= sys.psw.Priority() {
+		sys.unibus.InterruptQueue[0].Priority > sys.psw.Priority() {
 		sys.processInterrupt(sys.unibus.InterruptQueue[0])
 		for i := 0; i < len(sys.unibus.InterruptQueue)-1; i++ {
 			sys.unibus.InterruptQueue[i] = sys.unibus.InterruptQueue[i+1]
@@ -124,6 +124,9 @@ func (sys *System) step() {
 //  5. Return from subprocedure cpu instruction at the end of the interrupt procedure
 //     makes sure to set the stack and PSW back to where it belongs
 func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
+	prev := sys.psw.Get()
+	oldMode := prev >> 14
+
 	defer func() {
 		t := recover()
 		switch t := t.(type) {
@@ -139,33 +142,22 @@ func (sys *System) processInterrupt(interrupt interrupts.Interrupt) {
 		sys.CPU.Registers[7] = sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector)
 		intPSW := sys.unibus.Mmu.ReadMemoryWord(interrupt.Vector + 2)
 
-		if (intPSW & (1 << 14)) != 0 {
-			fmt.Printf("ALERT: Fetched Interrupt PSW is in user mode")
-		}
+		// current mode becomes kernel, previous mode is the mode at interrupt time
+		intPSW = (intPSW &^ (03 << 14)) | (psw.KernelMode << 14)
+		intPSW = (intPSW &^ (03 << 12)) | (oldMode << 12)
 
-		if sys.unibus.Psw.GetPreviousMode() == psw.UserMode {
-			intPSW |= (1 << 13) | (1 << 12)
-		}
 		sys.psw.Set(intPSW)
 		sys.CPU.State = unibus.CPURUN
 	}()
 
-	// DEBUG: push to interrupt stack
-	//if interrupt.Vector != interrupts.IntCLOCK {
-	//	fmt.Printf("processing interrupt with the vector 0%o\n", interrupt.Vector)
-	//}
-	//sys.unibus.InterruptStack.Push(interrupt)
-
 	if interrupt.Vector != interrupts.IntCLOCK {
 		sys.log.Printf("processing interrupt with the vector 0%o\n", interrupt.Vector)
-
 	}
 
 	if sys.psw.GetMode() == psw.UserMode {
 		fmt.Printf("User mode interrupt\n")
 	}
 
-	prev := sys.psw.Get()
 	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prev)
 	sys.CPU.Push(sys.CPU.Registers[7])
@@ -199,13 +191,14 @@ func (sys *System) trap(trap interrupts.Trap) {
 	}
 
 	prevPSW = sys.psw.Get()
+	oldMode := prevPSW >> 14
 	sys.CPU.SwitchMode(psw.KernelMode)
 	sys.CPU.Push(prevPSW)
 	sys.CPU.Push(sys.CPU.Registers[7])
 
 	sys.CPU.Registers[7] = sys.unibus.ReadIO(unibus.Uint18(trap.Vector))
-	sys.unibus.Psw.Set(sys.unibus.ReadIO(unibus.Uint18(trap.Vector) + 2))
-	if sys.CPU.IsPrevModeUser() { // user mode
-		sys.psw.Set(sys.psw.Get() | (1 << 13) | (1 << 12))
-	}
+	newPsw := sys.unibus.ReadIO(unibus.Uint18(trap.Vector) + 2)
+	newPsw = (newPsw &^ (03 << 14)) | (psw.KernelMode << 14)
+	newPsw = (newPsw &^ (03 << 12)) | (oldMode << 12)
+	sys.unibus.Psw.Set(newPsw)
 }

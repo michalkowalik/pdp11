@@ -27,3 +27,27 @@
 # Open questions
 - Why is RTT being called all the time for the interrupt return? 
   I get, they're almost the same, but why not RTI?
+  - seems it was just like that :shrug
+
+- mode change - probably okay, but what is going on there really?
+
+# what is happening (probably)
+```
+PDP 2025/05/29 14:26:31 simple.go:151: Adding char 10
+PDP 2025/05/29 14:26:31 system.go:160: processing interrupt with the vector 060
+PDP 2025/05/29 14:26:31 simple.go:92: Sending TTY interrupt 64
+PDP 2025/05/29 14:26:31 system.go:160: processing interrupt with the vector 064
+PDP 2025/05/29 14:26:31 simple.go:92: Sending TTY interrupt 64
+PDP 2025/05/29 14:26:31 system.go:160: processing interrupt with the vector 064
+PDP 2025/05/29 14:26:31 cpu.go:363: Switching CPU from 0 to 3 mode
+PDP 2025/05/29 14:26:31 instructions.go:501: calling rti 
+PDP 2025/05/29 14:26:31 instructions.go:509: interrupt return in user mode
+PDP 2025/05/29 14:26:31 cpu.go:250: ERROR: Invalid instruction: 177770
+
+```
+- the tty interrupts are serviced
+- shell calls the program to be executed (?)
+- CPU enters user mode
+  - what are the _all_ ways to enter the user mode?
+- somewhere there, probably very early in the process, _something_ goes very, very bad.
+  - and we always end up in the same place: Invalid instruction 0177770

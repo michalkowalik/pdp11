@@ -398,8 +398,10 @@ func (c *CPU) GetVirtualAddress(instruction, accessMode uint16) uint16 {
 
 	switch addressMode {
 	case 0:
-		// register contains operand
-		virtAddress = 0177700 | reg
+		// register contains operand: return a synthetic odd address so that the
+		// MMU register-file check can distinguish it from direct word access to
+		// the register file (which uses even addresses).
+		virtAddress = 0177701 | (reg << 1)
 	case 1:
 		// register contains the address of the operand
 		virtAddress = c.Registers[reg]
@@ -437,7 +439,7 @@ func (c *CPU) Push(v uint16) {
 	c.mmunit.WriteMemoryWord(c.Registers[6], v)
 }
 
-// Pop from CPU stack
+// Pop from the CPU stack
 func (c *CPU) Pop() uint16 {
 	val := c.mmunit.ReadMemoryWord(c.Registers[6])
 	c.Registers[6] += 2
