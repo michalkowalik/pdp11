@@ -571,7 +571,7 @@ func TestCPU_subOp(t *testing.T) {
 
 			// check flags
 			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
-				t.Errorf(err.Error())
+				t.Error(err)
 			}
 		})
 	}
@@ -606,7 +606,7 @@ func TestCPU_bicOp(t *testing.T) {
 
 			// check flags
 			if err := assertFlags(tt.flags, u.PdpCPU); err != nil {
-				t.Errorf(err.Error())
+				t.Error(err)
 			}
 		})
 	}
